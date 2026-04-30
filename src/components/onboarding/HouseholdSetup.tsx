@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useAuthStore } from "@/store/authStore";
+import { createClient } from "@/lib/supabase/client";
 
 export function HouseholdSetup() {
   const { user, setHouseholdId } = useAuthStore();
@@ -12,14 +13,32 @@ export function HouseholdSetup() {
   const [createdCode, setCreatedCode] = useState("");
 
   const createHousehold = async () => {
+    if (!user) return;
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/household/create", { method: "POST" });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      setCreatedCode(data.invite_code);
-      setHouseholdId(data.household_id, data.invite_code);
+      const supabase = createClient();
+
+      const { data: household, error: hErr } = await supabase
+        .from("households")
+        .insert({ name: "our home" })
+        .select()
+        .single();
+      if (hErr || !household) throw new Error(hErr?.message ?? "failed to create household");
+
+      const { error: mErr } = await supabase
+        .from("household_members")
+        .insert({ household_id: household.id, user_id: user.id });
+      if (mErr) throw new Error(mErr.message);
+
+      await supabase.from("calendar_settings").insert({
+        household_id: household.id,
+        selected_colors: [],
+        start_date: new Date().toISOString().split("T")[0],
+      });
+
+      setCreatedCode(household.invite_code);
+      setHouseholdId(household.id, household.invite_code);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "something went wrong");
     }
@@ -27,17 +46,25 @@ export function HouseholdSetup() {
   };
 
   const joinHousehold = async () => {
+    if (!user) return;
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/household/join", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ invite_code: inviteInput }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      setHouseholdId(data.household_id);
+      const supabase = createClient();
+
+      const { data: household, error: hErr } = await supabase
+        .from("households")
+        .select("id, invite_code")
+        .eq("invite_code", inviteInput.toUpperCase())
+        .single();
+      if (hErr || !household) throw new Error("invite code not found");
+
+      const { error: mErr } = await supabase
+        .from("household_members")
+        .insert({ household_id: household.id, user_id: user.id });
+      if (mErr && !mErr.message.includes("duplicate")) throw new Error(mErr.message);
+
+      setHouseholdId(household.id);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "something went wrong");
     }
