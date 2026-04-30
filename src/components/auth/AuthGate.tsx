@@ -21,15 +21,15 @@ export function AuthGate() {
       <div className="w-full max-w-xs space-y-8">
         <div className="space-y-1">
           <p className="text-[10px] tracking-widest text-muted-foreground uppercase">welcome</p>
-          <h1 className="text-2xl tracking-wide">いえ</h1>
-          <p className="text-[11px] text-muted-foreground">家事・タスク共有アプリ</p>
+          <h1 className="text-2xl tracking-wide">home</h1>
+          <p className="text-[11px] text-muted-foreground">shared household app</p>
         </div>
 
         <button
           onClick={signIn}
           className="w-full border border-border rounded px-4 py-3 text-[12px] tracking-wider hover:bg-muted transition-colors text-left"
         >
-          Googleでログイン
+          sign in with google
         </button>
       </div>
     </div>

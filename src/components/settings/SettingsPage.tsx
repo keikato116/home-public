@@ -22,7 +22,7 @@ export function SettingsPage() {
         <div className="flex items-center justify-between">
           <div>
             <p className="text-[10px] tracking-widest text-muted-foreground uppercase">settings</p>
-            <h2 className="text-[22px] tracking-wide">設定</h2>
+            <h2 className="text-[22px] tracking-wide">settings</h2>
           </div>
           <button
             onClick={() => setSettingsOpen(false)}
@@ -34,9 +34,9 @@ export function SettingsPage() {
 
         {inviteCode && (
           <div className="space-y-2">
-            <p className="text-[10px] tracking-widest text-muted-foreground uppercase">招待コード</p>
+            <p className="text-[10px] tracking-widest text-muted-foreground uppercase">invite code</p>
             <p className="text-xl tracking-widest font-medium">{inviteCode}</p>
-            <p className="text-[11px] text-muted-foreground">このコードを共有相手に送ってください</p>
+            <p className="text-[11px] text-muted-foreground">share this code with your partner</p>
           </div>
         )}
 
@@ -52,7 +52,7 @@ export function SettingsPage() {
             className="flex items-center gap-2 text-[11px] text-muted-foreground hover:text-foreground transition-colors tracking-wider"
           >
             <LogOut size={12} />
-            ログアウト
+            sign out
           </button>
         </div>
       </div>

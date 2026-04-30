@@ -25,21 +25,21 @@ export function RecipeTab() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <p className="text-[10px] tracking-widest text-muted-foreground uppercase">recipe</p>
-          <h2 className="text-[22px] tracking-wide">レシピ</h2>
+          <h2 className="text-[22px] tracking-wide">recipes</h2>
         </div>
         <button
           onClick={() => setAdding(true)}
           className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
         >
           <Plus size={12} />
-          <span className="tracking-wider">追加</span>
+          <span className="tracking-wider">add</span>
         </button>
       </div>
 
-      {loading && <p className="text-[11px] text-muted-foreground">読み込み中...</p>}
+      {loading && <p className="text-[11px] text-muted-foreground">loading...</p>}
 
       {!loading && recipes.length === 0 && (
-        <p className="text-[11px] text-muted-foreground">レシピがありません。追加してください。</p>
+        <p className="text-[11px] text-muted-foreground">no recipes yet. add one to get started.</p>
       )}
 
       <div className="flex-1 overflow-y-auto">

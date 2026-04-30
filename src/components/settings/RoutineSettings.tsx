@@ -6,7 +6,7 @@ import { useTodoStore } from "@/store/todoStore";
 import { useAuthStore } from "@/store/authStore";
 import { Plus } from "lucide-react";
 
-const DAYS = ["日", "月", "火", "水", "木", "金", "土"];
+const DAYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 
 export function RoutineSettings() {
   const { routineDefinitions, addRoutine, deleteRoutine } = useSettingsStore();
@@ -38,17 +38,21 @@ export function RoutineSettings() {
     if (householdId) await reloadTodos(householdId);
   };
 
+  const frequencyLabel = (r: typeof routineDefinitions[0]) => {
+    if (r.frequency === "daily") return "daily";
+    if (r.frequency === "weekly") return `every ${DAYS[r.day_of_week ?? 0]}`;
+    return `monthly (${r.day_of_month})`;
+  };
+
   return (
     <div className="space-y-4">
-      <p className="text-[10px] tracking-widest text-muted-foreground uppercase">ルーティン管理</p>
+      <p className="text-[10px] tracking-widest text-muted-foreground uppercase">routines</p>
 
       <div className="space-y-0">
         {routineDefinitions.map((r) => (
           <div key={r.id} className="flex items-center gap-3 py-2.5 border-b border-border group">
             <span className="text-[12px] tracking-wide flex-1">{r.label}</span>
-            <span className="text-[10px] text-muted-foreground">
-              {r.frequency === "daily" ? "毎日" : r.frequency === "weekly" ? `毎週${DAYS[r.day_of_week ?? 0]}` : `毎月${r.day_of_month}日`}
-            </span>
+            <span className="text-[10px] text-muted-foreground">{frequencyLabel(r)}</span>
             <button
               onClick={() => handleDelete(r.id)}
               className="text-[11px] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity hover:text-foreground"
@@ -65,7 +69,7 @@ export function RoutineSettings() {
           className="flex items-center gap-2 text-[11px] text-muted-foreground hover:text-foreground transition-colors py-1"
         >
           <Plus size={11} />
-          <span className="tracking-wider">追加</span>
+          <span className="tracking-wider">add routine</span>
         </button>
       ) : (
         <form onSubmit={submit} className="space-y-4 pt-2">
@@ -74,7 +78,7 @@ export function RoutineSettings() {
             type="text"
             value={label}
             onChange={(e) => setLabel(e.target.value)}
-            placeholder="タスク名..."
+            placeholder="task name..."
             className="w-full bg-transparent border-b border-border pb-1 text-[12px] focus:outline-none focus:border-foreground/40 placeholder:text-muted-foreground"
           />
 
@@ -88,7 +92,7 @@ export function RoutineSettings() {
                   frequency === f ? "bg-foreground text-background border-foreground" : "border-border text-muted-foreground"
                 }`}
               >
-                {f === "daily" ? "毎日" : f === "weekly" ? "毎週" : "毎月"}
+                {f}
               </button>
             ))}
           </div>
@@ -120,16 +124,16 @@ export function RoutineSettings() {
                 max={31}
                 className="w-20 bg-transparent border-b border-border pb-1 text-[12px] focus:outline-none focus:border-foreground/40"
               />
-              <span className="text-[12px] text-muted-foreground ml-1">日</span>
+              <span className="text-[12px] text-muted-foreground ml-1">th</span>
             </div>
           )}
 
           <div className="flex gap-3">
             <button type="submit" disabled={!label.trim()} className="text-[11px] tracking-wider disabled:opacity-40">
-              追加
+              add
             </button>
             <button type="button" onClick={() => setOpen(false)} className="text-[11px] text-muted-foreground">
-              キャンセル
+              cancel
             </button>
           </div>
         </form>

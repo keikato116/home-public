@@ -20,7 +20,7 @@ export function CalendarTab() {
 
   const formatGroupDate = (dateStr: string) => {
     const d = new Date(dateStr + "T00:00:00");
-    return d.toLocaleDateString("ja-JP", { month: "long", day: "numeric", weekday: "short" });
+    return d.toLocaleDateString("en-US", { month: "long", day: "numeric", weekday: "short" });
   };
 
   return (
@@ -28,12 +28,12 @@ export function CalendarTab() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <p className="text-[10px] tracking-widest text-muted-foreground uppercase">calendar</p>
-          <h2 className="text-[22px] tracking-wide">カレンダー</h2>
+          <h2 className="text-[22px] tracking-wide">calendar</h2>
         </div>
         <button
           onClick={() => householdId && load(householdId, accessToken)}
           className="text-muted-foreground hover:text-foreground transition-colors"
-          aria-label="更新"
+          aria-label="refresh"
         >
           <RefreshCw size={13} />
         </button>
@@ -45,11 +45,11 @@ export function CalendarTab() {
         </div>
       )}
 
-      {loading && <p className="text-[11px] text-muted-foreground">読み込み中...</p>}
+      {loading && <p className="text-[11px] text-muted-foreground">loading...</p>}
 
       {!loading && !error && dates.length === 0 && (
         <p className="text-[11px] text-muted-foreground">
-          予定がありません。設定でカレンダーの色を選択してください。
+          no events found. select calendar colors in settings.
         </p>
       )}
 

@@ -5,12 +5,12 @@ import { useShoppingStore } from "@/store/shoppingStore";
 import { useAuthStore } from "@/store/authStore";
 import { Plus } from "lucide-react";
 
-const CATEGORIES = ["野菜", "肉・魚", "乳製品", "調味料", "飲み物", "日用品", "その他"];
+const CATEGORIES = ["produce", "meat & fish", "dairy", "pantry", "drinks", "household", "other"];
 
 export function AddShoppingItemForm() {
   const [open, setOpen] = useState(false);
   const [label, setLabel] = useState("");
-  const [category, setCategory] = useState("その他");
+  const [category, setCategory] = useState("other");
   const { addItem } = useShoppingStore();
   const { householdId } = useAuthStore();
 
@@ -29,7 +29,7 @@ export function AddShoppingItemForm() {
         className="flex items-center gap-2 text-[11px] text-muted-foreground hover:text-foreground transition-colors py-2"
       >
         <Plus size={12} />
-        <span className="tracking-wider">追加</span>
+        <span className="tracking-wider">add item</span>
       </button>
     );
   }
@@ -41,7 +41,7 @@ export function AddShoppingItemForm() {
         type="text"
         value={label}
         onChange={(e) => setLabel(e.target.value)}
-        placeholder="商品名..."
+        placeholder="item name..."
         className="w-full bg-transparent border-b border-border pb-1 text-[12px] focus:outline-none focus:border-foreground/40 placeholder:text-muted-foreground"
         onKeyDown={(e) => e.key === "Escape" && setOpen(false)}
       />
@@ -63,10 +63,10 @@ export function AddShoppingItemForm() {
       </div>
       <div className="flex gap-3">
         <button type="submit" disabled={!label.trim()} className="text-[11px] tracking-wider disabled:opacity-40">
-          追加
+          add
         </button>
         <button type="button" onClick={() => setOpen(false)} className="text-[11px] text-muted-foreground">
-          キャンセル
+          cancel
         </button>
       </div>
     </form>

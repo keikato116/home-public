@@ -5,10 +5,10 @@ import { cn } from "@/lib/utils";
 import { Settings } from "lucide-react";
 
 const TABS = [
-  { id: "home", label: "ホーム" },
-  { id: "shopping", label: "買い物" },
-  { id: "calendar", label: "カレンダー" },
-  { id: "recipe", label: "レシピ" },
+  { id: "home", label: "home" },
+  { id: "shopping", label: "shopping" },
+  { id: "calendar", label: "calendar" },
+  { id: "recipe", label: "recipe" },
 ];
 
 export function BottomTabBar() {
@@ -36,7 +36,7 @@ export function BottomTabBar() {
       <button
         onClick={() => setSettingsOpen(true)}
         className="px-4 py-3 text-muted-foreground hover:text-foreground transition-colors"
-        aria-label="設定"
+        aria-label="settings"
       >
         <Settings size={14} />
       </button>

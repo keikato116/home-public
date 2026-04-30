@@ -25,14 +25,14 @@ export function ShoppingTab() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <p className="text-[10px] tracking-widest text-muted-foreground uppercase">shopping</p>
-          <h2 className="text-[22px] tracking-wide">買い物リスト</h2>
+          <h2 className="text-[22px] tracking-wide">shopping list</h2>
         </div>
         {hasDone && (
           <button
             onClick={() => householdId && clearDone(householdId)}
             className="text-[10px] tracking-wider text-muted-foreground hover:text-foreground transition-colors"
           >
-            完了を削除
+            clear done
           </button>
         )}
       </div>

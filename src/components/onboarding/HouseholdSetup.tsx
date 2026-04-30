@@ -21,7 +21,7 @@ export function HouseholdSetup() {
       setCreatedCode(data.invite_code);
       setHouseholdId(data.household_id, data.invite_code);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "エラーが発生しました");
+      setError(e instanceof Error ? e.message : "something went wrong");
     }
     setLoading(false);
   };
@@ -39,7 +39,7 @@ export function HouseholdSetup() {
       if (!res.ok) throw new Error(data.error);
       setHouseholdId(data.household_id);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "エラーが発生しました");
+      setError(e instanceof Error ? e.message : "something went wrong");
     }
     setLoading(false);
   };
@@ -49,7 +49,7 @@ export function HouseholdSetup() {
       <div className="w-full max-w-xs space-y-8">
         <div className="space-y-1">
           <p className="text-[10px] tracking-widest text-muted-foreground uppercase">setup</p>
-          <h1 className="text-xl tracking-wide">はじめましょう</h1>
+          <h1 className="text-xl tracking-wide">get started</h1>
           <p className="text-[11px] text-muted-foreground">{user?.email}</p>
         </div>
 
@@ -59,25 +59,25 @@ export function HouseholdSetup() {
               onClick={() => { setMode("create"); createHousehold(); }}
               className="w-full border border-border rounded px-4 py-3 text-[12px] tracking-wider hover:bg-muted transition-colors text-left"
             >
-              新しい家族を作る
+              create a new household
             </button>
             <button
               onClick={() => setMode("join")}
               className="w-full border border-border rounded px-4 py-3 text-[12px] tracking-wider hover:bg-muted transition-colors text-left"
             >
-              招待コードで参加
+              join with invite code
             </button>
           </div>
         )}
 
         {mode === "create" && (
           <div className="space-y-4">
-            {loading && <p className="text-[11px] text-muted-foreground">作成中...</p>}
+            {loading && <p className="text-[11px] text-muted-foreground">creating...</p>}
             {createdCode && (
               <div className="space-y-2">
                 <p className="text-[10px] tracking-widest text-muted-foreground uppercase">invite code</p>
                 <p className="text-2xl tracking-widest font-medium">{createdCode}</p>
-                <p className="text-[11px] text-muted-foreground">このコードを相手に送ってください</p>
+                <p className="text-[11px] text-muted-foreground">share this code with your partner</p>
               </div>
             )}
             {error && <p className="text-[11px] text-red-500">{error}</p>}
@@ -103,13 +103,13 @@ export function HouseholdSetup() {
               disabled={loading || inviteInput.length < 6}
               className="w-full bg-foreground text-background rounded px-4 py-3 text-[12px] tracking-wider disabled:opacity-40"
             >
-              {loading ? "参加中..." : "参加する"}
+              {loading ? "joining..." : "join"}
             </button>
             <button
               onClick={() => setMode("select")}
               className="w-full text-[11px] text-muted-foreground hover:text-foreground"
             >
-              戻る
+              back
             </button>
           </div>
         )}

@@ -23,7 +23,7 @@ export function RecipeCard({ recipe, onClick }: Props) {
           />
         ) : (
           <span className="text-muted-foreground text-[10px] tracking-widest">
-            {recipe.source_type === "manual" ? "手入力" : recipe.source_type === "url" ? "URL" : "写真"}
+            {recipe.source_type === "manual" ? "manual" : recipe.source_type === "url" ? "url" : "photo"}
           </span>
         )}
       </div>

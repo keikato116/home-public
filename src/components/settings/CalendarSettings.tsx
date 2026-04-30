@@ -29,10 +29,10 @@ export function CalendarSettings() {
 
   return (
     <div className="space-y-4">
-      <p className="text-[10px] tracking-widest text-muted-foreground uppercase">カレンダー設定</p>
+      <p className="text-[10px] tracking-widest text-muted-foreground uppercase">calendar</p>
 
       <div>
-        <p className="text-[11px] text-muted-foreground mb-3">表示する予定の色</p>
+        <p className="text-[11px] text-muted-foreground mb-3">show events with these colors</p>
         <div className="grid grid-cols-3 gap-2">
           {Object.entries(GOOGLE_COLOR_MAP).map(([id, name]) => (
             <label key={id} className="flex items-center gap-2 cursor-pointer">
@@ -58,12 +58,12 @@ export function CalendarSettings() {
             className="w-3 h-3"
           />
           <span className="w-2.5 h-2.5 rounded-full bg-muted-foreground flex-shrink-0" />
-          <span className="text-[10px] tracking-wide">デフォルト</span>
+          <span className="text-[10px] tracking-wide">default</span>
         </label>
       </div>
 
       <div>
-        <p className="text-[11px] text-muted-foreground mb-2">表示開始日</p>
+        <p className="text-[11px] text-muted-foreground mb-2">show events from</p>
         <input
           type="date"
           value={startDate}
@@ -77,7 +77,7 @@ export function CalendarSettings() {
         disabled={saving}
         className="text-[11px] tracking-wider bg-foreground text-background rounded px-4 py-2 disabled:opacity-40"
       >
-        {saving ? "保存中..." : "保存"}
+        {saving ? "saving..." : "save"}
       </button>
     </div>
   );

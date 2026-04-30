@@ -26,10 +26,10 @@ export function HomeTab() {
       <div className="flex items-start justify-between mb-8">
         <div>
           <p className="text-[10px] tracking-widest text-muted-foreground uppercase">
-            {today.toLocaleDateString("ja-JP", { weekday: "long" })}
+            {today.toLocaleDateString("en-US", { weekday: "long" })}
           </p>
           <p className="text-[22px] tracking-wide">
-            {today.toLocaleDateString("ja-JP", { month: "long", day: "numeric" })}
+            {today.toLocaleDateString("en-US", { month: "long", day: "numeric" })}
           </p>
         </div>
         <WeatherWidget />

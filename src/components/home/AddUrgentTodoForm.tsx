@@ -26,7 +26,7 @@ export function AddUrgentTodoForm() {
         className="flex items-center gap-2 text-[11px] text-muted-foreground hover:text-foreground transition-colors py-2"
       >
         <Plus size={12} />
-        <span className="tracking-wider">追加</span>
+        <span className="tracking-wider">add task</span>
       </button>
     );
   }
@@ -38,12 +38,12 @@ export function AddUrgentTodoForm() {
         type="text"
         value={label}
         onChange={(e) => setLabel(e.target.value)}
-        placeholder="タスクを入力..."
+        placeholder="task name..."
         className="flex-1 bg-transparent border-b border-border pb-1 text-[12px] focus:outline-none focus:border-foreground/40 placeholder:text-muted-foreground"
         onKeyDown={(e) => e.key === "Escape" && setOpen(false)}
       />
       <button type="submit" disabled={!label.trim()} className="text-[11px] tracking-wider disabled:opacity-40 hover:text-muted-foreground">
-        追加
+        add
       </button>
       <button type="button" onClick={() => setOpen(false)} className="text-[11px] text-muted-foreground">
         ×

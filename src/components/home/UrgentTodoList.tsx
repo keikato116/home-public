@@ -10,7 +10,7 @@ export function UrgentTodoList() {
 
   return (
     <div className="space-y-0">
-      <p className="text-[10px] tracking-widest text-muted-foreground uppercase mb-2">タスク</p>
+      <p className="text-[10px] tracking-widest text-muted-foreground uppercase mb-2">tasks</p>
       {urgentTodos.map((t) => (
         <div key={t.id} className="flex items-center gap-3 py-2.5 border-b border-border group">
           <input

@@ -13,7 +13,7 @@ export function RecipeDetailModal({ recipe, onClose }: Props) {
   const { deleteRecipe } = useRecipeStore();
 
   const handleDelete = async () => {
-    if (!confirm("このレシピを削除しますか？")) return;
+    if (!confirm("delete this recipe?")) return;
     await deleteRecipe(recipe.id, recipe.photo_path);
     onClose();
   };
@@ -49,14 +49,14 @@ export function RecipeDetailModal({ recipe, onClose }: Props) {
 
           {recipe.ingredients && (
             <div>
-              <p className="text-[10px] tracking-widest text-muted-foreground uppercase mb-2">材料</p>
+              <p className="text-[10px] tracking-widest text-muted-foreground uppercase mb-2">ingredients</p>
               <p className="text-[12px] leading-relaxed whitespace-pre-wrap">{recipe.ingredients}</p>
             </div>
           )}
 
           {recipe.steps && (
             <div>
-              <p className="text-[10px] tracking-widest text-muted-foreground uppercase mb-2">手順</p>
+              <p className="text-[10px] tracking-widest text-muted-foreground uppercase mb-2">steps</p>
               <p className="text-[12px] leading-relaxed whitespace-pre-wrap">{recipe.steps}</p>
             </div>
           )}
@@ -65,7 +65,7 @@ export function RecipeDetailModal({ recipe, onClose }: Props) {
             onClick={handleDelete}
             className="text-[11px] text-muted-foreground hover:text-red-500 transition-colors tracking-wider"
           >
-            削除
+            delete
           </button>
         </div>
       </div>

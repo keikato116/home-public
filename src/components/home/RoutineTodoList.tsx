@@ -19,7 +19,7 @@ export function RoutineTodoList() {
 
   return (
     <div className="space-y-0">
-      <p className="text-[10px] tracking-widest text-muted-foreground uppercase mb-2">ルーティン</p>
+      <p className="text-[10px] tracking-widest text-muted-foreground uppercase mb-2">routine</p>
       {routines.map((r) => (
         <label
           key={r.id}

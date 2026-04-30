@@ -41,27 +41,27 @@ export function AddRecipeModal({ onClose }: Props) {
     setError("");
     try {
       if (mode === "url") {
-        if (!url.trim()) throw new Error("URLを入力してください");
+        if (!url.trim()) throw new Error("please enter a URL");
         await addByUrl(householdId, url.trim(), user.id);
       } else if (mode === "photo") {
-        if (!file) throw new Error("写真を選択してください");
-        if (!title.trim()) throw new Error("タイトルを入力してください");
+        if (!file) throw new Error("please select a photo");
+        if (!title.trim()) throw new Error("please enter a title");
         await addByPhoto(householdId, file, title.trim(), user.id);
       } else {
-        if (!title.trim()) throw new Error("タイトルを入力してください");
+        if (!title.trim()) throw new Error("please enter a title");
         await addManual(householdId, title.trim(), ingredients, steps, user.id);
       }
       onClose();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "エラーが発生しました");
+      setError(e instanceof Error ? e.message : "something went wrong");
     }
     setLoading(false);
   };
 
   const MODES: { id: Mode; label: string }[] = [
-    { id: "url", label: "URL" },
-    { id: "photo", label: "写真" },
-    { id: "manual", label: "手入力" },
+    { id: "url", label: "url" },
+    { id: "photo", label: "photo" },
+    { id: "manual", label: "manual" },
   ];
 
   return (
@@ -90,7 +90,7 @@ export function AddRecipeModal({ onClose }: Props) {
         <form onSubmit={submit} className="space-y-5">
           {mode === "url" && (
             <div>
-              <p className="text-[10px] tracking-widest text-muted-foreground uppercase mb-2">URL</p>
+              <p className="text-[10px] tracking-widest text-muted-foreground uppercase mb-2">url</p>
               <input
                 autoFocus
                 type="url"
@@ -105,7 +105,7 @@ export function AddRecipeModal({ onClose }: Props) {
           {mode === "photo" && (
             <>
               <div>
-                <p className="text-[10px] tracking-widest text-muted-foreground uppercase mb-2">写真</p>
+                <p className="text-[10px] tracking-widest text-muted-foreground uppercase mb-2">photo</p>
                 <input type="file" accept="image/*" ref={fileRef} onChange={handleFile} className="hidden" />
                 <button
                   type="button"
@@ -116,17 +116,17 @@ export function AddRecipeModal({ onClose }: Props) {
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={preview} alt="preview" className="w-full h-full object-cover" />
                   ) : (
-                    "タップして選択"
+                    "tap to select"
                   )}
                 </button>
               </div>
               <div>
-                <p className="text-[10px] tracking-widest text-muted-foreground uppercase mb-2">タイトル</p>
+                <p className="text-[10px] tracking-widest text-muted-foreground uppercase mb-2">title</p>
                 <input
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  placeholder="レシピ名"
+                  placeholder="recipe name"
                   className="w-full bg-transparent border-b border-border pb-1 text-[12px] focus:outline-none focus:border-foreground/40 placeholder:text-muted-foreground"
                 />
               </div>
@@ -136,32 +136,32 @@ export function AddRecipeModal({ onClose }: Props) {
           {mode === "manual" && (
             <>
               <div>
-                <p className="text-[10px] tracking-widest text-muted-foreground uppercase mb-2">タイトル</p>
+                <p className="text-[10px] tracking-widest text-muted-foreground uppercase mb-2">title</p>
                 <input
                   autoFocus
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  placeholder="レシピ名"
+                  placeholder="recipe name"
                   className="w-full bg-transparent border-b border-border pb-1 text-[12px] focus:outline-none focus:border-foreground/40 placeholder:text-muted-foreground"
                 />
               </div>
               <div>
-                <p className="text-[10px] tracking-widest text-muted-foreground uppercase mb-2">材料</p>
+                <p className="text-[10px] tracking-widest text-muted-foreground uppercase mb-2">ingredients</p>
                 <textarea
                   value={ingredients}
                   onChange={(e) => setIngredients(e.target.value)}
-                  placeholder="材料を入力..."
+                  placeholder="list ingredients..."
                   rows={4}
                   className="w-full bg-transparent border-b border-border pb-1 text-[12px] focus:outline-none focus:border-foreground/40 placeholder:text-muted-foreground resize-none"
                 />
               </div>
               <div>
-                <p className="text-[10px] tracking-widest text-muted-foreground uppercase mb-2">手順</p>
+                <p className="text-[10px] tracking-widest text-muted-foreground uppercase mb-2">steps</p>
                 <textarea
                   value={steps}
                   onChange={(e) => setSteps(e.target.value)}
-                  placeholder="手順を入力..."
+                  placeholder="describe the steps..."
                   rows={4}
                   className="w-full bg-transparent border-b border-border pb-1 text-[12px] focus:outline-none focus:border-foreground/40 placeholder:text-muted-foreground resize-none"
                 />
@@ -176,7 +176,7 @@ export function AddRecipeModal({ onClose }: Props) {
             disabled={loading}
             className="w-full bg-foreground text-background rounded px-4 py-3 text-[12px] tracking-wider disabled:opacity-40"
           >
-            {loading ? "追加中..." : "追加する"}
+            {loading ? "adding..." : "add recipe"}
           </button>
         </form>
       </div>
