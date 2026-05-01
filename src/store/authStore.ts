@@ -35,6 +35,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   init: async () => {
     const supabase = createClient();
 
+    // Show cached state immediately to avoid loading screen on subsequent launches
+    const cachedUser = localStorage.getItem("cached_user");
+    const cachedHouseholdId = localStorage.getItem("cached_household_id");
+    const cachedInviteCode = localStorage.getItem("cached_invite_code");
+
+    if (cachedUser) {
+      set({
+        user: JSON.parse(cachedUser),
+        householdId: cachedHouseholdId,
+        inviteCode: cachedInviteCode,
+        accessToken: localStorage.getItem("google_access_token"),
+        loading: false,
+      });
+    }
+
     const { data: { session } } = await supabase.auth.getSession();
     if (session) {
       const token = session.provider_token ?? localStorage.getItem("google_access_token");
@@ -51,6 +66,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const hid = member?.household_id ?? null;
       const ic = (member?.households as { invite_code?: string } | null)?.invite_code ?? null;
 
+      localStorage.setItem("cached_user", JSON.stringify(session.user));
+      localStorage.setItem("cached_household_id", hid ?? "");
+      localStorage.setItem("cached_invite_code", ic ?? "");
+
       set({
         user: session.user,
         householdId: hid,
@@ -59,7 +78,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         loading: false,
       });
     } else {
-      set({ loading: false });
+      localStorage.removeItem("cached_user");
+      localStorage.removeItem("cached_household_id");
+      localStorage.removeItem("cached_invite_code");
+      set({ user: null, householdId: null, inviteCode: null, accessToken: null, loading: false });
     }
 
     supabase.auth.onAuthStateChange(async (event, session) => {
@@ -78,9 +100,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         const hid = member?.household_id ?? null;
         const ic = (member?.households as { invite_code?: string } | null)?.invite_code ?? null;
 
+        localStorage.setItem("cached_user", JSON.stringify(session.user));
+        localStorage.setItem("cached_household_id", hid ?? "");
+        localStorage.setItem("cached_invite_code", ic ?? "");
+
         set({ user: session.user, householdId: hid, inviteCode: ic, accessToken: token });
       } else if (event === "SIGNED_OUT") {
         localStorage.removeItem("google_access_token");
+        localStorage.removeItem("cached_user");
+        localStorage.removeItem("cached_household_id");
+        localStorage.removeItem("cached_invite_code");
         set({ user: null, householdId: null, inviteCode: null, accessToken: null });
       }
     });
