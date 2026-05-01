@@ -17,6 +17,7 @@ interface AuthState {
   setActiveTab: (tab: string) => void;
   init: () => Promise<void>;
   signOut: () => Promise<void>;
+  reAuthGoogle: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -119,5 +120,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const supabase = createClient();
     await supabase.auth.signOut();
     get().init();
+  },
+
+  reAuthGoogle: async () => {
+    const supabase = createClient();
+    await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${location.origin}/auth/callback`,
+        scopes: "https://www.googleapis.com/auth/calendar.readonly",
+        queryParams: { access_type: "offline", prompt: "consent" },
+      },
+    });
   },
 }));
