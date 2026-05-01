@@ -37,9 +37,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     const { data: { session } } = await supabase.auth.getSession();
     if (session) {
-      const token = session.provider_token ?? sessionStorage.getItem("google_access_token");
+      const token = session.provider_token ?? localStorage.getItem("google_access_token");
       if (session.provider_token) {
-        sessionStorage.setItem("google_access_token", session.provider_token);
+        localStorage.setItem("google_access_token", session.provider_token);
       }
 
       const { data: member } = await supabase
@@ -65,9 +65,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === "SIGNED_IN" && session) {
         if (session.provider_token) {
-          sessionStorage.setItem("google_access_token", session.provider_token);
+          localStorage.setItem("google_access_token", session.provider_token);
         }
-        const token = session.provider_token ?? sessionStorage.getItem("google_access_token");
+        const token = session.provider_token ?? localStorage.getItem("google_access_token");
 
         const { data: member } = await supabase
           .from("household_members")
@@ -80,7 +80,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
         set({ user: session.user, householdId: hid, inviteCode: ic, accessToken: token });
       } else if (event === "SIGNED_OUT") {
-        sessionStorage.removeItem("google_access_token");
+        localStorage.removeItem("google_access_token");
         set({ user: null, householdId: null, inviteCode: null, accessToken: null });
       }
     });

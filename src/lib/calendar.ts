@@ -39,7 +39,8 @@ export async function fetchCalendarEvents(
       headers: { Authorization: `Bearer ${accessToken}` },
     }
   );
-  if (!res.ok) return [];
+  if (res.status === 401) throw new Error("TOKEN_EXPIRED");
+  if (!res.ok) throw new Error("FETCH_FAILED");
   const data = await res.json();
   return data.events ?? [];
 }

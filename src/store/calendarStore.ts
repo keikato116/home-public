@@ -56,13 +56,19 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
       return;
     }
 
-    const events = await fetchCalendarEvents(
-      accessToken,
-      settings.selected_colors,
-      settings.start_date
-    );
-
-    set({ events, loading: false });
+    try {
+      const events = await fetchCalendarEvents(
+        accessToken,
+        settings.selected_colors,
+        settings.start_date
+      );
+      set({ events, loading: false });
+    } catch (e) {
+      const msg = e instanceof Error && e.message === "TOKEN_EXPIRED"
+        ? "セッションが切れました。再ログインしてください"
+        : "カレンダーの取得に失敗しました";
+      set({ loading: false, error: msg });
+    }
   },
 
   updateSettings: async (householdId, partial, accessToken) => {
