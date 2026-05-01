@@ -57,6 +57,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (session.provider_token) {
         localStorage.setItem("google_access_token", session.provider_token);
       }
+      if (session.provider_refresh_token) {
+        localStorage.setItem("google_refresh_token", session.provider_refresh_token);
+      }
 
       const { data: member } = await supabase
         .from("household_members")
@@ -89,6 +92,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (event === "SIGNED_IN" && session) {
         if (session.provider_token) {
           localStorage.setItem("google_access_token", session.provider_token);
+        }
+        if (session.provider_token) {
+          localStorage.setItem("google_access_token", session.provider_token);
+        }
+        if (session.provider_refresh_token) {
+          localStorage.setItem("google_refresh_token", session.provider_refresh_token);
         }
         const token = session.provider_token ?? localStorage.getItem("google_access_token");
 
