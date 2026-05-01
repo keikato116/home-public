@@ -23,15 +23,19 @@ export function WeatherWidget() {
   if (!weather) return <div className="w-16 h-8" />;
 
   return (
-    <div className="flex items-center gap-1.5 text-muted-foreground">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={`https://openweathermap.org/img/wn/${weather.icon}@2x.png`}
-        alt={weather.description}
-        width={64}
-        height={64}
-        style={{ filter: "drop-shadow(0 1px 4px rgba(0,0,0,0.25))" }}
-      />
+    <div className="flex items-center gap-2 text-muted-foreground">
+      <div
+        className="rounded-2xl flex items-center justify-center"
+        style={{ background: "rgba(100, 160, 220, 0.18)", padding: "4px" }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={`https://openweathermap.org/img/wn/${weather.icon}@2x.png`}
+          alt={weather.description}
+          width={64}
+          height={64}
+        />
+      </div>
       <span className="text-[13px]">{weather.temp}°</span>
     </div>
   );
