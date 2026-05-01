@@ -28,8 +28,8 @@ export function WeatherWidget() {
       <img
         src={`https://openweathermap.org/img/wn/${weather.icon}.png`}
         alt={weather.description}
-        width={24}
-        height={24}
+        width={48}
+        height={48}
         className="opacity-80"
       />
       <span className="text-[12px]">{weather.temp}°</span>
