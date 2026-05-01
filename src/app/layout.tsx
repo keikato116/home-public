@@ -9,13 +9,13 @@ const dmMono = DM_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "いえ",
+  title: "home",
   description: "家事・タスク共有アプリ",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "いえ",
+    title: "home",
   },
 };
 

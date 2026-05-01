@@ -1,6 +1,6 @@
 {
-  "name": "いえ",
-  "short_name": "いえ",
+  "name": "home",
+  "short_name": "home",
   "description": "家事・タスク共有アプリ",
   "start_url": "/",
   "display": "standalone",
