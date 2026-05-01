@@ -20,19 +20,19 @@ export function WeatherWidget() {
     );
   }, []);
 
-  if (!weather) return <div className="w-10 h-5" />;
+  if (!weather) return <div className="w-16 h-8" />;
 
   return (
     <div className="flex items-center gap-1.5 text-muted-foreground">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src={`https://openweathermap.org/img/wn/${weather.icon}.png`}
+        src={`https://openweathermap.org/img/wn/${weather.icon}@2x.png`}
         alt={weather.description}
-        width={48}
-        height={48}
-        className="opacity-80"
+        width={64}
+        height={64}
+        style={{ filter: "drop-shadow(0 1px 4px rgba(0,0,0,0.25))" }}
       />
-      <span className="text-[12px]">{weather.temp}°</span>
+      <span className="text-[13px]">{weather.temp}°</span>
     </div>
   );
 }
