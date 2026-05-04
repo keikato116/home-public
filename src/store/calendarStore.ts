@@ -92,7 +92,10 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
     }
 
     try {
-      const events = await fetchWithAutoRefresh(accessToken, settings.selected_colors, settings.start_date);
+      const oneMonthAgo = new Date();
+      oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+      const fetchFrom = toISODate(oneMonthAgo);
+      const events = await fetchWithAutoRefresh(accessToken, settings.selected_colors, fetchFrom);
       set({ events, loading: false });
     } catch (e) {
       const msg = e instanceof Error && e.message === "TOKEN_EXPIRED"

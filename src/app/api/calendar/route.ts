@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const from = searchParams.get("from") ?? new Date().toISOString().split("T")[0];
+  const to = searchParams.get("to");
   const colorsParam = searchParams.get("colors") ?? "";
   const selectedColors = colorsParam ? colorsParam.split(",").filter(Boolean) : [];
 
@@ -17,9 +18,10 @@ export async function GET(request: Request) {
     const timeMin = new Date(from).toISOString();
     const url = new URL("https://www.googleapis.com/calendar/v3/calendars/primary/events");
     url.searchParams.set("timeMin", timeMin);
+    if (to) url.searchParams.set("timeMax", new Date(to).toISOString());
     url.searchParams.set("singleEvents", "true");
     url.searchParams.set("orderBy", "startTime");
-    url.searchParams.set("maxResults", "100");
+    url.searchParams.set("maxResults", "250");
 
     const res = await fetch(url.toString(), {
       headers: { Authorization: `Bearer ${accessToken}` },

@@ -31,14 +31,14 @@ export const GOOGLE_COLOR_HEX: Record<string, string> = {
 export async function fetchCalendarEvents(
   accessToken: string,
   selectedColors: string[],
-  startDate: string
+  startDate: string,
+  toDate?: string
 ): Promise<CalendarEvent[]> {
-  const res = await fetch(
-    `/api/calendar?from=${encodeURIComponent(startDate)}&colors=${encodeURIComponent(selectedColors.join(","))}`,
-    {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    }
-  );
+  let path = `/api/calendar?from=${encodeURIComponent(startDate)}&colors=${encodeURIComponent(selectedColors.join(","))}`;
+  if (toDate) path += `&to=${encodeURIComponent(toDate)}`;
+  const res = await fetch(path, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
   if (res.status === 401) throw new Error("TOKEN_EXPIRED");
   if (!res.ok) throw new Error("FETCH_FAILED");
   const data = await res.json();
