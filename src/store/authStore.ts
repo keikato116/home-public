@@ -99,7 +99,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       });
       // Start proactive refresh if we have a refresh token
       if (localStorage.getItem("google_refresh_token")) {
-        scheduleTokenRefresh(set);
+        const parsedUser = JSON.parse(cachedUser);
+        const displayName = parsedUser?.user_metadata?.full_name ?? parsedUser?.email ?? "";
+        scheduleTokenRefresh(set, parsedUser.id, cachedHouseholdId ?? "", displayName);
       }
     }
 
