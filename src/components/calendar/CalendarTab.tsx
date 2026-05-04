@@ -69,16 +69,19 @@ interface WeekStripProps {
   selectedDate: Date;
   today: Date;
   eventsMap: Record<string, CalendarEvent[]>;
+  currentUserId: string | undefined;
   onSelect: (d: Date) => void;
 }
 
-function WeekStrip({ weekDays, selectedDate, today, eventsMap, onSelect }: WeekStripProps) {
+function WeekStrip({ weekDays, selectedDate, today, eventsMap, currentUserId, onSelect }: WeekStripProps) {
   return (
     <div className="flex border-b border-border px-4 pb-3">
       {weekDays.map((d, i) => {
         const isSelected = isSameDay(d, selectedDate);
         const isToday = isSameDay(d, today);
-        const hasEvents = (eventsMap[toDateStr(d)] ?? []).length > 0;
+        const dayEvents = eventsMap[toDateStr(d)] ?? [];
+        const hasOwn = dayEvents.some(e => e.ownerId === currentUserId);
+        const hasPartner = dayEvents.some(e => e.ownerId && e.ownerId !== currentUserId);
         return (
           <button
             key={i}
@@ -100,12 +103,10 @@ function WeekStrip({ weekDays, selectedDate, today, eventsMap, onSelect }: WeekS
             >
               {d.getDate()}
             </span>
-            <span
-              className={[
-                "w-1 h-1 rounded-full",
-                hasEvents && !isSelected ? "bg-muted-foreground" : "bg-transparent",
-              ].join(" ")}
-            />
+            <div className="flex gap-0.5 h-1.5 items-center">
+              {hasOwn && !isSelected && <span className="w-1 h-1 rounded-full bg-foreground" />}
+              {hasPartner && !isSelected && <span className="w-1 h-1 rounded-full bg-muted-foreground" />}
+            </div>
           </button>
         );
       })}
@@ -117,10 +118,11 @@ interface MonthGridProps {
   selectedDate: Date;
   today: Date;
   eventsMap: Record<string, CalendarEvent[]>;
+  currentUserId: string | undefined;
   onSelect: (d: Date) => void;
 }
 
-function MonthGrid({ selectedDate, today, eventsMap, onSelect }: MonthGridProps) {
+function MonthGrid({ selectedDate, today, eventsMap, currentUserId, onSelect }: MonthGridProps) {
   const year = selectedDate.getFullYear();
   const month = selectedDate.getMonth();
   const cells = getMonthDays(year, month);
@@ -140,6 +142,8 @@ function MonthGrid({ selectedDate, today, eventsMap, onSelect }: MonthGridProps)
           const isSelected = isSameDay(d, selectedDate);
           const isToday = isSameDay(d, today);
           const dayEvents = eventsMap[toDateStr(d)] ?? [];
+          const ownEvents = dayEvents.filter(e => e.ownerId === currentUserId);
+          const partnerEvents = dayEvents.filter(e => e.ownerId && e.ownerId !== currentUserId);
           return (
             <button
               key={i}
@@ -158,9 +162,12 @@ function MonthGrid({ selectedDate, today, eventsMap, onSelect }: MonthGridProps)
               >
                 {d.getDate()}
               </span>
-              <div className="flex gap-0.5">
-                {dayEvents.slice(0, 3).map((_, j) => (
-                  <span key={j} className="w-1 h-1 rounded-full bg-muted-foreground" />
+              <div className="flex gap-0.5 h-1.5 items-center">
+                {ownEvents.slice(0, 2).map((_, j) => (
+                  <span key={`o${j}`} className="w-1 h-1 rounded-full bg-foreground" />
+                ))}
+                {partnerEvents.slice(0, 2).map((_, j) => (
+                  <span key={`p${j}`} className="w-1 h-1 rounded-full bg-muted-foreground" />
                 ))}
               </div>
             </button>
@@ -172,8 +179,9 @@ function MonthGrid({ selectedDate, today, eventsMap, onSelect }: MonthGridProps)
 }
 
 export function CalendarTab() {
-  const { householdId, accessToken, reAuthGoogle } = useAuthStore();
+  const { householdId, accessToken, reAuthGoogle, user } = useAuthStore();
   const { load, eventsByDate, loading, error } = useCalendarStore();
+  const currentUserId = user?.id;
 
   const today = useRef(new Date()).current;
   const [viewMode, setViewMode] = useState<ViewMode>("week");
@@ -277,6 +285,7 @@ export function CalendarTab() {
           selectedDate={selectedDate}
           today={today}
           eventsMap={eventsMap}
+          currentUserId={currentUserId}
           onSelect={handleSelectDay}
         />
       )}
@@ -286,6 +295,7 @@ export function CalendarTab() {
           selectedDate={selectedDate}
           today={today}
           eventsMap={eventsMap}
+          currentUserId={currentUserId}
           onSelect={handleSelectDay}
         />
       )}
@@ -310,7 +320,7 @@ export function CalendarTab() {
         )}
 
         {!loading && !error && dayEvents.map((event) => (
-          <CalendarEventRow key={event.id} event={event} />
+          <CalendarEventRow key={event.id + (event.ownerId ?? "")} event={event} isOwn={event.ownerId === currentUserId} />
         ))}
       </div>
     </div>

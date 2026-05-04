@@ -22,7 +22,29 @@ interface AuthState {
 
 let refreshTimer: ReturnType<typeof setTimeout> | null = null;
 
-function scheduleTokenRefresh(set: (state: Partial<AuthState>) => void) {
+async function upsertUserToken(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  householdId: string,
+  accessToken: string,
+  displayName: string
+) {
+  await supabase.from("user_tokens").upsert({
+    user_id: userId,
+    household_id: householdId,
+    google_access_token: accessToken,
+    google_refresh_token: localStorage.getItem("google_refresh_token") ?? "",
+    display_name: displayName,
+    updated_at: new Date().toISOString(),
+  });
+}
+
+function scheduleTokenRefresh(
+  set: (state: Partial<AuthState>) => void,
+  userId: string,
+  householdId: string,
+  displayName: string
+) {
   if (refreshTimer) clearTimeout(refreshTimer);
   refreshTimer = setTimeout(async () => {
     const refreshToken = localStorage.getItem("google_refresh_token");
@@ -37,11 +59,12 @@ function scheduleTokenRefresh(set: (state: Partial<AuthState>) => void) {
         const { accessToken } = await res.json();
         localStorage.setItem("google_access_token", accessToken);
         set({ accessToken });
-        scheduleTokenRefresh(set);
+        const supabase = createClient();
+        await upsertUserToken(supabase, userId, householdId, accessToken, displayName);
+        scheduleTokenRefresh(set, userId, householdId, displayName);
       }
     } catch {
-      // Retry in 5 minutes if refresh fails
-      refreshTimer = setTimeout(() => scheduleTokenRefresh(set), 5 * 60 * 1000);
+      refreshTimer = setTimeout(() => scheduleTokenRefresh(set, userId, householdId, displayName), 5 * 60 * 1000);
     }
   }, 50 * 60 * 1000);
 }
@@ -105,8 +128,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       set({ user: session.user, householdId: hid, inviteCode: ic, accessToken: token, loading: false });
 
-      if (localStorage.getItem("google_refresh_token")) {
-        scheduleTokenRefresh(set);
+      if (hid && token) {
+        const displayName = session.user.user_metadata?.full_name ?? session.user.email ?? "";
+        await upsertUserToken(supabase, session.user.id, hid, token, displayName);
+        if (localStorage.getItem("google_refresh_token")) {
+          scheduleTokenRefresh(set, session.user.id, hid, displayName);
+        }
       }
     } else {
       localStorage.removeItem("cached_user");
@@ -139,7 +166,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         localStorage.setItem("cached_invite_code", ic ?? "");
 
         set({ user: session.user, householdId: hid, inviteCode: ic, accessToken: token });
-        scheduleTokenRefresh(set);
+        if (hid && token) {
+          const displayName = session.user.user_metadata?.full_name ?? session.user.email ?? "";
+          await upsertUserToken(supabase, session.user.id, hid, token, displayName);
+          scheduleTokenRefresh(set, session.user.id, hid, displayName);
+        }
       } else if (event === "TOKEN_REFRESHED" && session?.provider_token) {
         localStorage.setItem("google_access_token", session.provider_token);
         set({ accessToken: session.provider_token });

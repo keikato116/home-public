@@ -248,9 +248,33 @@ create policy "household members can manage calendar settings"
 --   using (bucket_id = 'recipes' and auth.uid() is not null);
 
 -- ============================================================
--- Realtime の有効化（ダッシュボード > Database > Replication）
--- 以下のテーブルを有効化してください:
---   - shared_todos
---   - routine_completions
---   - shopping_items
+-- Supabase SQL Editor で以下を追加で実行してください
 -- ============================================================
+
+-- user_tokens（世帯メンバーのGoogleトークン共有）
+create table if not exists public.user_tokens (
+  user_id      uuid primary key references auth.users(id) on delete cascade,
+  household_id uuid references public.households(id) on delete cascade,
+  google_access_token  text not null default '',
+  google_refresh_token text not null default '',
+  display_name text not null default '',
+  updated_at   timestamptz default now()
+);
+
+alter table public.user_tokens enable row level security;
+
+create policy "user can manage own token"
+  on public.user_tokens for all
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid());
+
+create policy "household members can read tokens"
+  on public.user_tokens for select
+  using (
+    exists (
+      select 1 from public.household_members hm1
+      join public.household_members hm2 on hm1.household_id = hm2.household_id
+      where hm1.user_id = auth.uid() and hm2.user_id = user_tokens.user_id
+    )
+  );
+

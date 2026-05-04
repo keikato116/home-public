@@ -95,8 +95,51 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
       const oneMonthAgo = new Date();
       oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
       const fetchFrom = toISODate(oneMonthAgo);
-      const events = await fetchWithAutoRefresh(accessToken, settings.selected_colors, fetchFrom);
-      set({ events, loading: false });
+      const currentUserId = useAuthStore.getState().user?.id;
+
+      const { data: memberTokens } = await supabase
+        .from("user_tokens")
+        .select("user_id, google_access_token, display_name")
+        .eq("household_id", householdId);
+
+      let allEvents: CalendarEvent[] = [];
+
+      if (memberTokens && memberTokens.length > 0) {
+        const results = await Promise.allSettled(
+          memberTokens.map(async (member) => {
+            if (!member.google_access_token) return [];
+            const isCurrentUser = member.user_id === currentUserId;
+            let events: CalendarEvent[];
+            if (isCurrentUser) {
+              events = await fetchWithAutoRefresh(accessToken, settings.selected_colors, fetchFrom);
+            } else {
+              try {
+                events = await fetchCalendarEvents(member.google_access_token, settings.selected_colors, fetchFrom);
+              } catch {
+                return [];
+              }
+            }
+            return events.map(e => ({
+              ...e,
+              ownerId: member.user_id,
+              ownerName: (member.display_name ?? "").split(" ")[0],
+            }));
+          })
+        );
+        for (const r of results) {
+          if (r.status === "fulfilled") allEvents.push(...r.value);
+        }
+      } else {
+        allEvents = await fetchWithAutoRefresh(accessToken, settings.selected_colors, fetchFrom);
+      }
+
+      allEvents.sort((a, b) => {
+        const aTime = a.start.dateTime ?? a.start.date ?? "";
+        const bTime = b.start.dateTime ?? b.start.date ?? "";
+        return aTime.localeCompare(bTime);
+      });
+
+      set({ events: allEvents, loading: false });
     } catch (e) {
       const msg = e instanceof Error && e.message === "TOKEN_EXPIRED"
         ? "セッションが切れました。再ログインしてください"

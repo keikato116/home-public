@@ -64,6 +64,8 @@ export interface CalendarEvent {
   colorId?: string;
   start: { dateTime?: string; date?: string };
   end: { dateTime?: string; date?: string };
+  ownerId?: string;
+  ownerName?: string;
 }
 
 export interface WeatherData {
