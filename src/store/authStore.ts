@@ -20,6 +20,32 @@ interface AuthState {
   reAuthGoogle: () => Promise<void>;
 }
 
+let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+
+function scheduleTokenRefresh(set: (state: Partial<AuthState>) => void) {
+  if (refreshTimer) clearTimeout(refreshTimer);
+  refreshTimer = setTimeout(async () => {
+    const refreshToken = localStorage.getItem("google_refresh_token");
+    if (!refreshToken) return;
+    try {
+      const res = await fetch("/api/refresh-token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refreshToken }),
+      });
+      if (res.ok) {
+        const { accessToken } = await res.json();
+        localStorage.setItem("google_access_token", accessToken);
+        set({ accessToken });
+        scheduleTokenRefresh(set);
+      }
+    } catch {
+      // Retry in 5 minutes if refresh fails
+      refreshTimer = setTimeout(() => scheduleTokenRefresh(set), 5 * 60 * 1000);
+    }
+  }, 50 * 60 * 1000);
+}
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   householdId: null,
@@ -36,7 +62,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   init: async () => {
     const supabase = createClient();
 
-    // Show cached state immediately to avoid loading screen on subsequent launches
     const cachedUser = localStorage.getItem("cached_user");
     const cachedHouseholdId = localStorage.getItem("cached_household_id");
     const cachedInviteCode = localStorage.getItem("cached_invite_code");
@@ -49,17 +74,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         accessToken: localStorage.getItem("google_access_token"),
         loading: false,
       });
+      // Start proactive refresh if we have a refresh token
+      if (localStorage.getItem("google_refresh_token")) {
+        scheduleTokenRefresh(set);
+      }
     }
 
     const { data: { session } } = await supabase.auth.getSession();
     if (session) {
-      const token = session.provider_token ?? localStorage.getItem("google_access_token");
       if (session.provider_token) {
         localStorage.setItem("google_access_token", session.provider_token);
       }
       if (session.provider_refresh_token) {
         localStorage.setItem("google_refresh_token", session.provider_refresh_token);
       }
+      const token = session.provider_token ?? localStorage.getItem("google_access_token");
 
       const { data: member } = await supabase
         .from("household_members")
@@ -74,13 +103,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       localStorage.setItem("cached_household_id", hid ?? "");
       localStorage.setItem("cached_invite_code", ic ?? "");
 
-      set({
-        user: session.user,
-        householdId: hid,
-        inviteCode: ic,
-        accessToken: token,
-        loading: false,
-      });
+      set({ user: session.user, householdId: hid, inviteCode: ic, accessToken: token, loading: false });
+
+      if (localStorage.getItem("google_refresh_token")) {
+        scheduleTokenRefresh(set);
+      }
     } else {
       localStorage.removeItem("cached_user");
       localStorage.removeItem("cached_household_id");
@@ -90,9 +117,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === "SIGNED_IN" && session) {
-        if (session.provider_token) {
-          localStorage.setItem("google_access_token", session.provider_token);
-        }
         if (session.provider_token) {
           localStorage.setItem("google_access_token", session.provider_token);
         }
@@ -115,8 +139,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         localStorage.setItem("cached_invite_code", ic ?? "");
 
         set({ user: session.user, householdId: hid, inviteCode: ic, accessToken: token });
+        scheduleTokenRefresh(set);
+      } else if (event === "TOKEN_REFRESHED" && session?.provider_token) {
+        localStorage.setItem("google_access_token", session.provider_token);
+        set({ accessToken: session.provider_token });
       } else if (event === "SIGNED_OUT") {
+        if (refreshTimer) clearTimeout(refreshTimer);
         localStorage.removeItem("google_access_token");
+        localStorage.removeItem("google_refresh_token");
         localStorage.removeItem("cached_user");
         localStorage.removeItem("cached_household_id");
         localStorage.removeItem("cached_invite_code");
