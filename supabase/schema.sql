@@ -251,6 +251,35 @@ create policy "household members can manage calendar settings"
 -- Supabase SQL Editor で以下を追加で実行してください
 -- ============================================================
 
+-- local_calendar_events（Googleに同期しないローカル予定）
+create table if not exists public.local_calendar_events (
+  id           uuid primary key default gen_random_uuid(),
+  household_id uuid references public.households(id) on delete cascade not null,
+  user_id      uuid references auth.users(id),
+  title        text not null,
+  event_date   date not null,
+  start_time   text,
+  end_time     text,
+  created_at   timestamptz default now()
+);
+
+alter table public.local_calendar_events enable row level security;
+
+create policy "household members can manage local events"
+  on public.local_calendar_events for all
+  using (
+    exists (
+      select 1 from public.household_members hm
+      where hm.household_id = local_calendar_events.household_id and hm.user_id = auth.uid()
+    )
+  )
+  with check (
+    exists (
+      select 1 from public.household_members hm
+      where hm.household_id = local_calendar_events.household_id and hm.user_id = auth.uid()
+    )
+  );
+
 -- user_tokens（世帯メンバーのGoogleトークン共有）
 create table if not exists public.user_tokens (
   user_id      uuid primary key references auth.users(id) on delete cascade,

@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useCalendarStore } from "@/store/calendarStore";
 import { useAuthStore } from "@/store/authStore";
 import { CalendarEventRow } from "./CalendarEventRow";
-import { RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
+import { RefreshCw, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { CalendarEvent } from "@/types";
 
 type ViewMode = "day" | "week" | "month";
@@ -180,12 +180,16 @@ function MonthGrid({ selectedDate, today, eventsMap, currentUserId, onSelect }: 
 
 export function CalendarTab() {
   const { householdId, accessToken, reAuthGoogle, user } = useAuthStore();
-  const { load, eventsByDate, loading, error } = useCalendarStore();
+  const { load, eventsByDate, loading, error, addLocalEvent, deleteLocalEvent } = useCalendarStore();
   const currentUserId = user?.id;
 
   const today = useRef(new Date()).current;
   const [viewMode, setViewMode] = useState<ViewMode>("week");
   const [selectedDate, setSelectedDate] = useState<Date>(today);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newTitle, setNewTitle] = useState("");
+  const [newStartTime, setNewStartTime] = useState("");
+  const [newEndTime, setNewEndTime] = useState("");
 
   const touchStartX = useRef<number | null>(null);
 
@@ -193,6 +197,16 @@ export function CalendarTab() {
     if (!householdId) return;
     load(householdId, accessToken);
   }, [householdId, accessToken, load]);
+
+  async function handleAddLocalEvent() {
+    if (!newTitle.trim() || !householdId || !currentUserId) return;
+    const dateStr = toDateStr(selectedDate);
+    await addLocalEvent(householdId, currentUserId, newTitle.trim(), dateStr, newStartTime || undefined, newEndTime || undefined);
+    setNewTitle("");
+    setNewStartTime("");
+    setNewEndTime("");
+    setShowAddForm(false);
+  }
 
   const eventsMap = eventsByDate();
 
@@ -300,9 +314,65 @@ export function CalendarTab() {
         />
       )}
 
-      <div className="flex-1 overflow-y-auto px-7 py-4 space-y-0">
-        {error && (
-          <div className="text-[11px] text-muted-foreground border border-border rounded p-4 space-y-3">
+      <div className="flex-1 overflow-y-auto px-7 py-4">
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-[10px] tracking-widest text-muted-foreground uppercase">
+            {selectedDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+          </span>
+          <button
+            onClick={() => setShowAddForm(v => !v)}
+            className="text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="add event"
+          >
+            <Plus size={14} />
+          </button>
+        </div>
+
+        {showAddForm && (
+          <div className="mb-4 space-y-2 border border-border rounded p-3">
+            <input
+              type="text"
+              placeholder="event title"
+              value={newTitle}
+              onChange={e => setNewTitle(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && handleAddLocalEvent()}
+              className="w-full bg-transparent text-[12px] tracking-wide outline-none placeholder:text-muted-foreground border-b border-border pb-1"
+              autoFocus
+            />
+            <div className="flex gap-2">
+              <input
+                type="time"
+                value={newStartTime}
+                onChange={e => setNewStartTime(e.target.value)}
+                className="bg-transparent text-[11px] text-muted-foreground outline-none flex-1"
+              />
+              <span className="text-[11px] text-muted-foreground">–</span>
+              <input
+                type="time"
+                value={newEndTime}
+                onChange={e => setNewEndTime(e.target.value)}
+                className="bg-transparent text-[11px] text-muted-foreground outline-none flex-1"
+              />
+            </div>
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={handleAddLocalEvent}
+                className="text-[10px] tracking-widest border border-border rounded px-3 py-1 hover:bg-muted transition-colors"
+              >
+                add
+              </button>
+              <button
+                onClick={() => { setShowAddForm(false); setNewTitle(""); setNewStartTime(""); setNewEndTime(""); }}
+                className="text-[10px] tracking-widest text-muted-foreground"
+              >
+                cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {error && error.includes("再ログイン") && (
+          <div className="text-[11px] text-muted-foreground border border-border rounded p-4 space-y-3 mb-3">
             <p>{error}</p>
             <button
               onClick={reAuthGoogle}
@@ -315,12 +385,17 @@ export function CalendarTab() {
 
         {loading && <p className="text-[11px] text-muted-foreground">loading...</p>}
 
-        {!loading && !error && dayEvents.length === 0 && (
+        {!loading && dayEvents.length === 0 && (
           <p className="text-[11px] text-muted-foreground">no events</p>
         )}
 
-        {!loading && !error && dayEvents.map((event) => (
-          <CalendarEventRow key={event.id + (event.ownerId ?? "")} event={event} isOwn={event.ownerId === currentUserId} />
+        {dayEvents.map((event) => (
+          <CalendarEventRow
+            key={event.id + (event.ownerId ?? "")}
+            event={event}
+            isOwn={event.ownerId === currentUserId}
+            onDelete={event.isLocal ? deleteLocalEvent : undefined}
+          />
         ))}
       </div>
     </div>

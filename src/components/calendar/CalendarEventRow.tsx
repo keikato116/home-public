@@ -2,20 +2,25 @@
 
 import { CalendarEvent } from "@/types";
 import { GOOGLE_COLOR_HEX, formatEventTime } from "@/lib/calendar";
+import { X } from "lucide-react";
 
 interface Props {
   event: CalendarEvent;
   isOwn: boolean;
+  onDelete?: (id: string) => void;
 }
 
-export function CalendarEventRow({ event, isOwn }: Props) {
+export function CalendarEventRow({ event, isOwn, onDelete }: Props) {
   const color = event.colorId ? GOOGLE_COLOR_HEX[event.colorId] : undefined;
   const time = formatEventTime(event);
   const initial = event.ownerName ? event.ownerName[0].toUpperCase() : null;
 
   return (
-    <div className="flex items-start gap-3 py-2.5 border-b border-border">
-      {color && (
+    <div className={[
+      "flex items-start gap-3 py-2.5 border-b border-border",
+      event.isLocal ? "border-l-2 border-l-muted-foreground pl-2" : "",
+    ].join(" ")}>
+      {color && !event.isLocal && (
         <span
           className="mt-1.5 w-1.5 h-1.5 rounded-full flex-shrink-0"
           style={{ backgroundColor: color }}
@@ -42,6 +47,15 @@ export function CalendarEventRow({ event, isOwn }: Props) {
           >
             {initial}
           </span>
+        )}
+        {event.isLocal && onDelete && (
+          <button
+            onClick={() => onDelete(event.id)}
+            className="text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="delete"
+          >
+            <X size={11} />
+          </button>
         )}
       </div>
     </div>

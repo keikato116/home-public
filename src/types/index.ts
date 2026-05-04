@@ -66,6 +66,18 @@ export interface CalendarEvent {
   end: { dateTime?: string; date?: string };
   ownerId?: string;
   ownerName?: string;
+  isLocal?: boolean;
+}
+
+export interface LocalCalendarEvent {
+  id: string;
+  household_id: string;
+  user_id: string | null;
+  title: string;
+  event_date: string;
+  start_time: string | null;
+  end_time: string | null;
+  created_at: string;
 }
 
 export interface WeatherData {
