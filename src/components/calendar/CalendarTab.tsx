@@ -371,15 +371,17 @@ export function CalendarTab() {
           </div>
         )}
 
-        {error && error.includes("再ログイン") && (
+        {error && (
           <div className="text-[11px] text-muted-foreground border border-border rounded p-4 space-y-3 mb-3">
             <p>{error}</p>
-            <button
-              onClick={reAuthGoogle}
-              className="border border-border rounded px-3 py-2 text-[11px] tracking-wider hover:bg-muted transition-colors"
-            >
-              reconnect google
-            </button>
+            {error.includes("再ログイン") || error.includes("セッション") ? (
+              <button
+                onClick={reAuthGoogle}
+                className="border border-border rounded px-3 py-2 text-[11px] tracking-wider hover:bg-muted transition-colors"
+              >
+                reconnect google
+              </button>
+            ) : null}
           </div>
         )}
 

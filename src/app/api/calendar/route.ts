@@ -36,8 +36,9 @@ export async function GET(request: Request) {
     let events = data.items ?? [];
 
     if (selectedColors.length > 0) {
+      // Events without a colorId (default) always pass; filter only applies to explicitly colored events
       events = events.filter((e: { colorId?: string }) =>
-        e.colorId ? selectedColors.includes(e.colorId) : selectedColors.includes("default")
+        !e.colorId || selectedColors.includes(e.colorId)
       );
     }
 

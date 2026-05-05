@@ -41,18 +41,9 @@ export function CalendarSettings() {
       <p className="text-[10px] tracking-widest text-muted-foreground uppercase">calendar</p>
 
       <div>
-        <p className="text-[11px] text-muted-foreground mb-3">show events with these colors</p>
+        <p className="text-[11px] text-muted-foreground mb-1">表示する色（未選択 = すべて表示）</p>
+        <p className="text-[10px] text-muted-foreground/60 mb-3">色を選ぶとその色の予定のみ絞り込まれます</p>
         <div className="grid grid-cols-2 gap-y-2 gap-x-3">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={selectedColors.includes("default")}
-              onChange={() => toggleColor("default")}
-              className="w-3 h-3 flex-shrink-0"
-            />
-            <span className="w-3.5 h-3.5 rounded-full border border-border bg-muted-foreground/40 flex-shrink-0" />
-            <span className="text-[10px] tracking-wide">デフォルト</span>
-          </label>
           {Object.entries(GOOGLE_COLOR_MAP).map(([id, name]) => (
             <label key={id} className="flex items-center gap-2 cursor-pointer">
               <input
@@ -69,6 +60,14 @@ export function CalendarSettings() {
             </label>
           ))}
         </div>
+        {selectedColors.length > 0 && (
+          <button
+            onClick={() => setSelectedColors([])}
+            className="mt-2 text-[10px] text-muted-foreground underline"
+          >
+            クリア（全表示に戻す）
+          </button>
+        )}
       </div>
 
       <div>
