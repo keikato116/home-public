@@ -13,7 +13,7 @@ interface CalendarState {
   loading: boolean;
   error: string | null;
   load: (householdId: string, accessToken: string | null) => Promise<void>;
-  updateSettings: (householdId: string, settings: Partial<CalendarSettings>, accessToken: string | null) => Promise<void>;
+  updateSettings: (householdId: string, settings: Partial<CalendarSettings>) => Promise<void>;
   addLocalEvent: (householdId: string, userId: string, title: string, date: string, startTime?: string, endTime?: string) => Promise<void>;
   deleteLocalEvent: (id: string) => Promise<void>;
   eventsByDate: () => Record<string, CalendarEvent[]>;
@@ -207,7 +207,7 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
     set({ events: get().events.filter(e => e.id !== id) });
   },
 
-  updateSettings: async (householdId, partial, accessToken) => {
+  updateSettings: async (householdId, partial) => {
     const supabase = createClient();
     const current = get().settings ?? { household_id: householdId, selected_colors: [], start_date: toISODate(new Date()) };
     const updated = { ...current, ...partial };

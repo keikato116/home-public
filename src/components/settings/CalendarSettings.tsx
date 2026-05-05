@@ -25,7 +25,7 @@ export function CalendarSettings() {
     setSaving(true);
     try {
       await Promise.race([
-        updateSettings(householdId, { selected_colors: selectedColors, start_date: startDate }, accessToken),
+        updateSettings(householdId, { selected_colors: selectedColors, start_date: startDate }),
         new Promise<void>((_, reject) => setTimeout(() => reject(new Error("timeout")), 8000)),
       ]);
     } catch {
