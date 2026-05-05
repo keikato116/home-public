@@ -90,50 +90,42 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
     set({ loading: true, error: null });
     const supabase = createClient();
 
-    const { data: settingsData } = await supabase
-      .from("calendar_settings")
-      .select("*")
-      .eq("household_id", householdId)
-      .maybeSingle();
-
-    const settings = (settingsData as CalendarSettings | null) ?? {
-      household_id: householdId,
-      selected_colors: [],
-      start_date: toISODate(new Date()),
-    };
-
-    set({ settings });
-
-    const currentUserId = useAuthStore.getState().user?.id;
-
-    // Fetch local events
-    const { data: localData } = await supabase
-      .from("local_calendar_events")
-      .select("*")
-      .eq("household_id", householdId);
-
-    // Fetch member display names for local events
-    const { data: memberTokens } = await supabase
-      .from("user_tokens")
-      .select("user_id, google_access_token, display_name")
-      .eq("household_id", householdId);
-
-    const nameMap: Record<string, string> = {};
-    for (const m of memberTokens ?? []) {
-      nameMap[m.user_id] = (m.display_name ?? "").split(" ")[0];
-    }
-
-    const localEvents: CalendarEvent[] = (localData as LocalCalendarEvent[] ?? []).map(e =>
-      localToCalendarEvent(e, e.user_id ? nameMap[e.user_id] : undefined)
-    );
-
-    if (!accessToken) {
-      localEvents.sort((a, b) => (a.start.dateTime ?? a.start.date ?? "").localeCompare(b.start.dateTime ?? b.start.date ?? ""));
-      set({ events: localEvents, loading: false, error: "再ログインしてカレンダーを表示してください" });
-      return;
-    }
-
     try {
+      const { data: settingsData } = await supabase
+        .from("calendar_settings")
+        .select("*")
+        .eq("household_id", householdId)
+        .maybeSingle();
+
+      const settings = (settingsData as CalendarSettings | null) ?? {
+        household_id: householdId,
+        selected_colors: [],
+        start_date: toISODate(new Date()),
+      };
+      set({ settings });
+
+      const currentUserId = useAuthStore.getState().user?.id;
+
+      const [{ data: localData }, { data: memberTokens }] = await Promise.all([
+        supabase.from("local_calendar_events").select("*").eq("household_id", householdId),
+        supabase.from("user_tokens").select("user_id, google_access_token, display_name").eq("household_id", householdId),
+      ]);
+
+      const nameMap: Record<string, string> = {};
+      for (const m of memberTokens ?? []) {
+        nameMap[m.user_id] = (m.display_name ?? "").split(" ")[0];
+      }
+
+      const localEvents: CalendarEvent[] = (localData as LocalCalendarEvent[] ?? []).map(e =>
+        localToCalendarEvent(e, e.user_id ? nameMap[e.user_id] : undefined)
+      );
+
+      if (!accessToken) {
+        localEvents.sort((a, b) => (a.start.dateTime ?? a.start.date ?? "").localeCompare(b.start.dateTime ?? b.start.date ?? ""));
+        set({ events: localEvents, loading: false, error: "再ログインしてカレンダーを表示してください" });
+        return;
+      }
+
       const oneMonthAgo = new Date();
       oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
       const fetchFrom = toISODate(oneMonthAgo);
@@ -170,18 +162,16 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
       }
 
       const allEvents = [...googleEvents, ...localEvents];
-      allEvents.sort((a, b) => {
-        const aTime = a.start.dateTime ?? a.start.date ?? "";
-        const bTime = b.start.dateTime ?? b.start.date ?? "";
-        return aTime.localeCompare(bTime);
-      });
+      allEvents.sort((a, b) =>
+        (a.start.dateTime ?? a.start.date ?? "").localeCompare(b.start.dateTime ?? b.start.date ?? "")
+      );
 
       set({ events: allEvents, loading: false });
     } catch (e) {
       const msg = e instanceof Error && e.message === "TOKEN_EXPIRED"
         ? "セッションが切れました。再ログインしてください"
         : "カレンダーの取得に失敗しました";
-      set({ events: localEvents, loading: false, error: msg });
+      set({ loading: false, error: msg });
     }
   },
 
