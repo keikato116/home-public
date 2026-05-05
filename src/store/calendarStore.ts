@@ -226,8 +226,12 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
     set({ settings: updated });
 
     if (accessToken) {
-      const events = await fetchWithAutoRefresh(accessToken, updated.selected_colors, updated.start_date);
-      set({ events });
+      try {
+        const events = await fetchWithAutoRefresh(accessToken, updated.selected_colors, updated.start_date);
+        set({ events });
+      } catch {
+        // Settings saved even if refetch fails
+      }
     }
   },
 }));

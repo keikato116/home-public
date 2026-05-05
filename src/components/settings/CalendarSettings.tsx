@@ -23,8 +23,11 @@ export function CalendarSettings() {
   const save = async () => {
     if (!householdId) return;
     setSaving(true);
-    await updateSettings(householdId, { selected_colors: selectedColors, start_date: startDate }, accessToken);
-    setSaving(false);
+    try {
+      await updateSettings(householdId, { selected_colors: selectedColors, start_date: startDate }, accessToken);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
