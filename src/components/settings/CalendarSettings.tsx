@@ -42,33 +42,33 @@ export function CalendarSettings() {
 
       <div>
         <p className="text-[11px] text-muted-foreground mb-3">show events with these colors</p>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 gap-y-2 gap-x-3">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={selectedColors.includes("default")}
+              onChange={() => toggleColor("default")}
+              className="w-3 h-3 flex-shrink-0"
+            />
+            <span className="w-3.5 h-3.5 rounded-full border border-border bg-muted-foreground/40 flex-shrink-0" />
+            <span className="text-[10px] tracking-wide">デフォルト</span>
+          </label>
           {Object.entries(GOOGLE_COLOR_MAP).map(([id, name]) => (
             <label key={id} className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
                 checked={selectedColors.includes(id)}
                 onChange={() => toggleColor(id)}
-                className="w-3 h-3"
+                className="w-3 h-3 flex-shrink-0"
               />
               <span
-                className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                className="w-3.5 h-3.5 rounded-full flex-shrink-0 border border-black/10"
                 style={{ backgroundColor: GOOGLE_COLOR_HEX[id] }}
               />
               <span className="text-[10px] tracking-wide truncate">{name}</span>
             </label>
           ))}
         </div>
-        <label className="flex items-center gap-2 cursor-pointer mt-2">
-          <input
-            type="checkbox"
-            checked={selectedColors.includes("default")}
-            onChange={() => toggleColor("default")}
-            className="w-3 h-3"
-          />
-          <span className="w-2.5 h-2.5 rounded-full bg-muted-foreground flex-shrink-0" />
-          <span className="text-[10px] tracking-wide">default</span>
-        </label>
       </div>
 
       <div>
