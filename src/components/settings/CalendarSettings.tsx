@@ -8,7 +8,7 @@ import { toISODate } from "@/lib/utils";
 
 export function CalendarSettings() {
   const { householdId, accessToken } = useAuthStore();
-  const { settings, updateSettings } = useCalendarStore();
+  const { settings, updateSettings, load } = useCalendarStore();
 
   const [selectedColors, setSelectedColors] = useState<string[]>(settings?.selected_colors ?? []);
   const [startDate, setStartDate] = useState(settings?.start_date ?? toISODate(new Date()));
@@ -28,6 +28,7 @@ export function CalendarSettings() {
         updateSettings(householdId, { selected_colors: selectedColors, start_date: startDate }),
         new Promise<void>((_, reject) => setTimeout(() => reject(new Error("timeout")), 8000)),
       ]);
+      load(householdId, accessToken);
     } catch {
       // ignore
     } finally {
