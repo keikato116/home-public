@@ -211,17 +211,7 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
     const supabase = createClient();
     const current = get().settings ?? { household_id: householdId, selected_colors: [], start_date: toISODate(new Date()) };
     const updated = { ...current, ...partial };
-
     await supabase.from("calendar_settings").upsert({ ...updated, updated_at: new Date().toISOString() });
     set({ settings: updated });
-
-    if (accessToken) {
-      try {
-        const events = await fetchWithAutoRefresh(accessToken, updated.selected_colors, updated.start_date);
-        set({ events });
-      } catch {
-        // Settings saved even if refetch fails
-      }
-    }
   },
 }));
