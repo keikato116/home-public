@@ -104,7 +104,8 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
       };
       set({ settings });
 
-      const currentUserId = useAuthStore.getState().user?.id;
+      const { user } = useAuthStore.getState();
+      const currentUserId = user?.id;
 
       const [{ data: localData }, { data: memberTokens }] = await Promise.all([
         supabase.from("local_calendar_events").select("*").eq("household_id", householdId),
@@ -130,35 +131,39 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
       oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
       const fetchFrom = toISODate(oneMonthAgo);
 
-      let googleEvents: CalendarEvent[] = [];
+      // Always fetch current user's events with the session token (supports auto-refresh)
+      const currentUserName =
+        nameMap[currentUserId ?? ""] ||
+        (user?.user_metadata?.full_name ?? user?.email ?? "").split(" ")[0];
+      const ownEvents = (await fetchWithAutoRefresh(accessToken, settings.selected_colors, fetchFrom)).map(e => ({
+        ...e,
+        ownerId: currentUserId,
+        ownerName: currentUserName,
+      }));
 
-      if (memberTokens && memberTokens.length > 0) {
+      const googleEvents: CalendarEvent[] = [...ownEvents];
+
+      // Fetch partner events from user_tokens (errors silently ignored per member)
+      const partnerTokens = (memberTokens ?? []).filter(m => m.user_id !== currentUserId);
+      if (partnerTokens.length > 0) {
         const results = await Promise.allSettled(
-          memberTokens.map(async (member) => {
+          partnerTokens.map(async (member) => {
             if (!member.google_access_token) return [];
-            const isCurrentUser = member.user_id === currentUserId;
-            let events: CalendarEvent[];
-            if (isCurrentUser) {
-              events = await fetchWithAutoRefresh(accessToken, settings.selected_colors, fetchFrom);
-            } else {
-              try {
-                events = await fetchCalendarEvents(member.google_access_token, settings.selected_colors, fetchFrom);
-              } catch {
-                return [];
-              }
+            try {
+              const events = await fetchCalendarEvents(member.google_access_token, settings.selected_colors, fetchFrom);
+              return events.map(e => ({
+                ...e,
+                ownerId: member.user_id,
+                ownerName: (member.display_name ?? "").split(" ")[0],
+              }));
+            } catch {
+              return [];
             }
-            return events.map(e => ({
-              ...e,
-              ownerId: member.user_id,
-              ownerName: (member.display_name ?? "").split(" ")[0],
-            }));
           })
         );
         for (const r of results) {
           if (r.status === "fulfilled") googleEvents.push(...r.value);
         }
-      } else {
-        googleEvents = await fetchWithAutoRefresh(accessToken, settings.selected_colors, fetchFrom);
       }
 
       const allEvents = [...googleEvents, ...localEvents];
