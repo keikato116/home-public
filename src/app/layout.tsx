@@ -30,3 +30,15 @@ export const viewport: Viewport = {
   userScalable: false,
   viewportFit: "cover",
 };
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html lang="ja" className={dmMono.variable}>
+      <body>{children}</body>
+    </html>
+  );
+}
