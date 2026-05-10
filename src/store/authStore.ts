@@ -69,7 +69,7 @@ function scheduleTokenRefresh(
   }, 50 * 60 * 1000);
 }
 
-export const useAuthStore = create<AuthState>((set, get) => ({
+export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   householdId: null,
   inviteCode: null,
