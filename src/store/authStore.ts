@@ -21,6 +21,7 @@ interface AuthState {
 }
 
 let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+let isSigningOut = false;
 
 async function upsertUserToken(
   supabase: ReturnType<typeof createClient>,
@@ -66,7 +67,7 @@ function scheduleTokenRefresh(
     } catch {
       refreshTimer = setTimeout(() => scheduleTokenRefresh(set, userId, householdId, displayName), 5 * 60 * 1000);
     }
-  }, 50 * 60 * 1000);
+  }, 45 * 60 * 1000);
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -100,7 +101,6 @@ export const useAuthStore = create<AuthState>((set) => ({
         loading: false,
       });
 
-      // Immediately refresh Google token in background so it's fresh on app open
       const storedRefreshToken = localStorage.getItem("google_refresh_token");
       if (storedRefreshToken) {
         fetch("/api/refresh-token", {
@@ -149,12 +149,25 @@ export const useAuthStore = create<AuthState>((set) => ({
           scheduleTokenRefresh(set, session.user.id, hid, displayName);
         }
       }
-    } else {
-      localStorage.removeItem("cached_user");
-      localStorage.removeItem("cached_household_id");
-      localStorage.removeItem("cached_invite_code");
+    } else if (!cachedUser) {
+      // No session and no cached user — fully signed out
       set({ user: null, householdId: null, inviteCode: null, accessToken: null, loading: false });
+    } else {
+      // No Supabase session but we have cached user — session expired while away.
+      // Keep the cached user in state so the UI stays visible; server calls will
+      // trigger auth errors which surface as feature-level errors, not a full logout.
+      set({ loading: false });
     }
+
+    // Refresh Supabase session when the app comes back to the foreground
+    document.addEventListener("visibilitychange", async () => {
+      if (document.visibilityState !== "visible") return;
+      const { data: { session: s } } = await supabase.auth.getSession();
+      if (s) {
+        localStorage.setItem("cached_user", JSON.stringify(s.user));
+        set({ user: s.user });
+      }
+    });
 
     supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === "SIGNED_IN" && session) {
@@ -190,26 +203,38 @@ export const useAuthStore = create<AuthState>((set) => ({
         set({ accessToken: session.provider_token });
       } else if (event === "SIGNED_OUT") {
         if (refreshTimer) clearTimeout(refreshTimer);
-        // Don't remove Google tokens here — they're cleared by explicit signOut()
-        // This prevents session expiry from wiping tokens that are still valid
-        localStorage.removeItem("cached_user");
-        localStorage.removeItem("cached_household_id");
-        localStorage.removeItem("cached_invite_code");
-        set({ user: null, householdId: null, inviteCode: null, accessToken: null });
+        if (isSigningOut) {
+          // Explicit sign-out — full cleanup
+          isSigningOut = false;
+          localStorage.removeItem("google_access_token");
+          localStorage.removeItem("google_refresh_token");
+          localStorage.removeItem("cached_user");
+          localStorage.removeItem("cached_household_id");
+          localStorage.removeItem("cached_invite_code");
+          set({ user: null, householdId: null, inviteCode: null, accessToken: null });
+        } else {
+          // Session expired automatically — try to recover before logging out
+          const { data: { session: recovered } } = await supabase.auth.refreshSession();
+          if (recovered) {
+            localStorage.setItem("cached_user", JSON.stringify(recovered.user));
+            set({ user: recovered.user });
+          } else {
+            localStorage.removeItem("cached_user");
+            localStorage.removeItem("cached_household_id");
+            localStorage.removeItem("cached_invite_code");
+            set({ user: null, householdId: null, inviteCode: null, accessToken: null });
+          }
+        }
       }
     });
   },
 
   signOut: async () => {
+    isSigningOut = true;
     if (refreshTimer) clearTimeout(refreshTimer);
-    localStorage.removeItem("google_access_token");
-    localStorage.removeItem("google_refresh_token");
-    localStorage.removeItem("cached_user");
-    localStorage.removeItem("cached_household_id");
-    localStorage.removeItem("cached_invite_code");
     const supabase = createClient();
     await supabase.auth.signOut();
-    set({ user: null, householdId: null, inviteCode: null, accessToken: null });
+    // State is cleared by the SIGNED_OUT handler above
   },
 
   reAuthGoogle: async () => {
