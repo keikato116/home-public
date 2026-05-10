@@ -27,6 +27,7 @@ export function RoutineSettings() {
       frequency,
       day_of_week: frequency === "weekly" ? dayOfWeek : null,
       day_of_month: frequency === "monthly" ? dayOfMonth : null,
+      due_date: null,
     });
     await reloadTodos(householdId);
     setLabel("");
