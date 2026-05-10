@@ -18,6 +18,8 @@ interface TodoState {
   addUrgentTodo: (householdId: string, label: string, userId: string) => Promise<void>;
   toggleUrgentTodo: (id: string, done: boolean) => Promise<void>;
   deleteUrgentTodo: (id: string) => Promise<void>;
+  addChore: (householdId: string, label: string, repeat: boolean, dayOfWeek?: number, dueDate?: string) => Promise<void>;
+  deleteChore: (id: string) => Promise<void>;
   subscribeRealtime: (householdId: string) => () => void;
 }
 
@@ -40,26 +42,27 @@ export const useTodoStore = create<TodoState>((set, get) => ({
     const today = toISODate(new Date());
 
     const [defsRes, compsRes, todosRes] = await Promise.all([
-      supabase
-        .from("routine_definitions")
-        .select("*")
-        .eq("household_id", householdId)
-        .order("order"),
-      supabase
+      supabase.from("routine_definitions").select("*").eq("household_id", householdId).order("order"),
+      supabase.from("routine_completions").select("definition_id").eq("household_id", householdId).eq("completed_on", today),
+      supabase.from("shared_todos").select("*").eq("household_id", householdId).order("order"),
+    ]);
+
+    const defs = (defsRes.data ?? []) as RoutineDefinition[];
+    const completedIds = new Set((compsRes.data ?? []).map((c) => c.definition_id));
+
+    const onceIds = defs.filter((d) => d.frequency === "once").map((d) => d.id);
+    if (onceIds.length > 0) {
+      const { data: onceComps } = await supabase
         .from("routine_completions")
         .select("definition_id")
         .eq("household_id", householdId)
-        .eq("completed_on", today),
-      supabase
-        .from("shared_todos")
-        .select("*")
-        .eq("household_id", householdId)
-        .order("order"),
-    ]);
+        .in("definition_id", onceIds);
+      for (const c of onceComps ?? []) completedIds.add(c.definition_id);
+    }
 
     set({
-      routineDefinitions: (defsRes.data ?? []) as RoutineDefinition[],
-      completedRoutineIds: new Set((compsRes.data ?? []).map((c) => c.definition_id)),
+      routineDefinitions: defs,
+      completedRoutineIds: completedIds,
       urgentTodos: (todosRes.data ?? []) as SharedTodo[],
       loading: false,
     });
@@ -122,6 +125,40 @@ export const useTodoStore = create<TodoState>((set, get) => ({
     const supabase = createClient();
     await supabase.from("shared_todos").delete().eq("id", id);
     set((s) => ({ urgentTodos: s.urgentTodos.filter((t) => t.id !== id) }));
+  },
+
+  addChore: async (householdId, label, repeat, dayOfWeek, dueDate) => {
+    const supabase = createClient();
+    const maxOrder = Math.max(0, ...get().routineDefinitions.map((d) => d.order));
+    const { data } = await supabase
+      .from("routine_definitions")
+      .insert({
+        household_id: householdId,
+        label,
+        frequency: repeat ? "weekly" : "once",
+        day_of_week: repeat ? (dayOfWeek ?? 0) : null,
+        day_of_month: null,
+        due_date: repeat ? null : (dueDate ?? null),
+        order: maxOrder + 1,
+      })
+      .select()
+      .single();
+    if (data) {
+      set((s) => ({ routineDefinitions: [...s.routineDefinitions, data as RoutineDefinition] }));
+    }
+  },
+
+  deleteChore: async (id) => {
+    const supabase = createClient();
+    await supabase.from("routine_definitions").delete().eq("id", id);
+    set((s) => ({
+      routineDefinitions: s.routineDefinitions.filter((d) => d.id !== id),
+      completedRoutineIds: (() => {
+        const next = new Set(s.completedRoutineIds);
+        next.delete(id);
+        return next;
+      })(),
+    }));
   },
 
   subscribeRealtime: (householdId) => {

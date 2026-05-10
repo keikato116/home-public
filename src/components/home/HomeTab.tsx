@@ -5,6 +5,7 @@ import { WeatherWidget } from "./WeatherWidget";
 import { RoutineTodoList } from "./RoutineTodoList";
 import { UrgentTodoList } from "./UrgentTodoList";
 import { AddUrgentTodoForm } from "./AddUrgentTodoForm";
+import { AddChoreForm } from "./AddChoreForm";
 import { useTodoStore } from "@/store/todoStore";
 import { useAuthStore } from "@/store/authStore";
 
@@ -36,9 +37,14 @@ export function HomeTab() {
       </div>
 
       <div className="flex-1 space-y-6 overflow-y-auto">
-        <RoutineTodoList />
-        <UrgentTodoList />
-        <AddUrgentTodoForm />
+        <div className="space-y-1">
+          <UrgentTodoList />
+          <AddUrgentTodoForm />
+        </div>
+        <div className="space-y-1">
+          <RoutineTodoList />
+          <AddChoreForm />
+        </div>
       </div>
     </div>
   );

@@ -5,7 +5,7 @@ import { useAuthStore } from "@/store/authStore";
 import { cn } from "@/lib/utils";
 
 export function RoutineTodoList() {
-  const { todaysRoutines, markRoutineDone, markRoutineUndone } = useTodoStore();
+  const { todaysRoutines, markRoutineDone, markRoutineUndone, deleteChore } = useTodoStore();
   const { householdId } = useAuthStore();
   const routines = todaysRoutines();
 
@@ -19,12 +19,9 @@ export function RoutineTodoList() {
 
   return (
     <div className="space-y-0">
-      <p className="text-[10px] tracking-widest text-muted-foreground uppercase mb-2">routine</p>
+      <p className="text-[10px] tracking-widest text-muted-foreground uppercase mb-2">家事</p>
       {routines.map((r) => (
-        <label
-          key={r.id}
-          className="flex items-center gap-3 py-2.5 border-b border-border cursor-pointer group"
-        >
+        <div key={r.id} className="flex items-center gap-3 py-2.5 border-b border-border group">
           <input
             type="checkbox"
             checked={r.done}
@@ -34,7 +31,13 @@ export function RoutineTodoList() {
           <span className={cn("text-[12px] tracking-wide flex-1", r.done && "line-through text-muted-foreground")}>
             {r.label}
           </span>
-        </label>
+          <button
+            onClick={() => deleteChore(r.id)}
+            className="text-[11px] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity hover:text-foreground"
+          >
+            ×
+          </button>
+        </div>
       ))}
     </div>
   );

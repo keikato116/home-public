@@ -9,9 +9,10 @@ export interface RoutineDefinition {
   id: string;
   household_id: string;
   label: string;
-  frequency: "daily" | "weekly" | "monthly";
+  frequency: "daily" | "weekly" | "monthly" | "once";
   day_of_week: number | null;
   day_of_month: number | null;
+  due_date: string | null;
   order: number;
 }
 
