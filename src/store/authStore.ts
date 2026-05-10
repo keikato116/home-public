@@ -90,17 +90,29 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const cachedInviteCode = localStorage.getItem("cached_invite_code");
 
     if (cachedUser) {
+      const parsedUser = JSON.parse(cachedUser);
+      const displayName = parsedUser?.user_metadata?.full_name ?? parsedUser?.email ?? "";
       set({
-        user: JSON.parse(cachedUser),
+        user: parsedUser,
         householdId: cachedHouseholdId,
         inviteCode: cachedInviteCode,
         accessToken: localStorage.getItem("google_access_token"),
         loading: false,
       });
-      // Start proactive refresh if we have a refresh token
-      if (localStorage.getItem("google_refresh_token")) {
-        const parsedUser = JSON.parse(cachedUser);
-        const displayName = parsedUser?.user_metadata?.full_name ?? parsedUser?.email ?? "";
+
+      // Immediately refresh Google token in background so it's fresh on app open
+      const storedRefreshToken = localStorage.getItem("google_refresh_token");
+      if (storedRefreshToken) {
+        fetch("/api/refresh-token", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refreshToken: storedRefreshToken }),
+        }).then(r => r.ok ? r.json() : null).then(data => {
+          if (data?.accessToken) {
+            localStorage.setItem("google_access_token", data.accessToken);
+            set({ accessToken: data.accessToken });
+          }
+        }).catch(() => {});
         scheduleTokenRefresh(set, parsedUser.id, cachedHouseholdId ?? "", displayName);
       }
     }
@@ -178,8 +190,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         set({ accessToken: session.provider_token });
       } else if (event === "SIGNED_OUT") {
         if (refreshTimer) clearTimeout(refreshTimer);
-        localStorage.removeItem("google_access_token");
-        localStorage.removeItem("google_refresh_token");
+        // Don't remove Google tokens here — they're cleared by explicit signOut()
+        // This prevents session expiry from wiping tokens that are still valid
         localStorage.removeItem("cached_user");
         localStorage.removeItem("cached_household_id");
         localStorage.removeItem("cached_invite_code");
@@ -189,9 +201,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   signOut: async () => {
+    if (refreshTimer) clearTimeout(refreshTimer);
+    localStorage.removeItem("google_access_token");
+    localStorage.removeItem("google_refresh_token");
+    localStorage.removeItem("cached_user");
+    localStorage.removeItem("cached_household_id");
+    localStorage.removeItem("cached_invite_code");
     const supabase = createClient();
     await supabase.auth.signOut();
-    get().init();
+    set({ user: null, householdId: null, inviteCode: null, accessToken: null });
   },
 
   reAuthGoogle: async () => {
