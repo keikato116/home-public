@@ -150,16 +150,11 @@ export const useAuthStore = create<AuthState>((set) => ({
         }
       }
     } else if (!cachedUser) {
-      // No session and no cached user — fully signed out
       set({ user: null, householdId: null, inviteCode: null, accessToken: null, loading: false });
     } else {
-      // No Supabase session but we have cached user — session expired while away.
-      // Keep the cached user in state so the UI stays visible; server calls will
-      // trigger auth errors which surface as feature-level errors, not a full logout.
       set({ loading: false });
     }
 
-    // Refresh Supabase session when the app comes back to the foreground
     document.addEventListener("visibilitychange", async () => {
       if (document.visibilityState !== "visible") return;
       const { data: { session: s } } = await supabase.auth.getSession();
@@ -204,7 +199,6 @@ export const useAuthStore = create<AuthState>((set) => ({
       } else if (event === "SIGNED_OUT") {
         if (refreshTimer) clearTimeout(refreshTimer);
         if (isSigningOut) {
-          // Explicit sign-out — full cleanup
           isSigningOut = false;
           localStorage.removeItem("google_access_token");
           localStorage.removeItem("google_refresh_token");
@@ -213,7 +207,6 @@ export const useAuthStore = create<AuthState>((set) => ({
           localStorage.removeItem("cached_invite_code");
           set({ user: null, householdId: null, inviteCode: null, accessToken: null });
         } else {
-          // Session expired automatically — try to recover before logging out
           const { data: { session: recovered } } = await supabase.auth.refreshSession();
           if (recovered) {
             localStorage.setItem("cached_user", JSON.stringify(recovered.user));
@@ -234,7 +227,6 @@ export const useAuthStore = create<AuthState>((set) => ({
     if (refreshTimer) clearTimeout(refreshTimer);
     const supabase = createClient();
     await supabase.auth.signOut();
-    // State is cleared by the SIGNED_OUT handler above
   },
 
   reAuthGoogle: async () => {
