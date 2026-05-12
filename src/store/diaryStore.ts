@@ -19,14 +19,18 @@ export const useDiaryStore = create<DiaryState>((set) => ({
 
   load: async (userId) => {
     set({ loading: true });
-    const supabase = createClient();
-    const { data } = await supabase
-      .from("diary_entries")
-      .select("*")
-      .eq("user_id", userId)
-      .order("entry_date", { ascending: false })
-      .order("created_at", { ascending: false });
-    set({ entries: (data ?? []) as DiaryEntry[], loading: false });
+    try {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from("diary_entries")
+        .select("*")
+        .eq("user_id", userId)
+        .order("entry_date", { ascending: false })
+        .order("created_at", { ascending: false });
+      set({ entries: (data ?? []) as DiaryEntry[], loading: false });
+    } catch {
+      set({ loading: false });
+    }
   },
 
   addEntry: async (householdId, userId, content) => {
