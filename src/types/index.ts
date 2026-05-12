@@ -81,6 +81,16 @@ export interface LocalCalendarEvent {
   created_at: string;
 }
 
+export interface DiaryEntry {
+  id: string;
+  household_id: string;
+  user_id: string | null;
+  author_name: string | null;
+  content: string;
+  entry_date: string;
+  created_at: string;
+}
+
 export interface WeatherData {
   icon: string;
   temp: number;
