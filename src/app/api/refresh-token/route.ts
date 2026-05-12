@@ -23,5 +23,5 @@ export async function POST(request: Request) {
   }
 
   const data = await res.json();
-  return NextResponse.json({ accessToken: data.access_token });
+  return NextResponse.json({ accessToken: data.access_token, idToken: data.id_token ?? null });
 }

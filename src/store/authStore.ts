@@ -57,11 +57,15 @@ function scheduleTokenRefresh(
         body: JSON.stringify({ refreshToken }),
       });
       if (res.ok) {
-        const { accessToken } = await res.json();
+        const { accessToken, idToken } = await res.json();
         localStorage.setItem("google_access_token", accessToken);
         set({ accessToken });
         const supabase = createClient();
         await upsertUserToken(supabase, userId, householdId, accessToken, displayName);
+        // Silently refresh Supabase session using Google ID token so it never expires
+        if (idToken) {
+          await supabase.auth.signInWithIdToken({ provider: "google", token: idToken }).catch(() => {});
+        }
         scheduleTokenRefresh(set, userId, householdId, displayName);
       }
     } catch {
@@ -107,10 +111,13 @@ export const useAuthStore = create<AuthState>((set) => ({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ refreshToken: storedRefreshToken }),
-        }).then(r => r.ok ? r.json() : null).then(data => {
+        }).then(r => r.ok ? r.json() : null).then(async (data) => {
           if (data?.accessToken) {
             localStorage.setItem("google_access_token", data.accessToken);
             set({ accessToken: data.accessToken });
+          }
+          if (data?.idToken) {
+            await createClient().auth.signInWithIdToken({ provider: "google", token: data.idToken }).catch(() => {});
           }
         }).catch(() => {});
         scheduleTokenRefresh(set, parsedUser.id, cachedHouseholdId ?? "", displayName);
@@ -157,6 +164,21 @@ export const useAuthStore = create<AuthState>((set) => ({
 
     document.addEventListener("visibilitychange", async () => {
       if (document.visibilityState !== "visible") return;
+      const refreshToken = localStorage.getItem("google_refresh_token");
+      if (refreshToken) {
+        const res = await fetch("/api/refresh-token", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refreshToken }),
+        }).then(r => r.ok ? r.json() : null).catch(() => null);
+        if (res?.accessToken) {
+          localStorage.setItem("google_access_token", res.accessToken);
+          set({ accessToken: res.accessToken });
+        }
+        if (res?.idToken) {
+          await supabase.auth.signInWithIdToken({ provider: "google", token: res.idToken }).catch(() => {});
+        }
+      }
       const { data: { session: s } } = await supabase.auth.getSession();
       if (s) {
         localStorage.setItem("cached_user", JSON.stringify(s.user));
