@@ -36,7 +36,7 @@ export function BottomTabBar() {
       ))}
       <button
         onClick={() => setSettingsOpen(true)}
-        className="px-4 py-3 text-muted-foreground hover:text-foreground transition-colors"
+        className="flex-1 py-3 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
         aria-label="settings"
       >
         <Settings size={14} />
