@@ -90,6 +90,10 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
     set({ loading: true, error: null });
     const supabase = createClient();
 
+    const timeoutId = setTimeout(() => {
+      set({ loading: false, error: "カレンダーの取得がタイムアウトしました" });
+    }, 15000);
+
     try {
       const { data: settingsData } = await supabase
         .from("calendar_settings")
@@ -128,6 +132,7 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
         localStorage.getItem("google_access_token");
 
       if (!effectiveToken) {
+        clearTimeout(timeoutId);
         localEvents.sort((a, b) => (a.start.dateTime ?? a.start.date ?? "").localeCompare(b.start.dateTime ?? b.start.date ?? ""));
         set({ events: localEvents, loading: false, error: "再ログインしてカレンダーを表示してください" });
         return;
@@ -137,7 +142,6 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
       oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
       const fetchFrom = toISODate(oneMonthAgo);
 
-      // Always fetch current user's events with the session token (supports auto-refresh)
       const currentUserName =
         nameMap[currentUserId ?? ""] ||
         (user?.user_metadata?.full_name ?? user?.email ?? "").split(" ")[0];
@@ -149,7 +153,6 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
 
       const googleEvents: CalendarEvent[] = [...ownEvents];
 
-      // Fetch partner events from user_tokens (errors silently ignored per member)
       const partnerTokens = (memberTokens ?? []).filter(m => m.user_id !== currentUserId);
       if (partnerTokens.length > 0) {
         const results = await Promise.allSettled(
@@ -177,8 +180,10 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
         (a.start.dateTime ?? a.start.date ?? "").localeCompare(b.start.dateTime ?? b.start.date ?? "")
       );
 
+      clearTimeout(timeoutId);
       set({ events: allEvents, loading: false });
     } catch (e) {
+      clearTimeout(timeoutId);
       const msg = e instanceof Error && e.message === "TOKEN_EXPIRED"
         ? "セッションが切れました。再ログインしてください"
         : "カレンダーの取得に失敗しました";
