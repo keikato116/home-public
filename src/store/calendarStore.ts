@@ -121,10 +121,11 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
         localToCalendarEvent(e, e.user_id ? nameMap[e.user_id] : undefined)
       );
 
-      // accessToken from auth state may be null if Supabase session expired —
-      // fall back to localStorage so we can still attempt a fetch (fetchWithAutoRefresh
-      // will refresh it if it's also expired)
-      const effectiveToken = accessToken ?? localStorage.getItem("google_access_token");
+      // Always use the freshest available token: live authStore state > passed param > localStorage
+      const effectiveToken =
+        useAuthStore.getState().accessToken ??
+        accessToken ??
+        localStorage.getItem("google_access_token");
 
       if (!effectiveToken) {
         localEvents.sort((a, b) => (a.start.dateTime ?? a.start.date ?? "").localeCompare(b.start.dateTime ?? b.start.date ?? ""));
