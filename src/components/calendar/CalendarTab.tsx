@@ -6,6 +6,7 @@ import { useAuthStore } from "@/store/authStore";
 import { CalendarEventRow } from "./CalendarEventRow";
 import { RefreshCw, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { CalendarEvent } from "@/types";
+import { GOOGLE_COLOR_HEX } from "@/lib/calendar";
 
 type ViewMode = "day" | "week" | "month";
 
@@ -41,6 +42,10 @@ function getMonthDays(year: number, month: number): (Date | null)[] {
   return cells;
 }
 
+function eventColor(event: CalendarEvent): string {
+  return event.colorId ? GOOGLE_COLOR_HEX[event.colorId] : "#888888";
+}
+
 const DOW_LETTERS = ["S", "M", "T", "W", "T", "F", "S"];
 
 const MONTH_NAMES = [
@@ -64,48 +69,39 @@ function getPeriodLabel(viewMode: ViewMode, selectedDate: Date): string {
   return `${MONTH_NAMES[first.getMonth()].slice(0, 3)} – ${MONTH_NAMES[last.getMonth()].slice(0, 3)} ${last.getFullYear()}`;
 }
 
+// Week strip — shows colored event bars per day (no text, columns too narrow)
 interface WeekStripProps {
   weekDays: Date[];
   selectedDate: Date;
   today: Date;
   eventsMap: Record<string, CalendarEvent[]>;
-  currentUserId: string | undefined;
   onSelect: (d: Date) => void;
 }
 
-function WeekStrip({ weekDays, selectedDate, today, eventsMap, currentUserId, onSelect }: WeekStripProps) {
+function WeekStrip({ weekDays, selectedDate, today, eventsMap, onSelect }: WeekStripProps) {
   return (
     <div className="flex border-b border-border px-4 pb-3">
       {weekDays.map((d, i) => {
         const isSelected = isSameDay(d, selectedDate);
         const isToday = isSameDay(d, today);
         const dayEvents = eventsMap[toDateStr(d)] ?? [];
-        const hasOwn = dayEvents.some(e => e.ownerId === currentUserId);
-        const hasPartner = dayEvents.some(e => e.ownerId && e.ownerId !== currentUserId);
         return (
-          <button
-            key={i}
-            className="flex-1 flex flex-col items-center gap-1"
-            onClick={() => onSelect(d)}
-          >
-            <span className="text-[9px] text-muted-foreground tracking-wide">
-              {DOW_LETTERS[d.getDay()]}
-            </span>
-            <span
-              className={[
-                "w-7 h-7 rounded-full flex items-center justify-center text-[12px]",
-                isSelected
-                  ? "bg-foreground text-background"
-                  : isToday
-                  ? "border border-foreground text-foreground"
-                  : "text-foreground",
-              ].join(" ")}
-            >
+          <button key={i} className="flex-1 flex flex-col items-center gap-1" onClick={() => onSelect(d)}>
+            <span className="text-[9px] text-muted-foreground tracking-wide">{DOW_LETTERS[d.getDay()]}</span>
+            <span className={[
+              "w-7 h-7 rounded-full flex items-center justify-center text-[12px]",
+              isSelected ? "bg-foreground text-background"
+                : isToday ? "border border-foreground text-foreground"
+                : "text-foreground",
+            ].join(" ")}>
               {d.getDate()}
             </span>
-            <div className="flex gap-0.5 h-1.5 items-center">
-              {hasOwn && !isSelected && <span className="w-1 h-1 rounded-full bg-foreground" />}
-              {hasPartner && !isSelected && <span className="w-1 h-1 rounded-full bg-muted-foreground" />}
+            <div className="flex flex-col gap-px w-full px-0.5 mt-0.5">
+              {dayEvents.slice(0, 3).map((e) => (
+                <div key={e.id + (e.ownerId ?? "")} className="w-full h-1 rounded-sm"
+                  style={{ backgroundColor: eventColor(e) }} />
+              ))}
+              {dayEvents.length > 3 && <div className="w-full h-1 rounded-sm bg-muted-foreground opacity-40" />}
             </div>
           </button>
         );
@@ -114,21 +110,21 @@ function WeekStrip({ weekDays, selectedDate, today, eventsMap, currentUserId, on
   );
 }
 
+// Month grid — event title chips inside each cell
 interface MonthGridProps {
   selectedDate: Date;
   today: Date;
   eventsMap: Record<string, CalendarEvent[]>;
-  currentUserId: string | undefined;
   onSelect: (d: Date) => void;
 }
 
-function MonthGrid({ selectedDate, today, eventsMap, currentUserId, onSelect }: MonthGridProps) {
+function MonthGrid({ selectedDate, today, eventsMap, onSelect }: MonthGridProps) {
   const year = selectedDate.getFullYear();
   const month = selectedDate.getMonth();
   const cells = getMonthDays(year, month);
 
   return (
-    <div className="px-4 pb-3 border-b border-border">
+    <div className="px-1 pb-2 border-b border-border">
       <div className="grid grid-cols-7 mb-1">
         {DOW_LETTERS.map((l, i) => (
           <div key={i} className="flex justify-center">
@@ -136,45 +132,87 @@ function MonthGrid({ selectedDate, today, eventsMap, currentUserId, onSelect }: 
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-7 gap-y-1">
+      <div className="grid grid-cols-7">
         {cells.map((d, i) => {
-          if (!d) return <div key={i} />;
+          if (!d) return <div key={i} className="min-h-[60px]" />;
           const isSelected = isSameDay(d, selectedDate);
           const isToday = isSameDay(d, today);
           const dayEvents = eventsMap[toDateStr(d)] ?? [];
-          const ownEvents = dayEvents.filter(e => e.ownerId === currentUserId);
-          const partnerEvents = dayEvents.filter(e => e.ownerId && e.ownerId !== currentUserId);
           return (
-            <button
-              key={i}
-              className="flex flex-col items-center gap-0.5"
-              onClick={() => onSelect(d)}
-            >
-              <span
-                className={[
-                  "w-7 h-7 rounded-full flex items-center justify-center text-[11px]",
-                  isSelected
-                    ? "bg-foreground text-background"
-                    : isToday
-                    ? "border border-foreground text-foreground"
-                    : "text-foreground",
-                ].join(" ")}
-              >
+            <button key={i} className="flex flex-col items-center pt-1 pb-1 min-h-[60px]" onClick={() => onSelect(d)}>
+              <span className={[
+                "w-6 h-6 rounded-full flex items-center justify-center text-[11px] mb-0.5 flex-shrink-0",
+                isSelected ? "bg-foreground text-background"
+                  : isToday ? "border border-foreground text-foreground"
+                  : "text-foreground",
+              ].join(" ")}>
                 {d.getDate()}
               </span>
-              <div className="flex gap-0.5 h-1.5 items-center">
-                {ownEvents.slice(0, 2).map((_, j) => (
-                  <span key={`o${j}`} className="w-1 h-1 rounded-full bg-foreground" />
-                ))}
-                {partnerEvents.slice(0, 2).map((_, j) => (
-                  <span key={`p${j}`} className="w-1 h-1 rounded-full bg-muted-foreground" />
-                ))}
+              <div className="w-full px-0.5 space-y-px">
+                {dayEvents.slice(0, 2).map((e) => {
+                  const color = eventColor(e);
+                  return (
+                    <div key={e.id + (e.ownerId ?? "")}
+                      className="w-full text-[7px] leading-tight truncate rounded-sm px-0.5 py-px text-left"
+                      style={{ backgroundColor: color + "28", color }}>
+                      {e.summary}
+                    </div>
+                  );
+                })}
+                {dayEvents.length > 2 && (
+                  <span className="text-[7px] text-muted-foreground block pl-0.5">+{dayEvents.length - 2}</span>
+                )}
               </div>
             </button>
           );
         })}
       </div>
     </div>
+  );
+}
+
+// Week agenda — shows all 7 days with their events inline
+interface WeekAgendaProps {
+  weekDays: Date[];
+  eventsMap: Record<string, CalendarEvent[]>;
+  currentUserId: string | undefined;
+  today: Date;
+  onDelete: (id: string) => void;
+}
+
+function WeekAgenda({ weekDays, eventsMap, currentUserId, today, onDelete }: WeekAgendaProps) {
+  return (
+    <>
+      {weekDays.map((day) => {
+        const dayStr = toDateStr(day);
+        const events = eventsMap[dayStr] ?? [];
+        const isToday = isSameDay(day, today);
+        return (
+          <div key={dayStr} className="mb-2">
+            <div className="flex items-center gap-2 mb-1">
+              <span className={[
+                "text-[10px] tracking-widest uppercase",
+                isToday ? "text-foreground" : "text-muted-foreground",
+              ].join(" ")}>
+                {day.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+              </span>
+              {isToday && <span className="w-1 h-1 rounded-full bg-foreground" />}
+            </div>
+            {events.length === 0
+              ? <p className="text-[10px] text-muted-foreground pl-0">—</p>
+              : events.map(e => (
+                <CalendarEventRow
+                  key={e.id + (e.ownerId ?? "")}
+                  event={e}
+                  isOwn={e.ownerId === currentUserId}
+                  onDelete={e.isLocal ? onDelete : undefined}
+                />
+              ))
+            }
+          </div>
+        );
+      })}
+    </>
   );
 }
 
@@ -213,21 +251,14 @@ export function CalendarTab() {
   function navigate(direction: 1 | -1) {
     setSelectedDate((prev) => {
       const d = new Date(prev);
-      if (viewMode === "day") {
-        d.setDate(d.getDate() + direction);
-      } else if (viewMode === "week") {
-        d.setDate(d.getDate() + direction * 7);
-      } else {
-        d.setMonth(d.getMonth() + direction);
-      }
+      if (viewMode === "day") d.setDate(d.getDate() + direction);
+      else if (viewMode === "week") d.setDate(d.getDate() + direction * 7);
+      else d.setMonth(d.getMonth() + direction);
       return d;
     });
   }
 
-  function handleTouchStart(e: React.TouchEvent) {
-    touchStartX.current = e.touches[0].clientX;
-  }
-
+  function handleTouchStart(e: React.TouchEvent) { touchStartX.current = e.touches[0].clientX; }
   function handleTouchEnd(e: React.TouchEvent) {
     if (touchStartX.current === null) return;
     const diff = touchStartX.current - e.changedTouches[0].clientX;
@@ -235,136 +266,85 @@ export function CalendarTab() {
     touchStartX.current = null;
   }
 
-  function handleSelectDay(d: Date) {
-    setSelectedDate(d);
-  }
-
   const weekDays = getWeekDays(selectedDate);
   const label = getPeriodLabel(viewMode, selectedDate);
   const dayEvents = eventsMap[toDateStr(selectedDate)] ?? [];
 
   return (
-    <div
-      className="flex flex-col h-full"
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-    >
+    <div className="flex flex-col h-full" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+      {/* Header */}
       <div className="px-7 pt-8 pb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => navigate(-1)}
-            className="text-muted-foreground hover:text-foreground transition-colors"
-            aria-label="previous"
-          >
+          <button onClick={() => navigate(-1)} className="text-muted-foreground hover:text-foreground transition-colors" aria-label="previous">
             <ChevronLeft size={14} />
           </button>
           <span className="text-[13px] tracking-wide">{label}</span>
-          <button
-            onClick={() => navigate(1)}
-            className="text-muted-foreground hover:text-foreground transition-colors"
-            aria-label="next"
-          >
+          <button onClick={() => navigate(1)} className="text-muted-foreground hover:text-foreground transition-colors" aria-label="next">
             <ChevronRight size={14} />
           </button>
         </div>
-        <button
-          onClick={() => householdId && load(householdId, accessToken)}
-          className="text-muted-foreground hover:text-foreground transition-colors"
-          aria-label="refresh"
-        >
+        <button onClick={() => householdId && load(householdId, accessToken)}
+          className="text-muted-foreground hover:text-foreground transition-colors" aria-label="refresh">
           <RefreshCw size={13} />
         </button>
       </div>
 
+      {/* View mode selector */}
       <div className="px-7 pb-3 flex gap-1">
         {(["day", "week", "month"] as ViewMode[]).map((mode) => (
-          <button
-            key={mode}
-            onClick={() => setViewMode(mode)}
+          <button key={mode} onClick={() => setViewMode(mode)}
             className={[
               "text-[10px] tracking-widest px-2.5 py-1 rounded transition-colors",
-              viewMode === mode
-                ? "bg-foreground text-background"
-                : "text-muted-foreground hover:text-foreground",
-            ].join(" ")}
-          >
+              viewMode === mode ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground",
+            ].join(" ")}>
             {mode}
           </button>
         ))}
       </div>
 
+      {/* Calendar grid */}
       {(viewMode === "week" || viewMode === "day") && (
-        <WeekStrip
-          weekDays={weekDays}
-          selectedDate={selectedDate}
-          today={today}
-          eventsMap={eventsMap}
-          currentUserId={currentUserId}
-          onSelect={handleSelectDay}
-        />
+        <WeekStrip weekDays={weekDays} selectedDate={selectedDate} today={today}
+          eventsMap={eventsMap} onSelect={setSelectedDate} />
       )}
-
       {viewMode === "month" && (
-        <MonthGrid
-          selectedDate={selectedDate}
-          today={today}
-          eventsMap={eventsMap}
-          currentUserId={currentUserId}
-          onSelect={handleSelectDay}
-        />
+        <MonthGrid selectedDate={selectedDate} today={today} eventsMap={eventsMap} onSelect={setSelectedDate} />
       )}
 
+      {/* Content area */}
       <div className="flex-1 overflow-y-auto px-7 py-4">
+        {/* Add event button + form */}
         <div className="flex items-center justify-between mb-3">
           <span className="text-[10px] tracking-widest text-muted-foreground uppercase">
             {selectedDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
           </span>
-          <button
-            onClick={() => setShowAddForm(v => !v)}
-            className="text-muted-foreground hover:text-foreground transition-colors"
-            aria-label="add event"
-          >
+          <button onClick={() => setShowAddForm(v => !v)}
+            className="text-muted-foreground hover:text-foreground transition-colors" aria-label="add event">
             <Plus size={14} />
           </button>
         </div>
 
         {showAddForm && (
           <div className="mb-4 space-y-2 border border-border rounded p-3">
-            <input
-              type="text"
-              placeholder="event title"
-              value={newTitle}
+            <input type="text" placeholder="event title" value={newTitle}
               onChange={e => setNewTitle(e.target.value)}
               onKeyDown={e => e.key === "Enter" && handleAddLocalEvent()}
               className="w-full bg-transparent text-[12px] tracking-wide outline-none placeholder:text-muted-foreground border-b border-border pb-1"
-              autoFocus
-            />
+              autoFocus />
             <div className="flex gap-2">
-              <input
-                type="time"
-                value={newStartTime}
-                onChange={e => setNewStartTime(e.target.value)}
-                className="bg-transparent text-[11px] text-muted-foreground outline-none flex-1"
-              />
+              <input type="time" value={newStartTime} onChange={e => setNewStartTime(e.target.value)}
+                className="bg-transparent text-[11px] text-muted-foreground outline-none flex-1" />
               <span className="text-[11px] text-muted-foreground">–</span>
-              <input
-                type="time"
-                value={newEndTime}
-                onChange={e => setNewEndTime(e.target.value)}
-                className="bg-transparent text-[11px] text-muted-foreground outline-none flex-1"
-              />
+              <input type="time" value={newEndTime} onChange={e => setNewEndTime(e.target.value)}
+                className="bg-transparent text-[11px] text-muted-foreground outline-none flex-1" />
             </div>
             <div className="flex gap-2 pt-1">
-              <button
-                onClick={handleAddLocalEvent}
-                className="text-[10px] tracking-widest border border-border rounded px-3 py-1 hover:bg-muted transition-colors"
-              >
+              <button onClick={handleAddLocalEvent}
+                className="text-[10px] tracking-widest border border-border rounded px-3 py-1 hover:bg-muted transition-colors">
                 add
               </button>
-              <button
-                onClick={() => { setShowAddForm(false); setNewTitle(""); setNewStartTime(""); setNewEndTime(""); }}
-                className="text-[10px] tracking-widest text-muted-foreground"
-              >
+              <button onClick={() => { setShowAddForm(false); setNewTitle(""); setNewStartTime(""); setNewEndTime(""); }}
+                className="text-[10px] tracking-widest text-muted-foreground">
                 cancel
               </button>
             </div>
@@ -375,10 +355,8 @@ export function CalendarTab() {
           <div className="text-[11px] text-muted-foreground border border-border rounded p-4 space-y-3 mb-3">
             <p>{error}</p>
             {error.includes("再ログイン") || error.includes("セッション") ? (
-              <button
-                onClick={reAuthGoogle}
-                className="border border-border rounded px-3 py-2 text-[11px] tracking-wider hover:bg-muted transition-colors"
-              >
+              <button onClick={reAuthGoogle}
+                className="border border-border rounded px-3 py-2 text-[11px] tracking-wider hover:bg-muted transition-colors">
                 reconnect google
               </button>
             ) : null}
@@ -387,18 +365,39 @@ export function CalendarTab() {
 
         {loading && <p className="text-[11px] text-muted-foreground">loading...</p>}
 
-        {!loading && dayEvents.length === 0 && (
-          <p className="text-[11px] text-muted-foreground">no events</p>
+        {/* Week view: show all 7 days inline */}
+        {!loading && viewMode === "week" && (
+          <WeekAgenda weekDays={weekDays} eventsMap={eventsMap}
+            currentUserId={currentUserId} today={today} onDelete={deleteLocalEvent} />
         )}
 
-        {dayEvents.map((event) => (
-          <CalendarEventRow
-            key={event.id + (event.ownerId ?? "")}
-            event={event}
-            isOwn={event.ownerId === currentUserId}
-            onDelete={event.isLocal ? deleteLocalEvent : undefined}
-          />
-        ))}
+        {/* Day view: selected day events */}
+        {!loading && viewMode === "day" && (
+          <>
+            {dayEvents.length === 0
+              ? <p className="text-[11px] text-muted-foreground">no events</p>
+              : dayEvents.map(e => (
+                <CalendarEventRow key={e.id + (e.ownerId ?? "")} event={e}
+                  isOwn={e.ownerId === currentUserId}
+                  onDelete={e.isLocal ? deleteLocalEvent : undefined} />
+              ))
+            }
+          </>
+        )}
+
+        {/* Month view: selected day events */}
+        {!loading && viewMode === "month" && (
+          <>
+            {dayEvents.length === 0
+              ? <p className="text-[11px] text-muted-foreground">no events</p>
+              : dayEvents.map(e => (
+                <CalendarEventRow key={e.id + (e.ownerId ?? "")} event={e}
+                  isOwn={e.ownerId === currentUserId}
+                  onDelete={e.isLocal ? deleteLocalEvent : undefined} />
+              ))
+            }
+          </>
+        )}
       </div>
     </div>
   );
