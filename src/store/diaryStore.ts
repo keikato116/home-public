@@ -13,7 +13,7 @@ interface DiaryState {
   subscribeRealtime: (householdId: string) => () => void;
 }
 
-export const useDiaryStore = create<DiaryState>((set, get) => ({
+export const useDiaryStore = create<DiaryState>((set) => ({
   entries: [],
   loading: false,
 
