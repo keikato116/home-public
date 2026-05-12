@@ -121,7 +121,12 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
         localToCalendarEvent(e, e.user_id ? nameMap[e.user_id] : undefined)
       );
 
-      if (!accessToken) {
+      // accessToken from auth state may be null if Supabase session expired —
+      // fall back to localStorage so we can still attempt a fetch (fetchWithAutoRefresh
+      // will refresh it if it's also expired)
+      const effectiveToken = accessToken ?? localStorage.getItem("google_access_token");
+
+      if (!effectiveToken) {
         localEvents.sort((a, b) => (a.start.dateTime ?? a.start.date ?? "").localeCompare(b.start.dateTime ?? b.start.date ?? ""));
         set({ events: localEvents, loading: false, error: "再ログインしてカレンダーを表示してください" });
         return;
@@ -135,7 +140,7 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
       const currentUserName =
         nameMap[currentUserId ?? ""] ||
         (user?.user_metadata?.full_name ?? user?.email ?? "").split(" ")[0];
-      const ownEvents = (await fetchWithAutoRefresh(accessToken, settings.selected_colors, fetchFrom)).map(e => ({
+      const ownEvents = (await fetchWithAutoRefresh(effectiveToken, settings.selected_colors, fetchFrom)).map(e => ({
         ...e,
         ownerId: currentUserId,
         ownerName: currentUserName,
