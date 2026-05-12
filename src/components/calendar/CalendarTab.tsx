@@ -222,7 +222,7 @@ export function CalendarTab() {
   const currentUserId = user?.id;
 
   const today = useRef(new Date()).current;
-  const [viewMode, setViewMode] = useState<ViewMode>("week");
+  const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [selectedDate, setSelectedDate] = useState<Date>(today);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newTitle, setNewTitle] = useState("");
