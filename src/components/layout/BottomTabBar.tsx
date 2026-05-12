@@ -25,7 +25,7 @@ export function BottomTabBar() {
           key={tab.id}
           onClick={() => setActiveTab(tab.id)}
           className={cn(
-            "flex-1 py-3 text-[10px] tracking-widest transition-colors",
+            "flex-1 py-3 text-[10px] tracking-wide transition-colors",
             activeTab === tab.id
               ? "text-foreground font-medium"
               : "text-muted-foreground hover:text-foreground"
@@ -36,7 +36,7 @@ export function BottomTabBar() {
       ))}
       <button
         onClick={() => setSettingsOpen(true)}
-        className="flex-1 py-3 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+        className="px-4 py-3 text-muted-foreground hover:text-foreground transition-colors"
         aria-label="settings"
       >
         <Settings size={14} />
