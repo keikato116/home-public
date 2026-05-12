@@ -94,71 +94,75 @@ export const useAuthStore = create<AuthState>((set) => ({
     const cachedHouseholdId = localStorage.getItem("cached_household_id");
     const cachedInviteCode = localStorage.getItem("cached_invite_code");
 
-    if (cachedUser) {
-      const parsedUser = JSON.parse(cachedUser);
-      const displayName = parsedUser?.user_metadata?.full_name ?? parsedUser?.email ?? "";
-      set({
-        user: parsedUser,
-        householdId: cachedHouseholdId,
-        inviteCode: cachedInviteCode,
-        accessToken: localStorage.getItem("google_access_token"),
-        loading: false,
-      });
+    try {
+      if (cachedUser) {
+        const parsedUser = JSON.parse(cachedUser);
+        const displayName = parsedUser?.user_metadata?.full_name ?? parsedUser?.email ?? "";
+        set({
+          user: parsedUser,
+          householdId: cachedHouseholdId,
+          inviteCode: cachedInviteCode,
+          accessToken: localStorage.getItem("google_access_token"),
+          loading: false,
+        });
 
-      const storedRefreshToken = localStorage.getItem("google_refresh_token");
-      if (storedRefreshToken) {
-        fetch("/api/refresh-token", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ refreshToken: storedRefreshToken }),
-        }).then(r => r.ok ? r.json() : null).then(async (data) => {
-          if (data?.accessToken) {
-            localStorage.setItem("google_access_token", data.accessToken);
-            set({ accessToken: data.accessToken });
-          }
-          if (data?.idToken) {
-            await createClient().auth.signInWithIdToken({ provider: "google", token: data.idToken }).catch(() => {});
-          }
-        }).catch(() => {});
-        scheduleTokenRefresh(set, parsedUser.id, cachedHouseholdId ?? "", displayName);
-      }
-    }
-
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) {
-      if (session.provider_token) {
-        localStorage.setItem("google_access_token", session.provider_token);
-      }
-      if (session.provider_refresh_token) {
-        localStorage.setItem("google_refresh_token", session.provider_refresh_token);
-      }
-      const token = session.provider_token ?? localStorage.getItem("google_access_token");
-
-      const { data: member } = await supabase
-        .from("household_members")
-        .select("household_id, households(invite_code)")
-        .eq("user_id", session.user.id)
-        .maybeSingle();
-
-      const hid = member?.household_id ?? null;
-      const ic = (member?.households as { invite_code?: string } | null)?.invite_code ?? null;
-
-      localStorage.setItem("cached_user", JSON.stringify(session.user));
-      localStorage.setItem("cached_household_id", hid ?? "");
-      localStorage.setItem("cached_invite_code", ic ?? "");
-
-      set({ user: session.user, householdId: hid, inviteCode: ic, accessToken: token, loading: false });
-
-      if (hid && token) {
-        const displayName = session.user.user_metadata?.full_name ?? session.user.email ?? "";
-        await upsertUserToken(supabase, session.user.id, hid, token, displayName);
-        if (localStorage.getItem("google_refresh_token")) {
-          scheduleTokenRefresh(set, session.user.id, hid, displayName);
+        const storedRefreshToken = localStorage.getItem("google_refresh_token");
+        if (storedRefreshToken) {
+          fetch("/api/refresh-token", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ refreshToken: storedRefreshToken }),
+          }).then(r => r.ok ? r.json() : null).then(async (data) => {
+            if (data?.accessToken) {
+              localStorage.setItem("google_access_token", data.accessToken);
+              set({ accessToken: data.accessToken });
+            }
+            if (data?.idToken) {
+              await createClient().auth.signInWithIdToken({ provider: "google", token: data.idToken }).catch(() => {});
+            }
+          }).catch(() => {});
+          scheduleTokenRefresh(set, parsedUser.id, cachedHouseholdId ?? "", displayName);
         }
       }
-    } else if (!cachedUser) {
-      set({ user: null, householdId: null, inviteCode: null, accessToken: null, loading: false });
-    } else {
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        if (session.provider_token) {
+          localStorage.setItem("google_access_token", session.provider_token);
+        }
+        if (session.provider_refresh_token) {
+          localStorage.setItem("google_refresh_token", session.provider_refresh_token);
+        }
+        const token = session.provider_token ?? localStorage.getItem("google_access_token");
+
+        const { data: member } = await supabase
+          .from("household_members")
+          .select("household_id, households(invite_code)")
+          .eq("user_id", session.user.id)
+          .maybeSingle();
+
+        const hid = member?.household_id ?? null;
+        const ic = (member?.households as { invite_code?: string } | null)?.invite_code ?? null;
+
+        localStorage.setItem("cached_user", JSON.stringify(session.user));
+        localStorage.setItem("cached_household_id", hid ?? "");
+        localStorage.setItem("cached_invite_code", ic ?? "");
+
+        set({ user: session.user, householdId: hid, inviteCode: ic, accessToken: token, loading: false });
+
+        if (hid && token) {
+          const displayName = session.user.user_metadata?.full_name ?? session.user.email ?? "";
+          await upsertUserToken(supabase, session.user.id, hid, token, displayName);
+          if (localStorage.getItem("google_refresh_token")) {
+            scheduleTokenRefresh(set, session.user.id, hid, displayName);
+          }
+        }
+      } else if (!cachedUser) {
+        set({ user: null, householdId: null, inviteCode: null, accessToken: null, loading: false });
+      } else {
+        set({ loading: false });
+      }
+    } catch {
       set({ loading: false });
     }
 
