@@ -32,16 +32,15 @@ export function DiaryTab() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    if (!householdId) return;
-    load(householdId);
-    const unsub = subscribeRealtime(householdId);
+    if (!user) return;
+    load(user.id);
+    const unsub = subscribeRealtime(user.id);
     return unsub;
-  }, [householdId, load, subscribeRealtime]);
+  }, [user, load, subscribeRealtime]);
 
   async function handleSubmit() {
     if (!text.trim() || !householdId || !user) return;
-    const authorName = (user.user_metadata?.full_name ?? user.email ?? "").split(" ")[0];
-    await addEntry(householdId, user.id, authorName, text.trim());
+    await addEntry(householdId, user.id, text.trim());
     setText("");
     if (textareaRef.current) textareaRef.current.style.height = "auto";
   }
@@ -114,20 +113,17 @@ export function DiaryTab() {
                 <div key={entry.id} className="flex gap-2 group">
                   <div className="flex-1">
                     <p className="text-[9px] text-muted-foreground tracking-wide mb-0.5">
-                      {entry.author_name ?? "—"}
-                      <span className="ml-2">{formatTime(entry.created_at)}</span>
+                      {formatTime(entry.created_at)}
                     </p>
                     <p className="text-[12px] leading-relaxed whitespace-pre-wrap">{entry.content}</p>
                   </div>
-                  {entry.user_id === user?.id && (
-                    <button
-                      onClick={() => deleteEntry(entry.id)}
-                      className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground transition-all self-start pt-0.5 flex-shrink-0"
-                      aria-label="delete"
-                    >
-                      <Trash2 size={11} />
-                    </button>
-                  )}
+                  <button
+                    onClick={() => deleteEntry(entry.id)}
+                    className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground transition-all self-start pt-0.5 flex-shrink-0"
+                    aria-label="delete"
+                  >
+                    <Trash2 size={11} />
+                  </button>
                 </div>
               ))}
             </div>

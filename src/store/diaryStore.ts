@@ -7,34 +7,34 @@ import { DiaryEntry } from "@/types";
 interface DiaryState {
   entries: DiaryEntry[];
   loading: boolean;
-  load: (householdId: string) => Promise<void>;
-  addEntry: (householdId: string, userId: string, authorName: string, content: string) => Promise<void>;
+  load: (userId: string) => Promise<void>;
+  addEntry: (householdId: string, userId: string, content: string) => Promise<void>;
   deleteEntry: (id: string) => Promise<void>;
-  subscribeRealtime: (householdId: string) => () => void;
+  subscribeRealtime: (userId: string) => () => void;
 }
 
 export const useDiaryStore = create<DiaryState>((set) => ({
   entries: [],
   loading: false,
 
-  load: async (householdId) => {
+  load: async (userId) => {
     set({ loading: true });
     const supabase = createClient();
     const { data } = await supabase
       .from("diary_entries")
       .select("*")
-      .eq("household_id", householdId)
+      .eq("user_id", userId)
       .order("entry_date", { ascending: false })
       .order("created_at", { ascending: false });
     set({ entries: (data ?? []) as DiaryEntry[], loading: false });
   },
 
-  addEntry: async (householdId, userId, authorName, content) => {
+  addEntry: async (householdId, userId, content) => {
     const supabase = createClient();
     const today = new Date().toISOString().split("T")[0];
     const { data } = await supabase
       .from("diary_entries")
-      .insert({ household_id: householdId, user_id: userId, author_name: authorName, content, entry_date: today })
+      .insert({ household_id: householdId, user_id: userId, content, entry_date: today })
       .select()
       .single();
     if (data) {
@@ -48,15 +48,15 @@ export const useDiaryStore = create<DiaryState>((set) => ({
     set((s) => ({ entries: s.entries.filter((e) => e.id !== id) }));
   },
 
-  subscribeRealtime: (householdId) => {
+  subscribeRealtime: (userId) => {
     const supabase = createClient();
     const channel = supabase
-      .channel(`diary-${householdId}`)
+      .channel(`diary-${userId}`)
       .on("postgres_changes", {
         event: "*",
         schema: "public",
         table: "diary_entries",
-        filter: `household_id=eq.${householdId}`,
+        filter: `user_id=eq.${userId}`,
       }, (payload) => {
         const { eventType, new: newRow, old: oldRow } = payload;
         set((s) => {
