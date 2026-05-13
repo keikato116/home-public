@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { CalendarEvent, CalendarSettings, LocalCalendarEvent } from "@/types";
 import { fetchCalendarEvents } from "@/lib/calendar";
 import { toISODate } from "@/lib/utils";
-import { useAuthStore } from "@/store/authStore";
+import { useAuthStore, ensureValidAccessToken } from "@/store/authStore";
 
 let loadGeneration = 0;
 let loadTimeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -23,24 +23,6 @@ interface CalendarState {
   eventsByDate: () => Record<string, CalendarEvent[]>;
 }
 
-async function refreshAccessToken(): Promise<string | null> {
-  const refreshToken = localStorage.getItem("google_refresh_token");
-  if (!refreshToken) return null;
-
-  const res = await fetch("/api/refresh-token", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ refreshToken }),
-  });
-
-  if (!res.ok) return null;
-
-  const { accessToken } = await res.json();
-  localStorage.setItem("google_access_token", accessToken);
-  useAuthStore.setState({ accessToken });
-  return accessToken;
-}
-
 async function fetchWithAutoRefresh(
   token: string,
   colors: string[],
@@ -50,8 +32,10 @@ async function fetchWithAutoRefresh(
     return await fetchCalendarEvents(token, colors, startDate);
   } catch (e) {
     if (e instanceof Error && e.message === "TOKEN_EXPIRED") {
-      const newToken = await refreshAccessToken();
-      if (newToken) return await fetchCalendarEvents(newToken, colors, startDate);
+      const newToken = await ensureValidAccessToken();
+      if (newToken && newToken !== token) {
+        return await fetchCalendarEvents(newToken, colors, startDate);
+      }
     }
     throw e;
   }
@@ -145,9 +129,9 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
         localToCalendarEvent(e, e.user_id ? nameMap[e.user_id] : undefined)
       );
 
-      // Always use the freshest available token: live authStore state > passed param > localStorage
+      // Proactively get a valid token (refreshes if expired or near expiry)
       const effectiveToken =
-        useAuthStore.getState().accessToken ??
+        (await ensureValidAccessToken()) ??
         accessToken ??
         localStorage.getItem("google_access_token");
 

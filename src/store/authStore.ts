@@ -20,8 +20,18 @@ interface AuthState {
   reAuthGoogle: () => Promise<void>;
 }
 
-let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+const TOKEN_KEY = "google_access_token";
+const TOKEN_EXPIRY_KEY = "google_access_token_expires_at";
+const REFRESH_KEY = "google_refresh_token";
+
 let isSigningOut = false;
+let refreshInFlight: Promise<string | null> | null = null;
+
+function storeAccessToken(token: string, expiresInSec?: number) {
+  localStorage.setItem(TOKEN_KEY, token);
+  const seconds = expiresInSec && expiresInSec > 0 ? expiresInSec : 3300;
+  localStorage.setItem(TOKEN_EXPIRY_KEY, String(Date.now() + seconds * 1000));
+}
 
 async function upsertUserToken(
   supabase: ReturnType<typeof createClient>,
@@ -34,44 +44,67 @@ async function upsertUserToken(
     user_id: userId,
     household_id: householdId,
     google_access_token: accessToken,
-    google_refresh_token: localStorage.getItem("google_refresh_token") ?? "",
+    google_refresh_token: localStorage.getItem(REFRESH_KEY) ?? "",
     display_name: displayName,
     updated_at: new Date().toISOString(),
   });
 }
 
-function scheduleTokenRefresh(
-  set: (state: Partial<AuthState>) => void,
-  userId: string,
-  householdId: string,
-  displayName: string
-) {
-  if (refreshTimer) clearTimeout(refreshTimer);
-  refreshTimer = setTimeout(async () => {
-    const refreshToken = localStorage.getItem("google_refresh_token");
-    if (!refreshToken) return;
-    try {
-      const res = await fetch("/api/refresh-token", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refreshToken }),
-      });
-      if (res.ok) {
-        const { accessToken, idToken } = await res.json();
-        localStorage.setItem("google_access_token", accessToken);
-        set({ accessToken });
-        const supabase = createClient();
-        await upsertUserToken(supabase, userId, householdId, accessToken, displayName);
-        // Silently refresh Supabase session using Google ID token so it never expires
-        if (idToken) {
-          await supabase.auth.signInWithIdToken({ provider: "google", token: idToken }).catch(() => {});
-        }
-        scheduleTokenRefresh(set, userId, householdId, displayName);
-      }
-    } catch {
-      refreshTimer = setTimeout(() => scheduleTokenRefresh(set, userId, householdId, displayName), 5 * 60 * 1000);
+async function doRefresh(): Promise<string | null> {
+  const refreshToken = localStorage.getItem(REFRESH_KEY);
+  if (!refreshToken) return null;
+
+  try {
+    const res = await fetch("/api/refresh-token", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refreshToken }),
+    });
+    if (!res.ok) return null;
+
+    const { accessToken, idToken, expiresIn } = await res.json();
+    if (!accessToken) return null;
+
+    storeAccessToken(accessToken, expiresIn);
+    useAuthStore.setState({ accessToken });
+
+    const supabase = createClient();
+    if (idToken) {
+      await supabase.auth.signInWithIdToken({ provider: "google", token: idToken }).catch(() => {});
     }
-  }, 45 * 60 * 1000);
+
+    const { user, householdId } = useAuthStore.getState();
+    if (user && householdId) {
+      const displayName = user.user_metadata?.full_name ?? user.email ?? "";
+      upsertUserToken(supabase, user.id, householdId, accessToken, displayName).catch(() => {});
+    }
+
+    return accessToken;
+  } catch {
+    return null;
+  }
+}
+
+function refreshAccessToken(): Promise<string | null> {
+  if (refreshInFlight) return refreshInFlight;
+  refreshInFlight = doRefresh().finally(() => { refreshInFlight = null; });
+  return refreshInFlight;
+}
+
+// Returns a valid access token, refreshing proactively if expired or near expiry.
+// Returns null if refresh fails (caller should prompt re-auth).
+export async function ensureValidAccessToken(): Promise<string | null> {
+  if (typeof window === "undefined") return null;
+
+  const token = localStorage.getItem(TOKEN_KEY);
+  const expiresAt = parseInt(localStorage.getItem(TOKEN_EXPIRY_KEY) || "0", 10);
+
+  // Refresh if no expiry recorded (legacy), or less than 5 min remaining
+  if (token && expiresAt > 0 && Date.now() < expiresAt - 5 * 60 * 1000) {
+    return token;
+  }
+
+  return refreshAccessToken();
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -97,43 +130,26 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       if (cachedUser) {
         const parsedUser = JSON.parse(cachedUser);
-        const displayName = parsedUser?.user_metadata?.full_name ?? parsedUser?.email ?? "";
         set({
           user: parsedUser,
           householdId: cachedHouseholdId,
           inviteCode: cachedInviteCode,
-          accessToken: localStorage.getItem("google_access_token"),
+          accessToken: localStorage.getItem(TOKEN_KEY),
           loading: false,
         });
-
-        const storedRefreshToken = localStorage.getItem("google_refresh_token");
-        if (storedRefreshToken) {
-          fetch("/api/refresh-token", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ refreshToken: storedRefreshToken }),
-          }).then(r => r.ok ? r.json() : null).then(async (data) => {
-            if (data?.accessToken) {
-              localStorage.setItem("google_access_token", data.accessToken);
-              set({ accessToken: data.accessToken });
-            }
-            if (data?.idToken) {
-              await createClient().auth.signInWithIdToken({ provider: "google", token: data.idToken }).catch(() => {});
-            }
-          }).catch(() => {});
-          scheduleTokenRefresh(set, parsedUser.id, cachedHouseholdId ?? "", displayName);
-        }
+        // Proactively refresh in the background so the cached token is fresh
+        refreshAccessToken().catch(() => {});
       }
 
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         if (session.provider_token) {
-          localStorage.setItem("google_access_token", session.provider_token);
+          storeAccessToken(session.provider_token);
         }
         if (session.provider_refresh_token) {
-          localStorage.setItem("google_refresh_token", session.provider_refresh_token);
+          localStorage.setItem(REFRESH_KEY, session.provider_refresh_token);
         }
-        const token = session.provider_token ?? localStorage.getItem("google_access_token");
+        const token = session.provider_token ?? localStorage.getItem(TOKEN_KEY);
 
         const { data: member } = await supabase
           .from("household_members")
@@ -153,9 +169,6 @@ export const useAuthStore = create<AuthState>((set) => ({
         if (hid && token) {
           const displayName = session.user.user_metadata?.full_name ?? session.user.email ?? "";
           await upsertUserToken(supabase, session.user.id, hid, token, displayName);
-          if (localStorage.getItem("google_refresh_token")) {
-            scheduleTokenRefresh(set, session.user.id, hid, displayName);
-          }
         }
       } else if (!cachedUser) {
         set({ user: null, householdId: null, inviteCode: null, accessToken: null, loading: false });
@@ -166,39 +179,21 @@ export const useAuthStore = create<AuthState>((set) => ({
       set({ loading: false });
     }
 
-    document.addEventListener("visibilitychange", async () => {
+    document.addEventListener("visibilitychange", () => {
       if (document.visibilityState !== "visible") return;
-      const refreshToken = localStorage.getItem("google_refresh_token");
-      if (refreshToken) {
-        const res = await fetch("/api/refresh-token", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ refreshToken }),
-        }).then(r => r.ok ? r.json() : null).catch(() => null);
-        if (res?.accessToken) {
-          localStorage.setItem("google_access_token", res.accessToken);
-          set({ accessToken: res.accessToken });
-        }
-        if (res?.idToken) {
-          await supabase.auth.signInWithIdToken({ provider: "google", token: res.idToken }).catch(() => {});
-        }
-      }
-      const { data: { session: s } } = await supabase.auth.getSession();
-      if (s) {
-        localStorage.setItem("cached_user", JSON.stringify(s.user));
-        set({ user: s.user });
-      }
+      // Proactively refresh on foreground; dedupe handles concurrent calls
+      ensureValidAccessToken().catch(() => {});
     });
 
     supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === "SIGNED_IN" && session) {
         if (session.provider_token) {
-          localStorage.setItem("google_access_token", session.provider_token);
+          storeAccessToken(session.provider_token);
         }
         if (session.provider_refresh_token) {
-          localStorage.setItem("google_refresh_token", session.provider_refresh_token);
+          localStorage.setItem(REFRESH_KEY, session.provider_refresh_token);
         }
-        const token = session.provider_token ?? localStorage.getItem("google_access_token");
+        const token = session.provider_token ?? localStorage.getItem(TOKEN_KEY);
 
         const { data: member } = await supabase
           .from("household_members")
@@ -217,17 +212,16 @@ export const useAuthStore = create<AuthState>((set) => ({
         if (hid && token) {
           const displayName = session.user.user_metadata?.full_name ?? session.user.email ?? "";
           await upsertUserToken(supabase, session.user.id, hid, token, displayName);
-          scheduleTokenRefresh(set, session.user.id, hid, displayName);
         }
       } else if (event === "TOKEN_REFRESHED" && session?.provider_token) {
-        localStorage.setItem("google_access_token", session.provider_token);
+        storeAccessToken(session.provider_token);
         set({ accessToken: session.provider_token });
       } else if (event === "SIGNED_OUT") {
-        if (refreshTimer) clearTimeout(refreshTimer);
         if (isSigningOut) {
           isSigningOut = false;
-          localStorage.removeItem("google_access_token");
-          localStorage.removeItem("google_refresh_token");
+          localStorage.removeItem(TOKEN_KEY);
+          localStorage.removeItem(TOKEN_EXPIRY_KEY);
+          localStorage.removeItem(REFRESH_KEY);
           localStorage.removeItem("cached_user");
           localStorage.removeItem("cached_household_id");
           localStorage.removeItem("cached_invite_code");
@@ -250,7 +244,6 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   signOut: async () => {
     isSigningOut = true;
-    if (refreshTimer) clearTimeout(refreshTimer);
     const supabase = createClient();
     await supabase.auth.signOut();
   },

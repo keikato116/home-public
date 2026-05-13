@@ -23,5 +23,9 @@ export async function POST(request: Request) {
   }
 
   const data = await res.json();
-  return NextResponse.json({ accessToken: data.access_token, idToken: data.id_token ?? null });
+  return NextResponse.json({
+    accessToken: data.access_token,
+    idToken: data.id_token ?? null,
+    expiresIn: data.expires_in ?? 3500,
+  });
 }
