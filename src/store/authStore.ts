@@ -66,7 +66,7 @@ async function doRefresh(): Promise<string | null> {
           .maybeSingle();
         if (data?.google_refresh_token) {
           refreshToken = data.google_refresh_token;
-          localStorage.setItem(REFRESH_KEY, refreshToken);
+          localStorage.setItem(REFRESH_KEY, data.google_refresh_token);
         }
       }
     } catch {}
