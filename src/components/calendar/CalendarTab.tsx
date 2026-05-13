@@ -69,7 +69,6 @@ function getPeriodLabel(viewMode: ViewMode, selectedDate: Date): string {
   return `${MONTH_NAMES[first.getMonth()].slice(0, 3)} – ${MONTH_NAMES[last.getMonth()].slice(0, 3)} ${last.getFullYear()}`;
 }
 
-// Week strip — shows colored event bars per day (no text, columns too narrow)
 interface WeekStripProps {
   weekDays: Date[];
   selectedDate: Date;
@@ -110,7 +109,6 @@ function WeekStrip({ weekDays, selectedDate, today, eventsMap, onSelect }: WeekS
   );
 }
 
-// Month grid — event title chips inside each cell
 interface MonthGridProps {
   selectedDate: Date;
   today: Date;
@@ -171,7 +169,6 @@ function MonthGrid({ selectedDate, today, eventsMap, onSelect }: MonthGridProps)
   );
 }
 
-// Week agenda — shows all 7 days with their events inline
 interface WeekAgendaProps {
   weekDays: Date[];
   eventsMap: Record<string, CalendarEvent[]>;
@@ -231,10 +228,20 @@ export function CalendarTab() {
 
   const touchStartX = useRef<number | null>(null);
 
+  // Initial load only — calendarStore always reads the live token from authStore internally
   useEffect(() => {
     if (!householdId) return;
-    load(householdId, accessToken);
-  }, [householdId, accessToken, load]);
+    load(householdId, null);
+  }, [householdId, load]);
+
+  // When token refreshes and the calendar is in error state, retry automatically
+  const errorRef = useRef(error);
+  errorRef.current = error;
+  useEffect(() => {
+    if (!householdId || !accessToken) return;
+    if (!errorRef.current) return;
+    load(householdId, null);
+  }, [accessToken]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleAddLocalEvent() {
     if (!newTitle.trim() || !householdId || !currentUserId) return;
@@ -272,7 +279,6 @@ export function CalendarTab() {
 
   return (
     <div className="flex flex-col h-full" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
-      {/* Header */}
       <div className="px-7 pt-8 pb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <button onClick={() => navigate(-1)} className="text-muted-foreground hover:text-foreground transition-colors" aria-label="previous">
@@ -283,13 +289,12 @@ export function CalendarTab() {
             <ChevronRight size={14} />
           </button>
         </div>
-        <button onClick={() => householdId && load(householdId, accessToken)}
+        <button onClick={() => householdId && load(householdId, null)}
           className="text-muted-foreground hover:text-foreground transition-colors" aria-label="refresh">
           <RefreshCw size={13} />
         </button>
       </div>
 
-      {/* View mode selector */}
       <div className="px-7 pb-3 flex gap-1">
         {(["day", "week", "month"] as ViewMode[]).map((mode) => (
           <button key={mode} onClick={() => setViewMode(mode)}
@@ -302,7 +307,6 @@ export function CalendarTab() {
         ))}
       </div>
 
-      {/* Calendar grid */}
       {(viewMode === "week" || viewMode === "day") && (
         <WeekStrip weekDays={weekDays} selectedDate={selectedDate} today={today}
           eventsMap={eventsMap} onSelect={setSelectedDate} />
@@ -311,9 +315,7 @@ export function CalendarTab() {
         <MonthGrid selectedDate={selectedDate} today={today} eventsMap={eventsMap} onSelect={setSelectedDate} />
       )}
 
-      {/* Content area */}
       <div className="flex-1 overflow-y-auto px-7 py-4">
-        {/* Add event button + form */}
         <div className="flex items-center justify-between mb-3">
           <span className="text-[10px] tracking-widest text-muted-foreground uppercase">
             {selectedDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
@@ -365,13 +367,11 @@ export function CalendarTab() {
 
         {loading && <p className="text-[11px] text-muted-foreground">loading...</p>}
 
-        {/* Week view: show all 7 days inline */}
         {!loading && viewMode === "week" && (
           <WeekAgenda weekDays={weekDays} eventsMap={eventsMap}
             currentUserId={currentUserId} today={today} onDelete={deleteLocalEvent} />
         )}
 
-        {/* Day view: selected day events */}
         {!loading && viewMode === "day" && (
           <>
             {dayEvents.length === 0
@@ -385,7 +385,6 @@ export function CalendarTab() {
           </>
         )}
 
-        {/* Month view: selected day events */}
         {!loading && viewMode === "month" && (
           <>
             {dayEvents.length === 0
