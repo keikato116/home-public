@@ -51,7 +51,27 @@ async function upsertUserToken(
 }
 
 async function doRefresh(): Promise<string | null> {
-  const refreshToken = localStorage.getItem(REFRESH_KEY);
+  let refreshToken = localStorage.getItem(REFRESH_KEY);
+
+  if (!refreshToken) {
+    // localStorage may have been cleared (iOS PWA storage eviction); recover from DB
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data } = await supabase
+          .from("user_tokens")
+          .select("google_refresh_token")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        if (data?.google_refresh_token) {
+          refreshToken = data.google_refresh_token;
+          localStorage.setItem(REFRESH_KEY, refreshToken);
+        }
+      }
+    } catch {}
+  }
+
   if (!refreshToken) return null;
 
   try {
@@ -151,11 +171,24 @@ export const useAuthStore = create<AuthState>((set) => ({
         }
         const token = session.provider_token ?? localStorage.getItem(TOKEN_KEY);
 
-        const { data: member } = await supabase
-          .from("household_members")
-          .select("household_id, households(invite_code)")
-          .eq("user_id", session.user.id)
-          .maybeSingle();
+        const [{ data: member }, { data: tokenRow }] = await Promise.all([
+          supabase
+            .from("household_members")
+            .select("household_id, households(invite_code)")
+            .eq("user_id", session.user.id)
+            .maybeSingle(),
+          !localStorage.getItem(REFRESH_KEY)
+            ? supabase
+                .from("user_tokens")
+                .select("google_refresh_token")
+                .eq("user_id", session.user.id)
+                .maybeSingle()
+            : Promise.resolve({ data: null }),
+        ]);
+
+        if (tokenRow?.google_refresh_token && !localStorage.getItem(REFRESH_KEY)) {
+          localStorage.setItem(REFRESH_KEY, tokenRow.google_refresh_token);
+        }
 
         const hid = member?.household_id ?? null;
         const ic = (member?.households as { invite_code?: string } | null)?.invite_code ?? null;
