@@ -109,8 +109,9 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
       loadTimeoutId = setTimeout(() => {
         loadTimeoutId = null;
         if (myGen !== loadGeneration) return;
+        loadGeneration++; // invalidate any in-flight fetch so its result is discarded
         set({ loading: false, syncing: false, error: "カレンダーの取得がタイムアウトしました" });
-      }, 15000);
+      }, 30000);
     }
 
     try {
