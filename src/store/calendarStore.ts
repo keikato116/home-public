@@ -7,6 +7,9 @@ import { fetchCalendarEvents } from "@/lib/calendar";
 import { toISODate } from "@/lib/utils";
 import { useAuthStore } from "@/store/authStore";
 
+let loadGeneration = 0;
+let loadTimeoutId: ReturnType<typeof setTimeout> | null = null;
+
 interface CalendarState {
   events: CalendarEvent[];
   settings: CalendarSettings | null;
@@ -87,10 +90,14 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
   },
 
   load: async (householdId, accessToken) => {
+    if (loadTimeoutId) clearTimeout(loadTimeoutId);
+    const myGen = ++loadGeneration;
     set({ loading: true, error: null });
     const supabase = createClient();
 
-    const timeoutId = setTimeout(() => {
+    loadTimeoutId = setTimeout(() => {
+      loadTimeoutId = null;
+      if (myGen !== loadGeneration) return;
       set({ loading: false, error: "カレンダーの取得がタイムアウトしました" });
     }, 15000);
 
@@ -132,7 +139,8 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
         localStorage.getItem("google_access_token");
 
       if (!effectiveToken) {
-        clearTimeout(timeoutId);
+        if (loadTimeoutId) { clearTimeout(loadTimeoutId); loadTimeoutId = null; }
+        if (myGen !== loadGeneration) return;
         localEvents.sort((a, b) => (a.start.dateTime ?? a.start.date ?? "").localeCompare(b.start.dateTime ?? b.start.date ?? ""));
         set({ events: localEvents, loading: false, error: "再ログインしてカレンダーを表示してください" });
         return;
@@ -180,10 +188,12 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
         (a.start.dateTime ?? a.start.date ?? "").localeCompare(b.start.dateTime ?? b.start.date ?? "")
       );
 
-      clearTimeout(timeoutId);
+      if (loadTimeoutId) { clearTimeout(loadTimeoutId); loadTimeoutId = null; }
+      if (myGen !== loadGeneration) return;
       set({ events: allEvents, loading: false });
     } catch (e) {
-      clearTimeout(timeoutId);
+      if (loadTimeoutId) { clearTimeout(loadTimeoutId); loadTimeoutId = null; }
+      if (myGen !== loadGeneration) return;
       const msg = e instanceof Error && e.message === "TOKEN_EXPIRED"
         ? "セッションが切れました。再ログインしてください"
         : "カレンダーの取得に失敗しました";
