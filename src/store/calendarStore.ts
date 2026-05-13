@@ -13,7 +13,8 @@ let loadTimeoutId: ReturnType<typeof setTimeout> | null = null;
 interface CalendarState {
   events: CalendarEvent[];
   settings: CalendarSettings | null;
-  loading: boolean;
+  loading: boolean;   // true only on first load when no events exist yet
+  syncing: boolean;   // true during background refresh when events already shown
   error: string | null;
   load: (householdId: string, accessToken: string | null) => Promise<void>;
   updateSettings: (householdId: string, settings: Partial<CalendarSettings>) => Promise<void>;
@@ -76,6 +77,7 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
   events: [],
   settings: null,
   loading: false,
+  syncing: false,
   error: null,
 
   eventsByDate: () => {
@@ -92,14 +94,24 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
   load: async (householdId, accessToken) => {
     if (loadTimeoutId) clearTimeout(loadTimeoutId);
     const myGen = ++loadGeneration;
-    set({ loading: true, error: null });
+
+    const hasExistingEvents = get().events.length > 0;
+    set({
+      loading: !hasExistingEvents,
+      syncing: hasExistingEvents,
+      error: null,
+    });
+
     const supabase = createClient();
 
-    loadTimeoutId = setTimeout(() => {
-      loadTimeoutId = null;
-      if (myGen !== loadGeneration) return;
-      set({ loading: false, error: "カレンダーの取得がタイムアウトしました" });
-    }, 15000);
+    // Only timeout on first load — polling failures are silently ignored
+    if (!hasExistingEvents) {
+      loadTimeoutId = setTimeout(() => {
+        loadTimeoutId = null;
+        if (myGen !== loadGeneration) return;
+        set({ loading: false, syncing: false, error: "カレンダーの取得がタイムアウトしました" });
+      }, 15000);
+    }
 
     try {
       const { data: settingsData } = await supabase
@@ -142,7 +154,7 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
         if (loadTimeoutId) { clearTimeout(loadTimeoutId); loadTimeoutId = null; }
         if (myGen !== loadGeneration) return;
         localEvents.sort((a, b) => (a.start.dateTime ?? a.start.date ?? "").localeCompare(b.start.dateTime ?? b.start.date ?? ""));
-        set({ events: localEvents, loading: false, error: "再ログインしてカレンダーを表示してください" });
+        set({ events: localEvents, loading: false, syncing: false, error: "再ログインしてカレンダーを表示してください" });
         return;
       }
 
@@ -190,14 +202,21 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
 
       if (loadTimeoutId) { clearTimeout(loadTimeoutId); loadTimeoutId = null; }
       if (myGen !== loadGeneration) return;
-      set({ events: allEvents, loading: false });
+      set({ events: allEvents, loading: false, syncing: false });
     } catch (e) {
       if (loadTimeoutId) { clearTimeout(loadTimeoutId); loadTimeoutId = null; }
       if (myGen !== loadGeneration) return;
-      const msg = e instanceof Error && e.message === "TOKEN_EXPIRED"
-        ? "セッションが切れました。再ログインしてください"
-        : "カレンダーの取得に失敗しました";
-      set({ loading: false, error: msg });
+      const isTokenExpired = e instanceof Error && e.message === "TOKEN_EXPIRED";
+      if (!hasExistingEvents || isTokenExpired) {
+        // Show error on: first load failure, or token expired (needs re-auth)
+        const msg = isTokenExpired
+          ? "セッションが切れました。再ログインしてください"
+          : "カレンダーの取得に失敗しました";
+        set({ loading: false, syncing: false, error: msg });
+      } else {
+        // Polling network failure: silently keep existing events
+        set({ syncing: false });
+      }
     }
   },
 

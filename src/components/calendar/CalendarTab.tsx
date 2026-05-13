@@ -69,6 +69,7 @@ function getPeriodLabel(viewMode: ViewMode, selectedDate: Date): string {
   return `${MONTH_NAMES[first.getMonth()].slice(0, 3)} – ${MONTH_NAMES[last.getMonth()].slice(0, 3)} ${last.getFullYear()}`;
 }
 
+// Week strip — shows colored event bars per day (no text, columns too narrow)
 interface WeekStripProps {
   weekDays: Date[];
   selectedDate: Date;
@@ -109,6 +110,7 @@ function WeekStrip({ weekDays, selectedDate, today, eventsMap, onSelect }: WeekS
   );
 }
 
+// Month grid — event title chips inside each cell
 interface MonthGridProps {
   selectedDate: Date;
   today: Date;
@@ -169,6 +171,7 @@ function MonthGrid({ selectedDate, today, eventsMap, onSelect }: MonthGridProps)
   );
 }
 
+// Week agenda — shows all 7 days with their events inline
 interface WeekAgendaProps {
   weekDays: Date[];
   eventsMap: Record<string, CalendarEvent[]>;
@@ -214,8 +217,8 @@ function WeekAgenda({ weekDays, eventsMap, currentUserId, today, onDelete }: Wee
 }
 
 export function CalendarTab() {
-  const { householdId, accessToken, reAuthGoogle, user } = useAuthStore();
-  const { load, eventsByDate, loading, error, addLocalEvent, deleteLocalEvent } = useCalendarStore();
+  const { householdId, reAuthGoogle, user } = useAuthStore();
+  const { load, eventsByDate, loading, syncing, error, addLocalEvent, deleteLocalEvent } = useCalendarStore();
   const currentUserId = user?.id;
 
   const today = useRef(new Date()).current;
@@ -228,20 +231,25 @@ export function CalendarTab() {
 
   const touchStartX = useRef<number | null>(null);
 
-  // Initial load only — calendarStore always reads the live token from authStore internally
+  // Initial load
   useEffect(() => {
     if (!householdId) return;
     load(householdId, null);
   }, [householdId, load]);
 
-  // When token refreshes and the calendar is in error state, retry automatically
-  const errorRef = useRef(error);
-  errorRef.current = error;
+  // Auto-poll every 30 seconds + refresh immediately when app comes to foreground
   useEffect(() => {
-    if (!householdId || !accessToken) return;
-    if (!errorRef.current) return;
-    load(householdId, null);
-  }, [accessToken]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!householdId) return;
+    const refresh = () => {
+      if (document.visibilityState === "visible") load(householdId, null);
+    };
+    const id = setInterval(refresh, 30_000);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [householdId, load]);
 
   async function handleAddLocalEvent() {
     if (!newTitle.trim() || !householdId || !currentUserId) return;
@@ -276,9 +284,11 @@ export function CalendarTab() {
   const weekDays = getWeekDays(selectedDate);
   const label = getPeriodLabel(viewMode, selectedDate);
   const dayEvents = eventsMap[toDateStr(selectedDate)] ?? [];
+  const isActive = loading || syncing;
 
   return (
     <div className="flex flex-col h-full" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+      {/* Header */}
       <div className="px-7 pt-8 pb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <button onClick={() => navigate(-1)} className="text-muted-foreground hover:text-foreground transition-colors" aria-label="previous">
@@ -289,12 +299,16 @@ export function CalendarTab() {
             <ChevronRight size={14} />
           </button>
         </div>
-        <button onClick={() => householdId && load(householdId, null)}
-          className="text-muted-foreground hover:text-foreground transition-colors" aria-label="refresh">
+        <button
+          onClick={() => householdId && load(householdId, null)}
+          className={`text-muted-foreground hover:text-foreground transition-colors${isActive ? " animate-spin" : ""}`}
+          aria-label="refresh"
+        >
           <RefreshCw size={13} />
         </button>
       </div>
 
+      {/* View mode selector */}
       <div className="px-7 pb-3 flex gap-1">
         {(["day", "week", "month"] as ViewMode[]).map((mode) => (
           <button key={mode} onClick={() => setViewMode(mode)}
@@ -307,6 +321,7 @@ export function CalendarTab() {
         ))}
       </div>
 
+      {/* Calendar grid */}
       {(viewMode === "week" || viewMode === "day") && (
         <WeekStrip weekDays={weekDays} selectedDate={selectedDate} today={today}
           eventsMap={eventsMap} onSelect={setSelectedDate} />
@@ -315,7 +330,9 @@ export function CalendarTab() {
         <MonthGrid selectedDate={selectedDate} today={today} eventsMap={eventsMap} onSelect={setSelectedDate} />
       )}
 
+      {/* Content area */}
       <div className="flex-1 overflow-y-auto px-7 py-4">
+        {/* Add event button + form */}
         <div className="flex items-center justify-between mb-3">
           <span className="text-[10px] tracking-widest text-muted-foreground uppercase">
             {selectedDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
@@ -356,7 +373,7 @@ export function CalendarTab() {
         {error && (
           <div className="text-[11px] text-muted-foreground border border-border rounded p-4 space-y-3 mb-3">
             <p>{error}</p>
-            {error.includes("再ログイン") || error.includes("セッション") ? (
+            {(error.includes("再ログイン") || error.includes("セッション")) ? (
               <button onClick={reAuthGoogle}
                 className="border border-border rounded px-3 py-2 text-[11px] tracking-wider hover:bg-muted transition-colors">
                 reconnect google
@@ -367,11 +384,13 @@ export function CalendarTab() {
 
         {loading && <p className="text-[11px] text-muted-foreground">loading...</p>}
 
+        {/* Week view: show all 7 days inline */}
         {!loading && viewMode === "week" && (
           <WeekAgenda weekDays={weekDays} eventsMap={eventsMap}
             currentUserId={currentUserId} today={today} onDelete={deleteLocalEvent} />
         )}
 
+        {/* Day view: selected day events */}
         {!loading && viewMode === "day" && (
           <>
             {dayEvents.length === 0
@@ -385,6 +404,7 @@ export function CalendarTab() {
           </>
         )}
 
+        {/* Month view: selected day events */}
         {!loading && viewMode === "month" && (
           <>
             {dayEvents.length === 0
