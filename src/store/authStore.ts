@@ -80,7 +80,14 @@ async function doRefresh(): Promise<string | null> {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refreshToken }),
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      if (err.googleError === "invalid_grant") {
+        // Refresh token revoked or expired; clear it so DB recovery runs next time
+        localStorage.removeItem(REFRESH_KEY);
+      }
+      return null;
+    }
 
     const { accessToken, idToken, expiresIn } = await res.json();
     if (!accessToken) return null;
