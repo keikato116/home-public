@@ -85,4 +85,5 @@ export interface WeatherData {
   icon: string;
   temp: number;
   description: string;
+  rain1h: number | null;
 }

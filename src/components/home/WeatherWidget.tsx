@@ -32,7 +32,12 @@ export function WeatherWidget() {
         height={64}
         style={{ filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.3))" }}
       />
-      <span className="text-[13px]">{weather.temp}°</span>
+      <div className="flex flex-col items-start leading-tight">
+        <span className="text-[13px]">{weather.temp}°</span>
+        {weather.rain1h != null && (
+          <span className="text-[11px]">雨 {weather.rain1h.toFixed(1)}mm</span>
+        )}
+      </div>
     </div>
   );
 }

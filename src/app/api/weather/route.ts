@@ -26,6 +26,7 @@ export async function GET(request: Request) {
       icon: data.weather[0].icon,
       temp: Math.round(data.main.temp),
       description: data.weather[0].description,
+      rain1h: data.rain?.["1h"] ?? null,
     });
   } catch {
     return NextResponse.json({ error: "Failed to fetch weather" }, { status: 500 });
