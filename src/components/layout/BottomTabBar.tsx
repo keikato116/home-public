@@ -8,6 +8,7 @@ const TABS = [
   { id: "home", label: "home" },
   { id: "shopping", label: "shopping" },
   { id: "calendar", label: "calendar" },
+  { id: "diary", label: "diary" },
   { id: "recipe", label: "recipe" },
 ];
 
@@ -24,7 +25,7 @@ export function BottomTabBar() {
           key={tab.id}
           onClick={() => setActiveTab(tab.id)}
           className={cn(
-            "flex-1 py-3 text-[10px] tracking-widest transition-colors",
+            "flex-1 py-3 text-[10px] tracking-wide transition-colors",
             activeTab === tab.id
               ? "text-foreground font-medium"
               : "text-muted-foreground hover:text-foreground"

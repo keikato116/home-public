@@ -26,6 +26,8 @@ export const viewport: Viewport = {
   ],
   width: "device-width",
   initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
   viewportFit: "cover",
 };
 
@@ -35,10 +37,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ja" suppressHydrationWarning>
-      <body className={`${dmMono.variable} font-mono antialiased`}>
-        {children}
-      </body>
+    <html lang="ja" className={dmMono.variable}>
+      <body>{children}</body>
     </html>
   );
 }

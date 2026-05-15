@@ -5,36 +5,22 @@ import { createClient } from "@/lib/supabase/client";
 import { CalendarEvent, CalendarSettings, LocalCalendarEvent } from "@/types";
 import { fetchCalendarEvents } from "@/lib/calendar";
 import { toISODate } from "@/lib/utils";
-import { useAuthStore } from "@/store/authStore";
+import { useAuthStore, ensureValidAccessToken } from "@/store/authStore";
+
+let loadGeneration = 0;
+let loadTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
 interface CalendarState {
   events: CalendarEvent[];
   settings: CalendarSettings | null;
-  loading: boolean;
+  loading: boolean;   // true only on first load when no events exist yet
+  syncing: boolean;   // true during background refresh when events already shown
   error: string | null;
   load: (householdId: string, accessToken: string | null) => Promise<void>;
   updateSettings: (householdId: string, settings: Partial<CalendarSettings>) => Promise<void>;
   addLocalEvent: (householdId: string, userId: string, title: string, date: string, startTime?: string, endTime?: string) => Promise<void>;
   deleteLocalEvent: (id: string) => Promise<void>;
   eventsByDate: () => Record<string, CalendarEvent[]>;
-}
-
-async function refreshAccessToken(): Promise<string | null> {
-  const refreshToken = localStorage.getItem("google_refresh_token");
-  if (!refreshToken) return null;
-
-  const res = await fetch("/api/refresh-token", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ refreshToken }),
-  });
-
-  if (!res.ok) return null;
-
-  const { accessToken } = await res.json();
-  localStorage.setItem("google_access_token", accessToken);
-  useAuthStore.setState({ accessToken });
-  return accessToken;
 }
 
 async function fetchWithAutoRefresh(
@@ -46,8 +32,10 @@ async function fetchWithAutoRefresh(
     return await fetchCalendarEvents(token, colors, startDate);
   } catch (e) {
     if (e instanceof Error && e.message === "TOKEN_EXPIRED") {
-      const newToken = await refreshAccessToken();
-      if (newToken) return await fetchCalendarEvents(newToken, colors, startDate);
+      const newToken = await ensureValidAccessToken();
+      if (newToken && newToken !== token) {
+        return await fetchCalendarEvents(newToken, colors, startDate);
+      }
     }
     throw e;
   }
@@ -73,6 +61,7 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
   events: [],
   settings: null,
   loading: false,
+  syncing: false,
   error: null,
 
   eventsByDate: () => {
@@ -87,8 +76,27 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
   },
 
   load: async (householdId, accessToken) => {
-    set({ loading: true, error: null });
+    if (loadTimeoutId) clearTimeout(loadTimeoutId);
+    const myGen = ++loadGeneration;
+
+    const hasExistingEvents = get().events.length > 0;
+    set({
+      loading: !hasExistingEvents,
+      syncing: hasExistingEvents,
+      error: null,
+    });
+
     const supabase = createClient();
+
+    // Only timeout on first load — polling failures are silently ignored
+    if (!hasExistingEvents) {
+      loadTimeoutId = setTimeout(() => {
+        loadTimeoutId = null;
+        if (myGen !== loadGeneration) return;
+        loadGeneration++; // invalidate any in-flight fetch so its result is discarded
+        set({ loading: false, syncing: false, error: "カレンダーの取得がタイムアウトしました" });
+      }, 30000);
+    }
 
     try {
       const { data: settingsData } = await supabase
@@ -121,9 +129,17 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
         localToCalendarEvent(e, e.user_id ? nameMap[e.user_id] : undefined)
       );
 
-      if (!accessToken) {
+      // Proactively get a valid token (refreshes if expired or near expiry)
+      const effectiveToken =
+        (await ensureValidAccessToken()) ??
+        accessToken ??
+        localStorage.getItem("google_access_token");
+
+      if (!effectiveToken) {
+        if (loadTimeoutId) { clearTimeout(loadTimeoutId); loadTimeoutId = null; }
+        if (myGen !== loadGeneration) return;
         localEvents.sort((a, b) => (a.start.dateTime ?? a.start.date ?? "").localeCompare(b.start.dateTime ?? b.start.date ?? ""));
-        set({ events: localEvents, loading: false, error: "再ログインしてカレンダーを表示してください" });
+        set({ events: localEvents, loading: false, syncing: false, error: "再ログインしてカレンダーを表示してください" });
         return;
       }
 
@@ -131,11 +147,10 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
       oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
       const fetchFrom = toISODate(oneMonthAgo);
 
-      // Always fetch current user's events with the session token (supports auto-refresh)
       const currentUserName =
         nameMap[currentUserId ?? ""] ||
         (user?.user_metadata?.full_name ?? user?.email ?? "").split(" ")[0];
-      const ownEvents = (await fetchWithAutoRefresh(accessToken, settings.selected_colors, fetchFrom)).map(e => ({
+      const ownEvents = (await fetchWithAutoRefresh(effectiveToken, settings.selected_colors, fetchFrom)).map(e => ({
         ...e,
         ownerId: currentUserId,
         ownerName: currentUserName,
@@ -143,7 +158,6 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
 
       const googleEvents: CalendarEvent[] = [...ownEvents];
 
-      // Fetch partner events from user_tokens (errors silently ignored per member)
       const partnerTokens = (memberTokens ?? []).filter(m => m.user_id !== currentUserId);
       if (partnerTokens.length > 0) {
         const results = await Promise.allSettled(
@@ -171,12 +185,23 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
         (a.start.dateTime ?? a.start.date ?? "").localeCompare(b.start.dateTime ?? b.start.date ?? "")
       );
 
-      set({ events: allEvents, loading: false });
+      if (loadTimeoutId) { clearTimeout(loadTimeoutId); loadTimeoutId = null; }
+      if (myGen !== loadGeneration) return;
+      set({ events: allEvents, loading: false, syncing: false });
     } catch (e) {
-      const msg = e instanceof Error && e.message === "TOKEN_EXPIRED"
-        ? "セッションが切れました。再ログインしてください"
-        : "カレンダーの取得に失敗しました";
-      set({ loading: false, error: msg });
+      if (loadTimeoutId) { clearTimeout(loadTimeoutId); loadTimeoutId = null; }
+      if (myGen !== loadGeneration) return;
+      const isTokenExpired = e instanceof Error && e.message === "TOKEN_EXPIRED";
+      if (!hasExistingEvents || isTokenExpired) {
+        // Show error on: first load failure, or token expired (needs re-auth)
+        const msg = isTokenExpired
+          ? "セッションが切れました。再ログインしてください"
+          : "カレンダーの取得に失敗しました";
+        set({ loading: false, syncing: false, error: msg });
+      } else {
+        // Polling network failure: silently keep existing events
+        set({ syncing: false });
+      }
     }
   },
 

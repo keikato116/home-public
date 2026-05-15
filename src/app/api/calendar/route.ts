@@ -23,9 +23,13 @@ export async function GET(request: Request) {
     url.searchParams.set("orderBy", "startTime");
     url.searchParams.set("maxResults", "250");
 
+    const abort = new AbortController();
+    const abortTimer = setTimeout(() => abort.abort(), 9000);
     const res = await fetch(url.toString(), {
       headers: { Authorization: `Bearer ${accessToken}` },
+      signal: abort.signal,
     });
+    clearTimeout(abortTimer);
 
     if (!res.ok) {
       const err = await res.json();

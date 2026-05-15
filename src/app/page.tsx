@@ -9,6 +9,7 @@ import { HomeTab } from "@/components/home/HomeTab";
 import { ShoppingTab } from "@/components/shopping/ShoppingTab";
 import { CalendarTab } from "@/components/calendar/CalendarTab";
 import { RecipeTab } from "@/components/recipe/RecipeTab";
+import { DiaryTab } from "@/components/diary/DiaryTab";
 import { SettingsPage } from "@/components/settings/SettingsPage";
 
 function MainApp() {
@@ -23,6 +24,7 @@ function MainApp() {
         {activeTab === "home" && <HomeTab />}
         {activeTab === "shopping" && <ShoppingTab />}
         {activeTab === "calendar" && <CalendarTab />}
+        {activeTab === "diary" && <DiaryTab />}
         {activeTab === "recipe" && <RecipeTab />}
       </main>
 
