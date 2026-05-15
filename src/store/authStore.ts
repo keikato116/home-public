@@ -26,6 +26,7 @@ const REFRESH_KEY = "google_refresh_token";
 
 let isSigningOut = false;
 let refreshInFlight: Promise<string | null> | null = null;
+let periodicRefreshInterval: ReturnType<typeof setInterval> | null = null;
 
 function storeAccessToken(token: string, expiresInSec?: number) {
   localStorage.setItem(TOKEN_KEY, token);
@@ -280,9 +281,16 @@ export const useAuthStore = create<AuthState>((set) => ({
         }
       }
     });
+
+    // Proactively refresh the token every 45 minutes so it never expires mid-session
+    if (periodicRefreshInterval) clearInterval(periodicRefreshInterval);
+    periodicRefreshInterval = setInterval(() => {
+      ensureValidAccessToken().catch(() => {});
+    }, 45 * 60 * 1000);
   },
 
   signOut: async () => {
+    if (periodicRefreshInterval) { clearInterval(periodicRefreshInterval); periodicRefreshInterval = null; }
     isSigningOut = true;
     const supabase = createClient();
     await supabase.auth.signOut();

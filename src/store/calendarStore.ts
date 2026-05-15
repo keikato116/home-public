@@ -193,11 +193,20 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
       if (myGen !== loadGeneration) return;
       const isTokenExpired = e instanceof Error && e.message === "TOKEN_EXPIRED";
       if (!hasExistingEvents || isTokenExpired) {
-        // Show error on: first load failure, or token expired (needs re-auth)
         const msg = isTokenExpired
           ? "セッションが切れました。再ログインしてください"
           : "カレンダーの取得に失敗しました";
         set({ loading: false, syncing: false, error: msg });
+
+        if (isTokenExpired) {
+          // Silently retry after 3 minutes — the background token refresh may have
+          // succeeded by then, allowing calendar load to recover without user action
+          setTimeout(() => {
+            if (!get().error) return; // already recovered
+            const { householdId: hid, accessToken: tok } = useAuthStore.getState();
+            if (hid) get().load(hid, tok);
+          }, 3 * 60 * 1000);
+        }
       } else {
         // Polling network failure: silently keep existing events
         set({ syncing: false });
