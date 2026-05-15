@@ -84,8 +84,19 @@ async function doRefresh(): Promise<string | null> {
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       if (err.googleError === "invalid_grant") {
-        // Refresh token revoked or expired; clear it so DB recovery runs next time
         localStorage.removeItem(REFRESH_KEY);
+        if (typeof window !== "undefined") {
+          // Token revoked — silently re-auth so the user never sees a manual reconnect prompt
+          const supabase = createClient();
+          supabase.auth.signInWithOAuth({
+            provider: "google",
+            options: {
+              redirectTo: `${window.location.origin}/auth/callback`,
+              scopes: "https://www.googleapis.com/auth/calendar.readonly",
+              queryParams: { access_type: "offline", prompt: "consent" },
+            },
+          }).catch(() => {});
+        }
       }
       return null;
     }
