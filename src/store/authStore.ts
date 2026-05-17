@@ -45,7 +45,7 @@ async function upsertUserToken(
     user_id: userId,
     household_id: householdId,
     google_access_token: accessToken,
-    google_refresh_token: localStorage.getItem(REFRESH_KEY) ?? "",
+    ...(localStorage.getItem(REFRESH_KEY) ? { google_refresh_token: localStorage.getItem(REFRESH_KEY) } : {}),
     display_name: displayName,
     updated_at: new Date().toISOString(),
   });
@@ -73,7 +73,21 @@ async function doRefresh(): Promise<string | null> {
     } catch {}
   }
 
-  if (!refreshToken) return null;
+  if (!refreshToken) {
+    // No refresh token anywhere — if the user is logged in, re-auth silently to get one
+    if (typeof window !== "undefined" && localStorage.getItem("cached_user")) {
+      const supabase = createClient();
+      supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+          scopes: "https://www.googleapis.com/auth/calendar.readonly",
+          queryParams: { access_type: "offline", prompt: "consent" },
+        },
+      }).catch(() => {});
+    }
+    return null;
+  }
 
   try {
     const res = await fetch("/api/refresh-token", {
