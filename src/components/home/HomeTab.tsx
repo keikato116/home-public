@@ -27,7 +27,7 @@ function tabLabel(date: Date, today: Date) {
 }
 
 export function HomeTab() {
-  const { householdId, user, setSettingsOpen } = useAuthStore();
+  const { householdId, user } = useAuthStore();
   const {
     load, subscribeRealtime,
     routineDefinitions, completedRoutineIds,
@@ -88,15 +88,6 @@ export function HomeTab() {
     <div className="flex flex-col h-full bg-background">
       {/* Header */}
       <div className="px-7 pt-10 pb-5">
-        <button
-          onClick={() => setSettingsOpen(true)}
-          className="mb-5 flex flex-col gap-[5px]"
-          aria-label="menu"
-        >
-          <span className="block w-5 h-px bg-foreground" />
-          <span className="block w-5 h-px bg-foreground" />
-          <span className="block w-5 h-px bg-foreground" />
-        </button>
         <p className="text-[10px] tracking-[0.25em] text-muted-foreground uppercase mb-0.5">
           {today.toLocaleDateString("en-US", { weekday: "long" })}
         </p>
