@@ -27,9 +27,10 @@ export async function POST(request: Request) {
 
   if (!res.ok) {
     const errData = await res.json().catch(() => ({}));
+    const googleError = errData.error ?? "unknown";
     return NextResponse.json(
-      { error: "Failed to refresh token", googleError: errData.error ?? "unknown" },
-      { status: 401 }
+      { error: "Failed to refresh token", googleError },
+      { status: res.status === 400 ? 400 : 401 }
     );
   }
 
