@@ -52,11 +52,11 @@ export function HomeTab() {
     return unsub;
   }, [householdId, load, subscribeRealtime]);
 
-  const tabs = Array.from({ length: 14 }, (_, i) => {
+  const tabs = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(today);
     d.setDate(today.getDate() + i);
     return d;
-  }).filter(d => isSameDay(d, today) || getTodaysRoutines(routineDefinitions, d).length > 0);
+  });
 
   const selectedRoutines = getTodaysRoutines(routineDefinitions, selectedDate).map(r => ({
     ...r,
