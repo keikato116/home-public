@@ -6,6 +6,7 @@ import { useAuthStore } from "@/store/authStore";
 import { getTodaysRoutines } from "@/lib/routine";
 import { toISODate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
+import { WeatherWidget } from "./WeatherWidget";
 
 function isSameDay(a: Date, b: Date) {
   return (
@@ -88,14 +89,19 @@ export function HomeTab() {
     <div className="flex flex-col h-full bg-background">
       {/* Header */}
       <div className="px-7 pt-10 pb-5">
-        <p className="text-[10px] tracking-[0.25em] text-muted-foreground uppercase mb-0.5">
-          {today.toLocaleDateString("en-US", { weekday: "long" })}
-        </p>
-        <div className="flex items-baseline gap-3 leading-none">
-          <span className="text-[76px] font-light tracking-tight">{today.getDate()}</span>
-          <span className="text-[30px] font-light text-muted-foreground tracking-wide">
-            {today.toLocaleDateString("en-US", { month: "long" }).toUpperCase()}
-          </span>
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-[10px] tracking-[0.25em] text-muted-foreground uppercase mb-0.5">
+              {today.toLocaleDateString("en-US", { weekday: "long" })}
+            </p>
+            <div className="flex items-baseline gap-3 leading-none">
+              <span className="text-[76px] font-light tracking-tight">{today.getDate()}</span>
+              <span className="text-[30px] font-light text-muted-foreground tracking-wide">
+                {today.toLocaleDateString("en-US", { month: "long" }).toUpperCase()}
+              </span>
+            </div>
+          </div>
+          <WeatherWidget />
         </div>
       </div>
 
