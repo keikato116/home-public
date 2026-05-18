@@ -8,6 +8,19 @@ import { toISODate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { WeatherWidget } from "./WeatherWidget";
 
+const JST = "Asia/Tokyo";
+
+function getJSTToday(): Date {
+  const now = new Date();
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: JST, year: "numeric", month: "numeric", day: "numeric",
+  }).formatToParts(now);
+  const y = parseInt(parts.find(p => p.type === "year")!.value);
+  const m = parseInt(parts.find(p => p.type === "month")!.value) - 1;
+  const d = parseInt(parts.find(p => p.type === "day")!.value);
+  return new Date(y, m, d);
+}
+
 function isSameDay(a: Date, b: Date) {
   return (
     a.getFullYear() === b.getFullYear() &&
@@ -22,9 +35,11 @@ function tabLabel(date: Date, today: Date) {
       new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()) /
       86400000
   );
-  if (diff === 0) return "今日";
-  if (diff === 1) return "明日";
-  return `${date.getMonth() + 1}/${date.getDate()}`;
+  if (diff === 0) return "TODAY";
+  if (diff === 1) return "TOMORROW";
+  const m = date.getMonth() + 1;
+  const d = date.getDate();
+  return `${m}/${d}`;
 }
 
 export function HomeTab() {
@@ -36,7 +51,7 @@ export function HomeTab() {
     markRoutineDone, markRoutineUndone, addChore, deleteChore,
   } = useTodoStore();
 
-  const today = useRef(new Date()).current;
+  const today = useRef(getJSTToday()).current;
   const [selectedDate, setSelectedDate] = useState(today);
   const [addingTask, setAddingTask] = useState(false);
   const [newLabel, setNewLabel] = useState("");
@@ -91,13 +106,13 @@ export function HomeTab() {
       <div className="px-7 pt-10 pb-5">
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-[10px] tracking-[0.25em] text-muted-foreground mb-0.5">
-              {today.toLocaleDateString("ja-JP", { weekday: "long" })}
+            <p className="text-[10px] tracking-[0.25em] text-muted-foreground uppercase mb-0.5">
+              {today.toLocaleDateString("en-US", { weekday: "long", timeZone: JST })}
             </p>
             <div className="flex items-baseline gap-3 leading-none">
               <span className="text-[76px] font-light tracking-tight">{today.getDate()}</span>
               <span className="text-[30px] font-light text-muted-foreground tracking-wide">
-                {today.getMonth() + 1}月
+                {today.toLocaleDateString("en-US", { month: "long", timeZone: JST }).toUpperCase()}
               </span>
             </div>
           </div>
