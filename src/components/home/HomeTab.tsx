@@ -64,7 +64,8 @@ export function HomeTab() {
 
   const toggle = async (id: string, done: boolean) => {
     if (!householdId) return;
-    done ? await markRoutineUndone(householdId, id) : await markRoutineDone(householdId, id);
+    if (done) await markRoutineUndone(householdId, id);
+    else await markRoutineDone(householdId, id);
   };
 
   const handleAddTask = async () => {
