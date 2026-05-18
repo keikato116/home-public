@@ -22,8 +22,8 @@ function tabLabel(date: Date, today: Date) {
       new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()) /
       86400000
   );
-  if (diff === 0) return "TODAY";
-  if (diff === 1) return "TOMORROW";
+  if (diff === 0) return "今日";
+  if (diff === 1) return "明日";
   return `${date.getMonth() + 1}/${date.getDate()}`;
 }
 
@@ -91,13 +91,13 @@ export function HomeTab() {
       <div className="px-7 pt-10 pb-5">
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-[10px] tracking-[0.25em] text-muted-foreground uppercase mb-0.5">
-              {today.toLocaleDateString("en-US", { weekday: "long" })}
+            <p className="text-[10px] tracking-[0.25em] text-muted-foreground mb-0.5">
+              {today.toLocaleDateString("ja-JP", { weekday: "long" })}
             </p>
             <div className="flex items-baseline gap-3 leading-none">
               <span className="text-[76px] font-light tracking-tight">{today.getDate()}</span>
               <span className="text-[30px] font-light text-muted-foreground tracking-wide">
-                {today.toLocaleDateString("en-US", { month: "long" }).toUpperCase()}
+                {today.getMonth() + 1}月
               </span>
             </div>
           </div>
