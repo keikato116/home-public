@@ -10,6 +10,7 @@ const TABS = [
   { id: "calendar", label: "calendar" },
   { id: "diary", label: "diary" },
   { id: "recipe", label: "recipe" },
+  { id: "workout", label: "workout" },
 ];
 
 export function BottomTabBar() {

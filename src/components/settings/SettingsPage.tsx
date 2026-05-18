@@ -5,6 +5,7 @@ import { useAuthStore } from "@/store/authStore";
 import { useSettingsStore } from "@/store/settingsStore";
 import { CalendarSettings } from "./CalendarSettings";
 import { RoutineSettings } from "./RoutineSettings";
+import { StravaSettings } from "./StravaSettings";
 import { X, LogOut } from "lucide-react";
 
 export function SettingsPage() {
@@ -44,6 +45,10 @@ export function SettingsPage() {
 
         <div className="border-t border-border pt-6">
           <CalendarSettings />
+        </div>
+
+        <div className="border-t border-border pt-6">
+          <StravaSettings />
         </div>
 
         <div className="border-t border-border pt-6">

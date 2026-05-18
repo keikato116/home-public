@@ -10,6 +10,7 @@ import { ShoppingTab } from "@/components/shopping/ShoppingTab";
 import { CalendarTab } from "@/components/calendar/CalendarTab";
 import { RecipeTab } from "@/components/recipe/RecipeTab";
 import { DiaryTab } from "@/components/diary/DiaryTab";
+import { WorkoutTab } from "@/components/workout/WorkoutTab";
 import { SettingsPage } from "@/components/settings/SettingsPage";
 
 function MainApp() {
@@ -26,6 +27,7 @@ function MainApp() {
         {activeTab === "calendar" && <CalendarTab />}
         {activeTab === "diary" && <DiaryTab />}
         {activeTab === "recipe" && <RecipeTab />}
+        {activeTab === "workout" && <WorkoutTab />}
       </main>
 
       <BottomTabBar />
