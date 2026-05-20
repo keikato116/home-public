@@ -4,14 +4,43 @@ import { useEffect, useState } from "react";
 import { fetchWeather } from "@/lib/weather";
 import { WeatherData } from "@/types";
 
+const LOC_KEY = "weather_location";
+const LOC_TTL = 60 * 60 * 1000; // 1 hour
+
+function getCachedLocation(): { lat: number; lon: number } | null {
+  try {
+    const raw = localStorage.getItem(LOC_KEY);
+    if (!raw) return null;
+    const { lat, lon, ts } = JSON.parse(raw);
+    if (Date.now() - ts > LOC_TTL) return null;
+    return { lat, lon };
+  } catch {
+    return null;
+  }
+}
+
+function setCachedLocation(lat: number, lon: number) {
+  localStorage.setItem(LOC_KEY, JSON.stringify({ lat, lon, ts: Date.now() }));
+}
+
 export function WeatherWidget() {
   const [weather, setWeather] = useState<WeatherData | null>(null);
 
   useEffect(() => {
-    if (!navigator.geolocation) return;
+    const cached = getCachedLocation();
+    if (cached) {
+      fetchWeather(cached.lat, cached.lon).then(setWeather);
+      return;
+    }
+    if (!navigator.geolocation) {
+      fetchWeather(35.6762, 139.6503).then(setWeather);
+      return;
+    }
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
-        const data = await fetchWeather(pos.coords.latitude, pos.coords.longitude);
+        const { latitude: lat, longitude: lon } = pos.coords;
+        setCachedLocation(lat, lon);
+        const data = await fetchWeather(lat, lon);
         setWeather(data);
       },
       () => {
