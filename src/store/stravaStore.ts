@@ -48,9 +48,8 @@ export const useStravaStore = create<StravaState>((set, get) => ({
       const now = new Date();
       const year = now.getFullYear();
       const month = now.getMonth();
-      const after = Math.floor(new Date(year, month, 1).getTime() / 1000);
-      const before = Math.floor(new Date(year, month + 1, 1).getTime() / 1000);
-      const data = await fetchActivities(after, before);
+      // Fetch last 50 activities without date filter to avoid timezone edge cases
+      const data = await fetchActivities();
       const key = `${year}-${month}`;
       set((s) => ({
         connected: data.connected ?? false,

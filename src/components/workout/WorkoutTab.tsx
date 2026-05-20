@@ -92,7 +92,7 @@ function ActivityDetail({ a }: { a: StravaActivity }) {
 }
 
 export function WorkoutTab() {
-  const { connected, athleteName, activities, loading, init, loadMonth } = useStravaStore();
+  const { connected, athleteName, activities, loading, error, init, loadMonth } = useStravaStore();
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth());
@@ -238,6 +238,13 @@ export function WorkoutTab() {
             {selectedActivities.map((a) => (
               <ActivityDetail key={a.id} a={a} />
             ))}
+
+            {error && (
+              <p className="text-[11px] text-muted-foreground mt-4">
+                error: {error} —{" "}
+                <button onClick={init} className="underline">retry</button>
+              </p>
+            )}
 
             {loading && (
               <p className="text-[11px] text-muted-foreground tracking-widest mt-4">loading...</p>
