@@ -17,11 +17,11 @@ function stravaAuthUrl() {
 }
 
 export function StravaSettings() {
-  const { connected, athleteName, loading, load, disconnect } = useStravaStore();
+  const { connected, athleteName, loading, init, disconnect } = useStravaStore();
 
   useEffect(() => {
-    load();
-  }, [load]);
+    init();
+  }, [init]);
 
   return (
     <div className="space-y-3">
