@@ -36,7 +36,10 @@ async function refreshStravaToken(
   };
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const after = searchParams.get("after");
+  const before = searchParams.get("before");
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -72,8 +75,12 @@ export async function GET() {
     );
   }
 
+  const params = new URLSearchParams({ per_page: "100" });
+  if (after) params.set("after", after);
+  if (before) params.set("before", before);
+
   const activitiesRes = await fetch(
-    "https://www.strava.com/api/v3/athlete/activities?per_page=30",
+    `https://www.strava.com/api/v3/athlete/activities?${params}`,
     { headers: { Authorization: `Bearer ${access_token}` } }
   );
 

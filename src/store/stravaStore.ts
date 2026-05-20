@@ -18,38 +18,83 @@ interface StravaState {
   connected: boolean;
   athleteName: string | null;
   activities: StravaActivity[];
+  loadedMonths: Set<string>;
   loading: boolean;
   error: string | null;
-  load: () => Promise<void>;
+  init: () => Promise<void>;
+  loadMonth: (year: number, month: number) => Promise<void>;
   disconnect: () => Promise<void>;
 }
 
-export const useStravaStore = create<StravaState>((set) => ({
+async function fetchActivities(after?: number, before?: number): Promise<{ connected: boolean; athleteName?: string; activities?: StravaActivity[]; error?: string }> {
+  const params = new URLSearchParams();
+  if (after != null) params.set("after", String(after));
+  if (before != null) params.set("before", String(before));
+  const res = await fetch(`/api/strava/activities?${params}`);
+  return res.json();
+}
+
+export const useStravaStore = create<StravaState>((set, get) => ({
   connected: false,
   athleteName: null,
   activities: [],
+  loadedMonths: new Set(),
   loading: false,
   error: null,
 
-  load: async () => {
+  init: async () => {
     set({ loading: true, error: null });
     try {
-      const res = await fetch("/api/strava/activities");
-      const data = await res.json();
-      set({
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = now.getMonth();
+      const after = Math.floor(new Date(year, month, 1).getTime() / 1000);
+      const before = Math.floor(new Date(year, month + 1, 1).getTime() / 1000);
+      const data = await fetchActivities(after, before);
+      const key = `${year}-${month}`;
+      set((s) => ({
         connected: data.connected ?? false,
-        athleteName: data.athleteName ?? null,
-        activities: data.activities ?? [],
+        athleteName: data.athleteName ?? s.athleteName,
+        activities: mergeActivities(s.activities, data.activities ?? []),
+        loadedMonths: new Set([...s.loadedMonths, key]),
         loading: false,
         error: data.error ?? null,
-      });
+      }));
     } catch {
       set({ loading: false, error: "fetch_failed" });
     }
   },
 
+  loadMonth: async (year, month) => {
+    const key = `${year}-${month}`;
+    if (get().loadedMonths.has(key)) return;
+    set({ loading: true });
+    try {
+      const after = Math.floor(new Date(year, month, 1).getTime() / 1000);
+      const before = Math.floor(new Date(year, month + 1, 1).getTime() / 1000);
+      const data = await fetchActivities(after, before);
+      set((s) => ({
+        connected: data.connected ?? s.connected,
+        athleteName: data.athleteName ?? s.athleteName,
+        activities: mergeActivities(s.activities, data.activities ?? []),
+        loadedMonths: new Set([...s.loadedMonths, key]),
+        loading: false,
+      }));
+    } catch {
+      set({ loading: false });
+    }
+  },
+
   disconnect: async () => {
     await fetch("/api/strava/disconnect", { method: "POST" });
-    set({ connected: false, athleteName: null, activities: [] });
+    set({ connected: false, athleteName: null, activities: [], loadedMonths: new Set() });
   },
 }));
+
+function mergeActivities(existing: StravaActivity[], incoming: StravaActivity[]): StravaActivity[] {
+  const map = new Map(existing.map((a) => [a.id, a]));
+  for (const a of incoming) map.set(a.id, a);
+  return Array.from(map.values()).sort(
+    (a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime()
+  );
+}
