@@ -56,7 +56,7 @@ export const useStravaStore = create<StravaState>((set, get) => ({
         connected: data.connected ?? false,
         athleteName: data.athleteName ?? s.athleteName,
         activities: mergeActivities(s.activities, data.activities ?? []),
-        loadedMonths: new Set([...s.loadedMonths, key]),
+        loadedMonths: new Set(Array.from(s.loadedMonths).concat(key)),
         loading: false,
         error: data.error ?? null,
       }));
@@ -77,7 +77,7 @@ export const useStravaStore = create<StravaState>((set, get) => ({
         connected: data.connected ?? s.connected,
         athleteName: data.athleteName ?? s.athleteName,
         activities: mergeActivities(s.activities, data.activities ?? []),
-        loadedMonths: new Set([...s.loadedMonths, key]),
+        loadedMonths: new Set(Array.from(s.loadedMonths).concat(key)),
         loading: false,
       }));
     } catch {
