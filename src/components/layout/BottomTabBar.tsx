@@ -21,13 +21,13 @@ export function BottomTabBar() {
       className="fixed bottom-0 left-0 right-0 bg-background border-t border-border flex items-center"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
-      <div className="flex flex-1 items-center">
+      <div className="flex flex-1 items-center justify-evenly">
         {TABS.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={cn(
-              "flex-1 py-3 text-[10px] tracking-wide transition-colors",
+              "py-3 text-[10px] tracking-wide transition-colors",
               activeTab === tab.id
                 ? "text-foreground font-medium"
                 : "text-muted-foreground hover:text-foreground"
