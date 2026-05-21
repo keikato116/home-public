@@ -12,6 +12,7 @@ function stravaAuthUrl() {
     redirect_uri: STRAVA_REDIRECT_URI,
     response_type: "code",
     scope: "activity:read_all",
+    approval_prompt: "force",
   });
   return `https://www.strava.com/oauth/authorize?${params}`;
 }
