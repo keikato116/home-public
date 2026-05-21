@@ -7,14 +7,8 @@ const STRAVA_CLIENT_ID = "247369";
 const STRAVA_REDIRECT_URI = "https://homes-lime.vercel.app/api/strava/callback";
 
 function stravaAuthUrl() {
-  const params = new URLSearchParams({
-    client_id: STRAVA_CLIENT_ID,
-    redirect_uri: STRAVA_REDIRECT_URI,
-    response_type: "code",
-    scope: "activity:read_all",
-    approval_prompt: "force",
-  });
-  return `https://www.strava.com/oauth/authorize?${params}`;
+  const redirectUri = encodeURIComponent(STRAVA_REDIRECT_URI);
+  return `https://www.strava.com/oauth/authorize?client_id=${STRAVA_CLIENT_ID}&redirect_uri=${redirectUri}&response_type=code&scope=activity:read_all&approval_prompt=force`;
 }
 
 export function StravaSettings() {
