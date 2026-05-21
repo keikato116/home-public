@@ -149,7 +149,7 @@ function ActivityDetail({ a }: { a: StravaActivity }) {
 }
 
 export function WorkoutTab() {
-  const { connected, athleteName, activities, loading, error, init, loadMonth } = useStravaStore();
+  const { connected, activities, loading, error, init, loadMonth } = useStravaStore();
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth());
