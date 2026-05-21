@@ -5,11 +5,29 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get("code");
   const error = searchParams.get("error");
+  const scope = searchParams.get("scope") ?? "";
 
   const origin = request.nextUrl.origin;
 
   if (error || !code) {
     return NextResponse.redirect(new URL("/?strava=error", origin));
+  }
+
+  // Strava returns granted scopes in the callback URL.
+  // If activity:read_all wasn't granted, force re-authorization.
+  if (!scope.includes("activity:read_all")) {
+    const clientId = process.env.STRAVA_CLIENT_ID ?? "247369";
+    const redirectUri = `${origin}/api/strava/callback`;
+    const authParams = new URLSearchParams({
+      client_id: clientId,
+      redirect_uri: redirectUri,
+      response_type: "code",
+      scope: "activity:read_all",
+      approval_prompt: "force",
+    });
+    return NextResponse.redirect(
+      new URL(`https://www.strava.com/oauth/authorize?${authParams}`)
+    );
   }
 
   const clientId = process.env.STRAVA_CLIENT_ID;
