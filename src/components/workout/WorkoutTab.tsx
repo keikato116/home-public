@@ -189,15 +189,7 @@ export function WorkoutTab() {
 
   return (
     <div className="flex flex-col h-full bg-background">
-      <div className="px-7 pt-10 pb-4">
-        <p className="text-[10px] tracking-[0.25em] text-muted-foreground uppercase mb-0.5">activity</p>
-        <div className="flex items-baseline justify-between">
-          <h1 className="text-[30px] font-light tracking-wide">WORKOUT</h1>
-          {athleteName && (
-            <p className="text-[11px] text-muted-foreground tracking-wide">{athleteName}</p>
-          )}
-        </div>
-      </div>
+      <div className="px-7 pt-10 pb-4" />
 
       <div className="flex-1 overflow-y-auto px-7 pb-8" style={{ scrollbarWidth: "none" }}>
         {!connected && !loading && (
