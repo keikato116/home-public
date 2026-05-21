@@ -246,6 +246,18 @@ export function WorkoutTab() {
               </p>
             )}
 
+            {!loading && activities.length > 0 && !selectedKey && (
+              <div className="mt-2 space-y-0">
+                <p className="text-[10px] tracking-widest text-muted-foreground uppercase mb-2">loaded</p>
+                {activities.map((a) => (
+                  <div key={a.id} className="flex justify-between py-1.5 border-b border-border/50">
+                    <span className="text-[11px] text-muted-foreground">{typeLabel(a.type)}</span>
+                    <span className="text-[11px] text-muted-foreground">{a.startDate.slice(0, 10)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
             {loading && (
               <p className="text-[11px] text-muted-foreground tracking-widest mt-4">loading...</p>
             )}
