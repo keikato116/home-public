@@ -168,6 +168,11 @@ export function WorkoutTab() {
 
         {connected && (
           <>
+            <p className="text-[10px] text-muted-foreground mb-3">
+              {activities.length} activities loaded —{" "}
+              <button onClick={init} className="underline">refresh</button>
+            </p>
+
             {/* Month navigation */}
             <div className="flex items-center justify-between mb-4">
               <button
