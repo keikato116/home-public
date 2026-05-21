@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
   // Strava returns granted scopes in the callback URL.
   // If activity:read_all wasn't granted, force re-authorization.
   if (!scope.includes("activity:read_all")) {
-    const clientId = process.env.STRAVA_CLIENT_ID ?? "247369";
+    const clientId = process.env.STRAVA_CLIENT_ID ?? "248914";
     const redirectUri = encodeURIComponent(`${origin}/api/strava/callback`);
     const authUrl = `https://www.strava.com/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=activity:read_all&approval_prompt=force`;
     return NextResponse.redirect(new URL(authUrl));

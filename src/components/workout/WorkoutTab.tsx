@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useStravaStore, StravaActivity } from "@/store/stravaStore";
 import { cn } from "@/lib/utils";
 
-const STRAVA_CLIENT_ID = "247369";
+const STRAVA_CLIENT_ID = "248914";
 const STRAVA_REDIRECT_URI = "https://homes-lime.vercel.app/api/strava/callback";
 
 function stravaAuthUrl() {
