@@ -44,7 +44,7 @@ function tabLabel(date: Date, today: Date) {
 }
 
 function ScheduleTimeline({ events, isToday }: { events: CalendarEvent[]; isToday: boolean }) {
-  const HOUR_H = 28;
+  const HOUR_H = 18;
   const START_H = 8;
   const END_H = 24;
   const HOURS = Array.from({ length: END_H - START_H + 1 }, (_, i) => i + START_H);
@@ -82,8 +82,8 @@ function ScheduleTimeline({ events, isToday }: { events: CalendarEvent[]; isToda
       <div className="relative" style={{ height: (END_H - START_H) * HOUR_H }}>
         {HOURS.map((h, i) => (
           <div key={h} className="absolute left-0 right-0 flex items-start pointer-events-none" style={{ top: i * HOUR_H }}>
-            <span className="text-[10px] text-muted-foreground w-10 flex-shrink-0 text-right pr-3 leading-none select-none" style={{ marginTop: -6 }}>
-              {h === 24 ? "00" : String(h).padStart(2, "0")}
+            <span className="text-[9px] text-muted-foreground w-10 flex-shrink-0 text-right pr-3 leading-none select-none" style={{ marginTop: -5 }}>
+              {h % 2 === 0 ? (h === 24 ? "00" : String(h).padStart(2, "0")) : ""}
             </span>
               <div className="flex-1 border-t border-border/40" />
             </div>
@@ -105,17 +105,14 @@ function ScheduleTimeline({ events, isToday }: { events: CalendarEvent[]; isToda
             if (endMin <= START_H * 60) return null;
             const durMin = Math.max(15, endMin > startMin ? endMin - startMin : 60);
             const top = toTop(startMin);
-            const height = Math.max(20, (durMin / 60) * HOUR_H - 1);
+            const height = Math.max(14, (durMin / 60) * HOUR_H - 1);
             return (
               <div
                 key={ev.id}
-                className="absolute rounded px-2 py-0.5 bg-muted/70"
+                className="absolute rounded px-1.5 bg-muted/70 flex items-center overflow-hidden"
                 style={{ top, left: 40, right: 0, height }}
               >
-                <p className="text-[11px] leading-tight truncate">{ev.summary}</p>
-                {ev.ownerName && height >= 32 && (
-                  <p className="text-[10px] text-muted-foreground leading-tight">{ev.ownerName}</p>
-                )}
+                <p className="text-[10px] leading-none truncate w-full">{ev.summary}</p>
               </div>
             );
           })}
