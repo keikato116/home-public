@@ -34,6 +34,7 @@ create table public.shared_todos (
 create table public.routine_definitions (
   id           uuid primary key default gen_random_uuid(),
   household_id uuid references public.households(id) on delete cascade not null,
+  user_id      uuid references auth.users(id),
   label        text not null,
   frequency    text not null check (frequency in ('daily','weekly','monthly')),
   day_of_week  integer check (day_of_week between 0 and 6),

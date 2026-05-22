@@ -18,7 +18,7 @@ interface TodoState {
   addUrgentTodo: (householdId: string, label: string, userId: string) => Promise<void>;
   toggleUrgentTodo: (id: string, done: boolean) => Promise<void>;
   deleteUrgentTodo: (id: string) => Promise<void>;
-  addChore: (householdId: string, label: string, repeat: boolean, dayOfWeek?: number, dueDate?: string) => Promise<void>;
+  addChore: (householdId: string, label: string, repeat: boolean, dayOfWeek?: number, dueDate?: string, userId?: string | null) => Promise<void>;
   deleteChore: (id: string) => Promise<void>;
   subscribeRealtime: (householdId: string) => () => void;
 }
@@ -127,13 +127,14 @@ export const useTodoStore = create<TodoState>((set, get) => ({
     set((s) => ({ urgentTodos: s.urgentTodos.filter((t) => t.id !== id) }));
   },
 
-  addChore: async (householdId, label, repeat, dayOfWeek, dueDate) => {
+  addChore: async (householdId, label, repeat, dayOfWeek, dueDate, userId) => {
     const supabase = createClient();
     const maxOrder = Math.max(0, ...get().routineDefinitions.map((d) => d.order));
     const { data } = await supabase
       .from("routine_definitions")
       .insert({
         household_id: householdId,
+        user_id: userId ?? null,
         label,
         frequency: repeat ? "weekly" : "once",
         day_of_week: repeat ? (dayOfWeek ?? 0) : null,

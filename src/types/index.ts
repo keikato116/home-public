@@ -8,6 +8,7 @@ export interface Household {
 export interface RoutineDefinition {
   id: string;
   household_id: string;
+  user_id: string | null;
   label: string;
   frequency: "daily" | "weekly" | "monthly" | "once";
   day_of_week: number | null;

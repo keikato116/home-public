@@ -139,7 +139,7 @@ export function HomeTab() {
 
   const today = useRef(getJSTToday()).current;
   const [selectedDate, setSelectedDate] = useState(today);
-  const [addingTask, setAddingTask] = useState(false);
+  const [addingTask, setAddingTask] = useState<"personal" | "household" | null>(null);
   const [newLabel, setNewLabel] = useState("");
   const [addingImportant, setAddingImportant] = useState(false);
   const [newImportantLabel, setNewImportantLabel] = useState("");
@@ -168,6 +168,8 @@ export function HomeTab() {
     ...r,
     done: completedRoutineIds.has(r.id),
   }));
+  const personalTasks = selectedRoutines.filter(r => r.user_id === user?.id);
+  const householdTasks = selectedRoutines.filter(r => !r.user_id);
 
   const toggle = async (id: string, done: boolean) => {
     if (!householdId) return;
@@ -175,11 +177,12 @@ export function HomeTab() {
     else await markRoutineDone(householdId, id);
   };
 
-  const handleAddTask = async () => {
+  const handleAddTask = async (type: "personal" | "household") => {
     if (!newLabel.trim() || !householdId) return;
-    await addChore(householdId, newLabel.trim(), false, undefined, toISODate(selectedDate));
+    const userId = type === "personal" ? (user?.id ?? null) : null;
+    await addChore(householdId, newLabel.trim(), false, undefined, toISODate(selectedDate), userId);
     setNewLabel("");
-    setAddingTask(false);
+    setAddingTask(null);
   };
 
   const handleAddImportant = async () => {
@@ -284,85 +287,89 @@ export function HomeTab() {
           })}
         </div>
 
-        {/* Task list */}
-        <div>
-          <div className="flex justify-end mb-1">
-            <button
-              onClick={() => setAddingTask(true)}
-              className="text-[11px] text-muted-foreground tracking-wider"
-            >
-              + add
-            </button>
-          </div>
-
-          {addingTask && (
-            <div className="flex items-center gap-3 py-3 border-b border-border">
-              <span className="w-[18px] h-[18px] rounded border border-border flex-shrink-0" />
-              <input
-                autoFocus
-                type="text"
-                value={newLabel}
-                onChange={e => setNewLabel(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === "Enter") handleAddTask();
-                  if (e.key === "Escape") { setAddingTask(false); setNewLabel(""); }
-                }}
-                placeholder="new task"
-                className="flex-1 bg-transparent text-[14px] outline-none placeholder:text-muted-foreground"
-              />
-              <button onClick={handleAddTask} className="text-[11px] text-muted-foreground">
-                save
-              </button>
-            </div>
-          )}
-
-          {selectedRoutines.map(r => (
-            <div key={r.id} className="flex items-center gap-3 py-3 border-b border-border">
-              <button
-                onClick={() => toggle(r.id, r.done)}
-                className={cn(
-                  "w-[18px] h-[18px] rounded border flex-shrink-0 transition-colors",
-                  r.done ? "bg-foreground border-foreground" : "border-border"
-                )}
-                aria-label={r.done ? "undo" : "done"}
-              />
-              {editingRoutineId === r.id ? (
-                <input
-                  autoFocus
-                  value={editingRoutineLabel}
-                  onChange={e => setEditingRoutineLabel(e.target.value)}
-                  onBlur={() => setEditingRoutineId(null)}
-                  onKeyDown={e => {
-                    if (e.key === "Enter" || e.key === "Escape") setEditingRoutineId(null);
-                  }}
-                  className="flex-1 bg-transparent text-[14px] outline-none border-b border-border"
-                />
-              ) : (
-                <span className={cn("flex-1 text-[14px]", r.done && "line-through text-muted-foreground")}>
-                  {r.label}
-                </span>
+        {/* Task sections */}
+        {(["personal", "household"] as const).map(type => {
+          const tasks = type === "personal" ? personalTasks : householdTasks;
+          const label = type === "personal" ? "個人" : "家事";
+          return (
+            <div key={type}>
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-[9px] tracking-[0.3em] text-muted-foreground uppercase">{label}</p>
+                <button
+                  onClick={() => { setAddingTask(type); setNewLabel(""); }}
+                  className="text-[11px] text-muted-foreground tracking-wider"
+                >
+                  + add
+                </button>
+              </div>
+              {addingTask === type && (
+                <div className="flex items-center gap-3 py-3 border-b border-border">
+                  <span className="w-[18px] h-[18px] rounded border border-border flex-shrink-0" />
+                  <input
+                    autoFocus
+                    type="text"
+                    value={newLabel}
+                    onChange={e => setNewLabel(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === "Enter") handleAddTask(type);
+                      if (e.key === "Escape") { setAddingTask(null); setNewLabel(""); }
+                    }}
+                    placeholder="new task"
+                    className="flex-1 bg-transparent text-[14px] outline-none placeholder:text-muted-foreground"
+                  />
+                  <button onClick={() => handleAddTask(type)} className="text-[11px] text-muted-foreground">
+                    save
+                  </button>
+                </div>
               )}
-              <button
-                onClick={() => {
-                  if (editingRoutineId === r.id) {
-                    deleteChore(r.id);
-                    setEditingRoutineId(null);
-                  } else {
-                    setEditingRoutineId(r.id);
-                    setEditingRoutineLabel(r.label);
-                  }
-                }}
-                className="text-[11px] text-muted-foreground"
-              >
-                {editingRoutineId === r.id ? "delete" : "edit"}
-              </button>
+              {tasks.map(r => (
+                <div key={r.id} className="flex items-center gap-3 py-3 border-b border-border">
+                  <button
+                    onClick={() => toggle(r.id, r.done)}
+                    className={cn(
+                      "w-[18px] h-[18px] rounded border flex-shrink-0 transition-colors",
+                      r.done ? "bg-foreground border-foreground" : "border-border"
+                    )}
+                    aria-label={r.done ? "undo" : "done"}
+                  />
+                  {editingRoutineId === r.id ? (
+                    <input
+                      autoFocus
+                      value={editingRoutineLabel}
+                      onChange={e => setEditingRoutineLabel(e.target.value)}
+                      onBlur={() => setEditingRoutineId(null)}
+                      onKeyDown={e => {
+                        if (e.key === "Enter" || e.key === "Escape") setEditingRoutineId(null);
+                      }}
+                      className="flex-1 bg-transparent text-[14px] outline-none border-b border-border"
+                    />
+                  ) : (
+                    <span className={cn("flex-1 text-[14px]", r.done && "line-through text-muted-foreground")}>
+                      {r.label}
+                    </span>
+                  )}
+                  <button
+                    onClick={() => {
+                      if (editingRoutineId === r.id) {
+                        deleteChore(r.id);
+                        setEditingRoutineId(null);
+                      } else {
+                        setEditingRoutineId(r.id);
+                        setEditingRoutineLabel(r.label);
+                      }
+                    }}
+                    className="text-[11px] text-muted-foreground"
+                  >
+                    {editingRoutineId === r.id ? "delete" : "edit"}
+                  </button>
+                </div>
+              ))}
+              {tasks.length === 0 && addingTask !== type && (
+                <p className="text-[11px] text-muted-foreground mt-1 pb-1">-</p>
+              )}
             </div>
-          ))}
-
-          {selectedRoutines.length === 0 && !addingTask && (
-            <p className="text-[11px] text-muted-foreground mt-2">no tasks</p>
-          )}
-        </div>
+          );
+        })}
 
         {/* Calendar events for selected date */}
         {(() => {
