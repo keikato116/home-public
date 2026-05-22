@@ -44,8 +44,7 @@ function tabLabel(date: Date, today: Date) {
 }
 
 function ScheduleTimeline({ events, isToday }: { events: CalendarEvent[]; isToday: boolean }) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const HOUR_H = 40;
+  const HOUR_H = 28;
   const START_H = 8;
   const END_H = 24;
   const HOURS = Array.from({ length: END_H - START_H + 1 }, (_, i) => i + START_H);
@@ -67,12 +66,6 @@ function ScheduleTimeline({ events, isToday }: { events: CalendarEvent[]; isToda
       })()
     : null;
 
-  useEffect(() => {
-    if (!containerRef.current) return;
-    const anchor = nowMin ?? (timed.length > 0 ? toMin(timed[0].start.dateTime!) : START_H * 60);
-    containerRef.current.scrollTop = Math.max(0, toTop(anchor) - 40);
-  }, []);
-
   return (
     <div>
       <p className="text-[9px] tracking-[0.3em] text-muted-foreground uppercase mb-2">schedule</p>
@@ -86,13 +79,12 @@ function ScheduleTimeline({ events, isToday }: { events: CalendarEvent[]; isToda
           ))}
         </div>
       )}
-      <div ref={containerRef} className="overflow-y-auto" style={{ height: 220, scrollbarWidth: "none" }}>
-        <div className="relative" style={{ height: (END_H - START_H) * HOUR_H }}>
-          {HOURS.map((h, i) => (
-            <div key={h} className="absolute left-0 right-0 flex items-start pointer-events-none" style={{ top: i * HOUR_H }}>
-              <span className="text-[10px] text-muted-foreground w-10 flex-shrink-0 text-right pr-3 leading-none select-none" style={{ marginTop: -6 }}>
-                {h === 24 ? "00" : String(h).padStart(2, "0")}
-              </span>
+      <div className="relative" style={{ height: (END_H - START_H) * HOUR_H }}>
+        {HOURS.map((h, i) => (
+          <div key={h} className="absolute left-0 right-0 flex items-start pointer-events-none" style={{ top: i * HOUR_H }}>
+            <span className="text-[10px] text-muted-foreground w-10 flex-shrink-0 text-right pr-3 leading-none select-none" style={{ marginTop: -6 }}>
+              {h === 24 ? "00" : String(h).padStart(2, "0")}
+            </span>
               <div className="flex-1 border-t border-border/40" />
             </div>
           ))}
@@ -128,7 +120,6 @@ function ScheduleTimeline({ events, isToday }: { events: CalendarEvent[]; isToda
             );
           })}
         </div>
-      </div>
     </div>
   );
 }
