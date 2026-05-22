@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTodoStore } from "@/store/todoStore";
 import { useAuthStore } from "@/store/authStore";
+import { useCalendarStore } from "@/store/calendarStore";
 import { getTodaysRoutines } from "@/lib/routine";
 import { toISODate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
@@ -43,7 +44,8 @@ function tabLabel(date: Date, today: Date) {
 }
 
 export function HomeTab() {
-  const { householdId, user } = useAuthStore();
+  const { householdId, user, accessToken } = useAuthStore();
+  const { eventsByDate, load: loadCalendar, events: calendarEvents } = useCalendarStore();
   const {
     load, subscribeRealtime,
     routineDefinitions, completedRoutineIds,
@@ -66,6 +68,11 @@ export function HomeTab() {
     const unsub = subscribeRealtime(householdId);
     return unsub;
   }, [householdId, load, subscribeRealtime]);
+
+  useEffect(() => {
+    if (!householdId || calendarEvents.length > 0) return;
+    loadCalendar(householdId, accessToken);
+  }, [householdId, accessToken, loadCalendar, calendarEvents.length]);
 
   const tabs = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(today);
@@ -272,6 +279,34 @@ export function HomeTab() {
             <p className="text-[11px] text-muted-foreground mt-2">no tasks</p>
           )}
         </div>
+
+        {/* Calendar events for selected date */}
+        {(() => {
+          const dateKey = toISODate(selectedDate);
+          const dayEvents = (eventsByDate()[dateKey] ?? []);
+          if (dayEvents.length === 0) return null;
+          return (
+            <div>
+              <p className="text-[9px] tracking-[0.3em] text-muted-foreground uppercase mb-2">schedule</p>
+              {dayEvents.map(ev => {
+                const timeStr = ev.start.dateTime
+                  ? new Date(ev.start.dateTime).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false })
+                  : null;
+                return (
+                  <div key={ev.id} className="flex items-baseline gap-3 py-2.5 border-b border-border">
+                    {timeStr && (
+                      <span className="text-[11px] text-muted-foreground w-10 flex-shrink-0">{timeStr}</span>
+                    )}
+                    <span className="flex-1 text-[14px]">{ev.summary}</span>
+                    {ev.ownerName && (
+                      <span className="text-[10px] text-muted-foreground">{ev.ownerName}</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
