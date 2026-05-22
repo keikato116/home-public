@@ -25,6 +25,7 @@ export function RoutineSettings() {
     await addRoutine(householdId, {
       label: label.trim(),
       frequency,
+      user_id: null,
       day_of_week: frequency === "weekly" ? dayOfWeek : null,
       day_of_month: frequency === "monthly" ? dayOfMonth : null,
       due_date: null,
