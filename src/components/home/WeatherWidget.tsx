@@ -64,7 +64,7 @@ export function WeatherWidget() {
       <div className="flex flex-col items-start leading-tight">
         <span className="text-[13px]">{weather.temp}°</span>
         {weather.rain1h != null && (
-          <span className="text-[11px]">雨 {weather.rain1h.toFixed(1)}mm</span>
+          <span className="text-[11px]">rain {weather.rain1h.toFixed(1)}mm</span>
         )}
       </div>
     </div>

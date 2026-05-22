@@ -296,7 +296,7 @@ export function HomeTab() {
         {/* Task sections */}
         {(["personal", "household"] as const).map(type => {
           const tasks = type === "personal" ? personalTasks : householdTasks;
-          const label = type === "personal" ? "個人" : "家事";
+          const label = type === "personal" ? "personal" : "chores";
           return (
             <div key={type}>
               <div className="flex items-center justify-between mb-1">

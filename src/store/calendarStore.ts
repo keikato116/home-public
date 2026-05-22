@@ -94,7 +94,7 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
         loadTimeoutId = null;
         if (myGen !== loadGeneration) return;
         loadGeneration++; // invalidate any in-flight fetch so its result is discarded
-        set({ loading: false, syncing: false, error: "カレンダーの取得がタイムアウトしました" });
+        set({ loading: false, syncing: false, error: "calendar fetch timed out" });
       }, 30000);
     }
 
@@ -139,7 +139,7 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
         if (loadTimeoutId) { clearTimeout(loadTimeoutId); loadTimeoutId = null; }
         if (myGen !== loadGeneration) return;
         localEvents.sort((a, b) => (a.start.dateTime ?? a.start.date ?? "").localeCompare(b.start.dateTime ?? b.start.date ?? ""));
-        set({ events: localEvents, loading: false, syncing: false, error: "再ログインしてカレンダーを表示してください" });
+        set({ events: localEvents, loading: false, syncing: false, error: "TOKEN_MISSING" });
         return;
       }
 
@@ -194,8 +194,8 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
       const isTokenExpired = e instanceof Error && e.message === "TOKEN_EXPIRED";
       if (!hasExistingEvents || isTokenExpired) {
         const msg = isTokenExpired
-          ? "セッションが切れました。再ログインしてください"
-          : "カレンダーの取得に失敗しました";
+          ? "TOKEN_EXPIRED"
+          : "failed to load calendar";
         set({ loading: false, syncing: false, error: msg });
 
         if (isTokenExpired) {

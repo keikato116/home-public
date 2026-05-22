@@ -10,7 +10,7 @@ const dmMono = DM_Mono({
 
 export const metadata: Metadata = {
   title: "home",
-  description: "家事・タスク共有アプリ",
+  description: "household task sharing app",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,

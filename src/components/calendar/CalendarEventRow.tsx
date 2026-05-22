@@ -28,12 +28,12 @@ export function CalendarEventRow({ event, isOwn, onDelete }: Props) {
       )}
       <div className="flex-1 min-w-0">
         <p className="text-[12px] tracking-wide truncate">{event.summary}</p>
-        {time && time !== "終日" && (
+        {time && time !== "all day" && (
           <p className="text-[10px] text-muted-foreground mt-0.5">{time}</p>
         )}
       </div>
       <div className="flex items-center gap-1.5 flex-shrink-0 mt-0.5">
-        {time === "終日" && (
+        {time === "all day" && (
           <span className="text-[10px] text-muted-foreground">all day</span>
         )}
         {initial && (

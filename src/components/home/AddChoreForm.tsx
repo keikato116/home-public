@@ -6,7 +6,7 @@ import { useAuthStore } from "@/store/authStore";
 import { Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const DAYS = ["日", "月", "火", "水", "木", "金", "土"];
+const DAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
 function todayISO() {
   const d = new Date();
@@ -67,7 +67,7 @@ export function AddChoreForm() {
             repeat ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"
           )}
         >
-          {repeat ? "あり" : "なし"}
+          {repeat ? "on" : "off"}
         </button>
       </div>
 

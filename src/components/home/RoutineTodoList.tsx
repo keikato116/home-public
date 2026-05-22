@@ -19,7 +19,7 @@ export function RoutineTodoList() {
 
   return (
     <div className="space-y-0">
-      <p className="text-[10px] tracking-widest text-muted-foreground uppercase mb-2">家事</p>
+      <p className="text-[10px] tracking-widest text-muted-foreground uppercase mb-2">chores</p>
       {routines.map((r) => (
         <div key={r.id} className="flex items-center gap-3 py-2.5 border-b border-border group">
           <input

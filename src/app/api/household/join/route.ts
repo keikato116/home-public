@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     .single();
 
   if (hError || !household) {
-    return NextResponse.json({ error: "招待コードが見つかりません" }, { status: 404 });
+    return NextResponse.json({ error: "invite code not found" }, { status: 404 });
   }
 
   const { error: mError } = await supabase

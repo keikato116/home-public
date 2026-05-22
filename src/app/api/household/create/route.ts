@@ -11,7 +11,7 @@ export async function POST() {
 
   const { data: household, error: hError } = await supabase
     .from("households")
-    .insert({ name: "我が家" })
+    .insert({ name: "home" })
     .select()
     .single();
 

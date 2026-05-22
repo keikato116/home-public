@@ -41,8 +41,8 @@ export function CalendarSettings() {
       <p className="text-[10px] tracking-widest text-muted-foreground uppercase">calendar</p>
 
       <div>
-        <p className="text-[11px] text-muted-foreground mb-1">表示する色（未選択 = すべて表示）</p>
-        <p className="text-[10px] text-muted-foreground/60 mb-3">色を選ぶとその色の予定のみ絞り込まれます</p>
+        <p className="text-[11px] text-muted-foreground mb-1">filter by color (none selected = show all)</p>
+        <p className="text-[10px] text-muted-foreground/60 mb-3">selecting a color shows only events with that color</p>
         <div className="grid grid-cols-2 gap-y-2 gap-x-3">
           {Object.entries(GOOGLE_COLOR_MAP).map(([id, name]) => (
             <label key={id} className="flex items-center gap-2 cursor-pointer">
@@ -65,7 +65,7 @@ export function CalendarSettings() {
             onClick={() => setSelectedColors([])}
             className="mt-2 text-[10px] text-muted-foreground underline"
           >
-            クリア（全表示に戻す）
+            clear
           </button>
         )}
       </div>

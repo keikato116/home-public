@@ -2,17 +2,17 @@ import { CalendarEvent } from "@/types";
 
 // colorId → color mapping from Google Calendar Colors API v3
 export const GOOGLE_COLOR_MAP: Record<string, string> = {
-  "1": "ラベンダー",
-  "2": "セージ",
-  "3": "グレープ",
-  "4": "フラミンゴ",
-  "5": "バナナ",
-  "6": "タンジェリン",
-  "7": "ピーコック",
-  "8": "グラファイト",
-  "9": "ブルーベリー",
-  "10": "バジル",
-  "11": "トマト",
+  "1": "Lavender",
+  "2": "Sage",
+  "3": "Grape",
+  "4": "Flamingo",
+  "5": "Banana",
+  "6": "Tangerine",
+  "7": "Peacock",
+  "8": "Graphite",
+  "9": "Blueberry",
+  "10": "Basil",
+  "11": "Tomato",
 };
 
 export const GOOGLE_COLOR_HEX: Record<string, string> = {
@@ -51,7 +51,7 @@ export function getEventDate(event: CalendarEvent): string {
 }
 
 export function formatEventTime(event: CalendarEvent): string {
-  if (event.start.date && !event.start.dateTime) return "終日";
+  if (event.start.date && !event.start.dateTime) return "all day";
   if (!event.start.dateTime) return "";
   const d = new Date(event.start.dateTime);
   return d.toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" });

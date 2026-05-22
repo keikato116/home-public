@@ -370,10 +370,10 @@ export function CalendarTab() {
           </div>
         )}
 
-        {error && !(error.includes("再ログイン") || error.includes("セッション")) && (
+        {error && !error.startsWith("TOKEN") && (
           <p className="text-[11px] text-muted-foreground mb-3">{error}</p>
         )}
-        {error && (error.includes("再ログイン") || error.includes("セッション")) && (
+        {error && error.startsWith("TOKEN") && (
           <button
             onClick={reAuthGoogle}
             className="text-[10px] text-muted-foreground underline underline-offset-2 mb-3 hover:text-foreground transition-colors"
