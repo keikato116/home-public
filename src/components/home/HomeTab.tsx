@@ -43,80 +43,107 @@ function tabLabel(date: Date, today: Date) {
   return `${m}/${d}`;
 }
 
-function ScheduleTimeline({ events, isToday }: { events: CalendarEvent[]; isToday: boolean }) {
+function ScheduleTimeline({ events, isToday, userId }: { events: CalendarEvent[]; isToday: boolean; userId?: string }) {
   const HOUR_H = 18;
   const START_H = 8;
   const END_H = 24;
   const HOURS = Array.from({ length: END_H - START_H + 1 }, (_, i) => i + START_H);
+  const TIME_W = 28;
 
   const toMin = (dt: string) => {
     const d = new Date(dt);
     return (d.getUTCHours() * 60 + d.getUTCMinutes() + 9 * 60) % 1440;
   };
-
   const toTop = (min: number) => (Math.max(START_H * 60, min) - START_H * 60) / 60 * HOUR_H;
 
   const allDay = events.filter(e => !e.start.dateTime);
   const timed = events.filter(e => !!e.start.dateTime);
+  const myEvents = timed.filter(e => e.ownerId === userId);
+  const partnerEvents = timed.filter(e => e.ownerId !== userId);
+  const hasPartner = partnerEvents.length > 0 || allDay.some(e => e.ownerId !== userId);
+
+  const myName = myEvents[0]?.ownerName ?? "me";
+  const partnerName = partnerEvents[0]?.ownerName ?? allDay.find(e => e.ownerId !== userId)?.ownerName ?? "";
 
   const nowMin = isToday
-    ? (() => {
-        const now = new Date();
-        return (now.getUTCHours() * 60 + now.getUTCMinutes() + 9 * 60) % 1440;
-      })()
+    ? (() => { const n = new Date(); return (n.getUTCHours() * 60 + n.getUTCMinutes() + 9 * 60) % 1440; })()
     : null;
+
+  const renderCol = (evs: CalendarEvent[]) => evs.map(ev => {
+    const startMin = toMin(ev.start.dateTime!);
+    const endMin = ev.end.dateTime ? toMin(ev.end.dateTime) : startMin + 60;
+    if (endMin <= START_H * 60) return null;
+    const durMin = Math.max(15, endMin > startMin ? endMin - startMin : 60);
+    const top = toTop(startMin);
+    const height = Math.max(14, (durMin / 60) * HOUR_H - 1);
+    return (
+      <div key={ev.id} className="absolute inset-x-0.5 rounded px-1 bg-muted/70 flex items-center overflow-hidden" style={{ top, height }}>
+        <p className="text-[9px] leading-none truncate w-full">{ev.summary}</p>
+      </div>
+    );
+  });
+
+  const totalH = (END_H - START_H) * HOUR_H;
 
   return (
     <div>
-      <p className="text-[9px] tracking-[0.3em] text-muted-foreground uppercase mb-2">schedule</p>
+      <p className="text-[9px] tracking-[0.3em] text-muted-foreground uppercase mb-1.5">schedule</p>
+
+      {/* Column headers */}
+      <div className="flex mb-0.5" style={{ paddingLeft: TIME_W }}>
+        <p className="flex-1 text-[9px] text-muted-foreground tracking-wider truncate">{myName}</p>
+        {hasPartner && <p className="flex-1 text-[9px] text-muted-foreground tracking-wider truncate pl-1">{partnerName}</p>}
+      </div>
+
+      {/* All-day events */}
       {allDay.length > 0 && (
-        <div className="mb-2 pb-2 border-b border-border space-y-1">
-          {allDay.map(ev => (
-            <div key={ev.id} className="flex items-center gap-2 pl-10">
-              <span className="flex-1 text-[13px]">{ev.summary}</span>
-              {ev.ownerName && <span className="text-[10px] text-muted-foreground">{ev.ownerName}</span>}
-            </div>
-          ))}
-        </div>
-      )}
-      <div className="relative" style={{ height: (END_H - START_H) * HOUR_H }}>
-        {HOURS.map((h, i) => (
-          <div key={h} className="absolute left-0 right-0 flex items-start pointer-events-none" style={{ top: i * HOUR_H }}>
-            <span className="text-[9px] text-muted-foreground w-10 flex-shrink-0 text-right pr-3 leading-none select-none" style={{ marginTop: -5 }}>
-              {h % 2 === 0 ? (h === 24 ? "00" : String(h).padStart(2, "0")) : ""}
-            </span>
-              <div className="flex-1 border-t border-border/40" />
-            </div>
-          ))}
-          {nowMin !== null && nowMin >= START_H * 60 && (
-            <div
-              className="absolute right-0 flex items-center z-10 pointer-events-none"
-              style={{ top: toTop(nowMin), left: 0 }}
-            >
-              <div className="w-10 flex-shrink-0 flex justify-end pr-1.5">
-                <div className="w-1.5 h-1.5 rounded-full bg-red-400" />
-              </div>
-              <div className="flex-1 border-t border-red-400 opacity-70" />
+        <div className="flex gap-1 mb-1.5" style={{ paddingLeft: TIME_W }}>
+          <div className="flex-1 space-y-0.5">
+            {allDay.filter(e => e.ownerId === userId).map(ev => (
+              <p key={ev.id} className="text-[9px] bg-muted/70 rounded px-1 truncate">{ev.summary}</p>
+            ))}
+          </div>
+          {hasPartner && (
+            <div className="flex-1 space-y-0.5">
+              {allDay.filter(e => e.ownerId !== userId).map(ev => (
+                <p key={ev.id} className="text-[9px] bg-muted/70 rounded px-1 truncate">{ev.summary}</p>
+              ))}
             </div>
           )}
-          {timed.map(ev => {
-            const startMin = toMin(ev.start.dateTime!);
-            const endMin = ev.end.dateTime ? toMin(ev.end.dateTime) : startMin + 60;
-            if (endMin <= START_H * 60) return null;
-            const durMin = Math.max(15, endMin > startMin ? endMin - startMin : 60);
-            const top = toTop(startMin);
-            const height = Math.max(14, (durMin / 60) * HOUR_H - 1);
-            return (
-              <div
-                key={ev.id}
-                className="absolute rounded px-1.5 bg-muted/70 flex items-center overflow-hidden"
-                style={{ top, left: 40, right: 0, height }}
-              >
-                <p className="text-[10px] leading-none truncate w-full">{ev.summary}</p>
-              </div>
-            );
-          })}
         </div>
+      )}
+
+      {/* Timeline grid */}
+      <div className="flex">
+        {/* Time labels */}
+        <div className="relative flex-shrink-0" style={{ width: TIME_W, height: totalH }}>
+          {HOURS.map((h, i) => h % 2 === 0 && (
+            <span key={h} className="absolute right-1.5 text-[9px] text-muted-foreground leading-none select-none" style={{ top: i * HOUR_H - 4 }}>
+              {h === 24 ? "00" : String(h).padStart(2, "0")}
+            </span>
+          ))}
+        </div>
+
+        {/* My column */}
+        <div className="relative flex-1 border-l border-border/30" style={{ height: totalH }}>
+          {HOURS.map((_, i) => <div key={i} className="absolute inset-x-0 border-t border-border/20" style={{ top: i * HOUR_H }} />)}
+          {nowMin !== null && nowMin >= START_H * 60 && (
+            <div className="absolute inset-x-0 border-t border-red-400/70 z-10" style={{ top: toTop(nowMin) }} />
+          )}
+          {renderCol(myEvents)}
+        </div>
+
+        {/* Partner column */}
+        {hasPartner && (
+          <div className="relative flex-1 border-l border-border/50" style={{ height: totalH }}>
+            {HOURS.map((_, i) => <div key={i} className="absolute inset-x-0 border-t border-border/20" style={{ top: i * HOUR_H }} />)}
+            {nowMin !== null && nowMin >= START_H * 60 && (
+              <div className="absolute inset-x-0 border-t border-red-400/70 z-10" style={{ top: toTop(nowMin) }} />
+            )}
+            {renderCol(partnerEvents)}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -286,19 +313,19 @@ export function HomeTab() {
           const tasks = type === "personal" ? personalTasks : householdTasks;
           const label = type === "personal" ? "personal" : "chores";
           return (
-            <div key={type}>
-              <div className="flex items-center justify-between mb-1">
+            <div key={type} className="bg-muted/40 rounded-2xl px-4 py-3">
+              <div className="flex items-center justify-between mb-2">
                 <p className="text-[9px] tracking-[0.3em] text-muted-foreground uppercase">{label}</p>
                 <button
                   onClick={() => { setAddingTask(type); setNewLabel(""); }}
-                  className="text-[11px] text-muted-foreground tracking-wider"
+                  className="text-[10px] text-muted-foreground tracking-wider"
                 >
                   + add
                 </button>
               </div>
               {addingTask === type && (
-                <div className="flex items-center gap-3 py-3 border-b border-border">
-                  <span className="w-[18px] h-[18px] rounded border border-border flex-shrink-0" />
+                <div className="flex items-center gap-3 py-2">
+                  <span className="w-[15px] h-[15px] rounded border border-border flex-shrink-0" />
                   <input
                     autoFocus
                     type="text"
@@ -309,19 +336,17 @@ export function HomeTab() {
                       if (e.key === "Escape") { setAddingTask(null); setNewLabel(""); }
                     }}
                     placeholder="new task"
-                    className="flex-1 bg-transparent text-[14px] outline-none placeholder:text-muted-foreground"
+                    className="flex-1 bg-transparent text-[13px] outline-none placeholder:text-muted-foreground"
                   />
-                  <button onClick={() => handleAddTask(type)} className="text-[11px] text-muted-foreground">
-                    save
-                  </button>
+                  <button onClick={() => handleAddTask(type)} className="text-[10px] text-muted-foreground">save</button>
                 </div>
               )}
               {tasks.map(r => (
-                <div key={r.id} className="flex items-center gap-3 py-3 border-b border-border">
+                <div key={r.id} className="flex items-center gap-3 py-2">
                   <button
                     onClick={() => toggle(r.id, r.done)}
                     className={cn(
-                      "w-[18px] h-[18px] rounded border flex-shrink-0 transition-colors",
+                      "w-[15px] h-[15px] rounded border flex-shrink-0 transition-colors",
                       r.done ? "bg-foreground border-foreground" : "border-border"
                     )}
                     aria-label={r.done ? "undo" : "done"}
@@ -335,31 +360,26 @@ export function HomeTab() {
                       onKeyDown={e => {
                         if (e.key === "Enter" || e.key === "Escape") setEditingRoutineId(null);
                       }}
-                      className="flex-1 bg-transparent text-[14px] outline-none border-b border-border"
+                      className="flex-1 bg-transparent text-[13px] outline-none"
                     />
                   ) : (
-                    <span className={cn("flex-1 text-[14px]", r.done && "line-through text-muted-foreground")}>
+                    <span className={cn("flex-1 text-[13px]", r.done && "line-through text-muted-foreground")}>
                       {r.label}
                     </span>
                   )}
                   <button
                     onClick={() => {
-                      if (editingRoutineId === r.id) {
-                        deleteChore(r.id);
-                        setEditingRoutineId(null);
-                      } else {
-                        setEditingRoutineId(r.id);
-                        setEditingRoutineLabel(r.label);
-                      }
+                      if (editingRoutineId === r.id) { deleteChore(r.id); setEditingRoutineId(null); }
+                      else { setEditingRoutineId(r.id); setEditingRoutineLabel(r.label); }
                     }}
-                    className="text-[11px] text-muted-foreground"
+                    className="text-[10px] text-muted-foreground"
                   >
                     {editingRoutineId === r.id ? "delete" : "edit"}
                   </button>
                 </div>
               ))}
               {tasks.length === 0 && addingTask !== type && (
-                <p className="text-[11px] text-muted-foreground mt-1 pb-1">-</p>
+                <p className="text-[11px] text-muted-foreground">-</p>
               )}
             </div>
           );
@@ -375,6 +395,7 @@ export function HomeTab() {
               key={dateKey}
               events={dayEvents}
               isToday={isSameDay(selectedDate, today)}
+              userId={user?.id}
             />
           );
         })()}
