@@ -126,7 +126,7 @@ export const useTodoStore = create<TodoState>((set, get) => ({
     set((s) => {
       const next = new Set(s.completedRoutineIds);
       next.delete(definitionId);
-      const { [definitionId]: _, ...restMap } = s.completedByMap;
+      const restMap = Object.fromEntries(Object.entries(s.completedByMap).filter(([k]) => k !== definitionId));
       return { completedRoutineIds: next, completedByMap: restMap };
     });
   },
