@@ -9,6 +9,8 @@ import { toISODate } from "@/lib/utils";
 interface TodoState {
   routineDefinitions: RoutineDefinition[];
   completedRoutineIds: Set<string>;
+  completedByMap: Record<string, string>; // definitionId → display name
+  memberNameMap: Record<string, string>;  // userId → display name
   urgentTodos: SharedTodo[];
   loading: boolean;
   todaysRoutines: () => RoutineTodo[];
@@ -26,6 +28,8 @@ interface TodoState {
 export const useTodoStore = create<TodoState>((set, get) => ({
   routineDefinitions: [],
   completedRoutineIds: new Set(),
+  completedByMap: {},
+  memberNameMap: {},
   urgentTodos: [],
   loading: false,
 
@@ -41,28 +45,48 @@ export const useTodoStore = create<TodoState>((set, get) => ({
     const supabase = createClient();
     const today = toISODate(new Date());
 
-    const [defsRes, compsRes, todosRes] = await Promise.all([
+    const [defsRes, compsRes, todosRes, membersRes] = await Promise.all([
       supabase.from("routine_definitions").select("*").eq("household_id", householdId).order("order"),
-      supabase.from("routine_completions").select("definition_id").eq("household_id", householdId).eq("completed_on", today),
+      supabase.from("routine_completions").select("definition_id, completed_by").eq("household_id", householdId).eq("completed_on", today),
       supabase.from("shared_todos").select("*").eq("household_id", householdId).order("order"),
+      supabase.from("user_tokens").select("user_id, display_name").eq("household_id", householdId),
     ]);
 
+    const memberNameMap: Record<string, string> = {};
+    for (const m of membersRes.data ?? []) {
+      memberNameMap[m.user_id] = (m.display_name ?? "").split(" ")[0];
+    }
+
     const defs = (defsRes.data ?? []) as RoutineDefinition[];
-    const completedIds = new Set((compsRes.data ?? []).map((c) => c.definition_id));
+    const completedIds = new Set<string>();
+    const completedByMap: Record<string, string> = {};
+    for (const c of compsRes.data ?? []) {
+      completedIds.add(c.definition_id);
+      if (c.completed_by && memberNameMap[c.completed_by]) {
+        completedByMap[c.definition_id] = memberNameMap[c.completed_by];
+      }
+    }
 
     const onceIds = defs.filter((d) => d.frequency === "once").map((d) => d.id);
     if (onceIds.length > 0) {
       const { data: onceComps } = await supabase
         .from("routine_completions")
-        .select("definition_id")
+        .select("definition_id, completed_by")
         .eq("household_id", householdId)
         .in("definition_id", onceIds);
-      for (const c of onceComps ?? []) completedIds.add(c.definition_id);
+      for (const c of onceComps ?? []) {
+        completedIds.add(c.definition_id);
+        if (c.completed_by && memberNameMap[c.completed_by]) {
+          completedByMap[c.definition_id] = memberNameMap[c.completed_by];
+        }
+      }
     }
 
     set({
       routineDefinitions: defs,
       completedRoutineIds: completedIds,
+      completedByMap,
+      memberNameMap,
       urgentTodos: (todosRes.data ?? []) as SharedTodo[],
       loading: false,
     });
@@ -78,10 +102,15 @@ export const useTodoStore = create<TodoState>((set, get) => ({
       completed_on: today,
       completed_by: user?.id,
     });
+    const state = get();
+    const displayName = user?.id ? (state.memberNameMap[user.id] ?? (user.user_metadata?.full_name ?? user.email ?? "").split(" ")[0]) : "";
     set((s) => {
       const next = new Set(Array.from(s.completedRoutineIds));
       next.add(definitionId);
-      return { completedRoutineIds: next };
+      return {
+        completedRoutineIds: next,
+        completedByMap: { ...s.completedByMap, [definitionId]: displayName },
+      };
     });
   },
 
@@ -97,7 +126,8 @@ export const useTodoStore = create<TodoState>((set, get) => ({
     set((s) => {
       const next = new Set(s.completedRoutineIds);
       next.delete(definitionId);
-      return { completedRoutineIds: next };
+      const { [definitionId]: _, ...restMap } = s.completedByMap;
+      return { completedRoutineIds: next, completedByMap: restMap };
     });
   },
 
@@ -192,13 +222,22 @@ export const useTodoStore = create<TodoState>((set, get) => ({
         filter: `household_id=eq.${householdId}`,
       }, () => {
         const today = toISODate(new Date());
+        const state = get();
         supabase
           .from("routine_completions")
-          .select("definition_id")
+          .select("definition_id, completed_by")
           .eq("household_id", householdId)
           .eq("completed_on", today)
           .then(({ data }) => {
-            set({ completedRoutineIds: new Set((data ?? []).map((c) => c.definition_id)) });
+            const completedIds = new Set<string>();
+            const completedByMap: Record<string, string> = {};
+            for (const c of data ?? []) {
+              completedIds.add(c.definition_id);
+              if (c.completed_by && state.memberNameMap[c.completed_by]) {
+                completedByMap[c.definition_id] = state.memberNameMap[c.completed_by];
+              }
+            }
+            set({ completedRoutineIds: completedIds, completedByMap });
           });
       })
       .subscribe();

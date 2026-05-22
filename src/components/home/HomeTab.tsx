@@ -146,7 +146,7 @@ export function HomeTab() {
   const { eventsByDate, load: loadCalendar } = useCalendarStore();
   const {
     load, subscribeRealtime,
-    routineDefinitions, completedRoutineIds,
+    routineDefinitions, completedRoutineIds, completedByMap,
     urgentTodos, toggleUrgentTodo, addUrgentTodo, deleteUrgentTodo,
     markRoutineDone, markRoutineUndone, addChore, deleteChore,
   } = useTodoStore();
@@ -303,6 +303,8 @@ export function HomeTab() {
         {(["personal", "household"] as const).map(type => {
           const tasks = type === "personal" ? personalTasks : householdTasks;
           const label = type === "personal" ? "personal" : "chores";
+          const activeTasks = tasks.filter(r => !r.done);
+          const doneTasks = tasks.filter(r => r.done);
           return (
             <div key={type} className="bg-muted/40 rounded-2xl px-4 py-3">
               <div className="flex items-center justify-between mb-2">
@@ -332,19 +334,14 @@ export function HomeTab() {
                   <button onClick={() => handleAddTask(type)} className="text-[10px] text-muted-foreground">save</button>
                 </div>
               )}
-              {tasks.map(r => (
+              {activeTasks.map(r => (
                 <div key={r.id} className="flex items-center gap-2.5 py-2">
                   <button
                     onClick={() => toggle(r.id, r.done)}
-                    className={cn(
-                      "w-[15px] h-[15px] rounded border flex-shrink-0 transition-colors",
-                      r.done ? "bg-foreground border-foreground" : "border-border"
-                    )}
-                    aria-label={r.done ? "undo" : "done"}
+                    className="w-[15px] h-[15px] rounded border border-border flex-shrink-0 transition-colors hover:border-foreground"
+                    aria-label="done"
                   />
-                  <span className={cn("flex-1 text-[13px]", r.done && "line-through text-muted-foreground")}>
-                    {r.label}
-                  </span>
+                  <span className="flex-1 text-[13px]">{r.label}</span>
                   <button
                     onClick={() => deleteChore(r.id)}
                     className="text-muted-foreground/50 hover:text-muted-foreground transition-colors flex-shrink-0 text-[14px] leading-none"
@@ -354,8 +351,25 @@ export function HomeTab() {
                   </button>
                 </div>
               ))}
-              {tasks.length === 0 && addingTask !== type && (
+              {activeTasks.length === 0 && doneTasks.length === 0 && addingTask !== type && (
                 <p className="text-[11px] text-muted-foreground">-</p>
+              )}
+              {doneTasks.length > 0 && (
+                <div className={cn("space-y-0", activeTasks.length > 0 && "mt-1 pt-1 border-t border-border/20")}>
+                  {doneTasks.map(r => (
+                    <div key={r.id} className="flex items-center gap-2.5 py-1.5 opacity-40">
+                      <button
+                        onClick={() => toggle(r.id, r.done)}
+                        className="w-[15px] h-[15px] rounded border border-foreground bg-foreground flex-shrink-0"
+                        aria-label="undo"
+                      />
+                      <span className="flex-1 text-[12px] line-through">{r.label}</span>
+                      {completedByMap[r.id] && (
+                        <span className="text-[10px] font-medium">{completedByMap[r.id][0]?.toUpperCase()}</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
           );

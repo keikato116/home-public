@@ -36,9 +36,10 @@ create table public.routine_definitions (
   household_id uuid references public.households(id) on delete cascade not null,
   user_id      uuid references auth.users(id),
   label        text not null,
-  frequency    text not null check (frequency in ('daily','weekly','monthly')),
+  frequency    text not null check (frequency in ('daily','weekly','monthly','once')),
   day_of_week  integer check (day_of_week between 0 and 6),
   day_of_month integer check (day_of_month between 1 and 31),
+  due_date     date,
   "order"      integer not null default 0,
   created_at   timestamptz default now()
 );
