@@ -110,8 +110,8 @@ export function HomeTab() {
               {today.toLocaleDateString("en-US", { weekday: "long", timeZone: JST })}
             </p>
             <div className="flex items-baseline gap-3 leading-none">
-              <span className="text-[76px] font-light tracking-tight">{today.getDate()}</span>
-              <span className="text-[30px] font-light text-muted-foreground tracking-wide">
+              <span className="text-[52px] font-light tracking-tight">{today.getDate()}</span>
+              <span className="text-[22px] font-light text-muted-foreground tracking-wide">
                 {today.toLocaleDateString("en-US", { month: "long", timeZone: JST }).toUpperCase()}
               </span>
             </div>
