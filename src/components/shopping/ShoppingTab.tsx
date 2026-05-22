@@ -23,10 +23,7 @@ export function ShoppingTab() {
   return (
     <div className="flex flex-col h-full px-7 py-8">
       <div className="flex items-center justify-between mb-8">
-        <div>
-          <p className="text-[10px] tracking-widest text-muted-foreground uppercase">shopping</p>
-          <h2 className="text-[22px] tracking-wide">shopping list</h2>
-        </div>
+        <div />
         {hasDone && (
           <button
             onClick={() => householdId && clearDone(householdId)}

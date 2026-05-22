@@ -23,10 +23,7 @@ export function RecipeTab() {
   return (
     <div className="flex flex-col h-full px-7 py-8">
       <div className="flex items-center justify-between mb-8">
-        <div>
-          <p className="text-[10px] tracking-widest text-muted-foreground uppercase">recipe</p>
-          <h2 className="text-[22px] tracking-wide">recipes</h2>
-        </div>
+        <div />
         <button
           onClick={() => setAdding(true)}
           className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors"

@@ -78,7 +78,7 @@ export function DiaryTab() {
           value={text}
           onChange={handleInput}
           onKeyDown={handleKeyDown}
-          placeholder="今日の出来事を書く..."
+          placeholder=""
           rows={2}
           className="w-full bg-transparent text-[12px] tracking-wide outline-none placeholder:text-muted-foreground resize-none overflow-hidden leading-relaxed"
         />
