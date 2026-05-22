@@ -89,29 +89,22 @@ function ScheduleTimeline({ events, isToday, userId }: { events: CalendarEvent[]
     <div>
       <p className="text-[9px] tracking-[0.3em] text-muted-foreground uppercase mb-1.5">schedule</p>
 
+      {/* All-day events — outside the timed grid */}
+      {allDay.length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-2">
+          {allDay.map(ev => (
+            <span key={ev.id} className="text-[9px] border border-border rounded-full px-2 py-0.5 text-muted-foreground truncate max-w-full">
+              {ev.summary}{ev.ownerName ? ` · ${ev.ownerName}` : ""}
+            </span>
+          ))}
+        </div>
+      )}
+
       {/* Column headers */}
       <div className="flex mb-0.5" style={{ paddingLeft: TIME_W }}>
         <p className="flex-1 text-[9px] text-muted-foreground tracking-wider truncate">{myName}</p>
         {hasPartner && <p className="flex-1 text-[9px] text-muted-foreground tracking-wider truncate pl-1">{partnerName}</p>}
       </div>
-
-      {/* All-day events */}
-      {allDay.length > 0 && (
-        <div className="flex gap-1 mb-1.5" style={{ paddingLeft: TIME_W }}>
-          <div className="flex-1 space-y-0.5">
-            {allDay.filter(e => e.ownerId === userId).map(ev => (
-              <p key={ev.id} className="text-[9px] bg-muted/70 rounded px-1 truncate">{ev.summary}</p>
-            ))}
-          </div>
-          {hasPartner && (
-            <div className="flex-1 space-y-0.5">
-              {allDay.filter(e => e.ownerId !== userId).map(ev => (
-                <p key={ev.id} className="text-[9px] bg-muted/70 rounded px-1 truncate">{ev.summary}</p>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Timeline grid */}
       <div className="flex">
