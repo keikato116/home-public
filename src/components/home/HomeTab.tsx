@@ -48,7 +48,7 @@ function ScheduleTimeline({ events, isToday }: { events: CalendarEvent[]; isToda
   const HOUR_H = 40;
   const START_H = 8;
   const END_H = 24;
-  const HOURS = Array.from({ length: END_H - START_H }, (_, i) => i + START_H);
+  const HOURS = Array.from({ length: END_H - START_H + 1 }, (_, i) => i + START_H);
 
   const toMin = (dt: string) => {
     const d = new Date(dt);
@@ -91,7 +91,7 @@ function ScheduleTimeline({ events, isToday }: { events: CalendarEvent[]; isToda
           {HOURS.map((h, i) => (
             <div key={h} className="absolute left-0 right-0 flex items-start pointer-events-none" style={{ top: i * HOUR_H }}>
               <span className="text-[10px] text-muted-foreground w-10 flex-shrink-0 text-right pr-3 leading-none select-none" style={{ marginTop: -6 }}>
-                {String(h).padStart(2, "0")}
+                {h === 24 ? "00" : String(h).padStart(2, "0")}
               </span>
               <div className="flex-1 border-t border-border/40" />
             </div>
