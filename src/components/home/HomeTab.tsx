@@ -142,8 +142,8 @@ function ScheduleTimeline({ events, isToday, userId }: { events: CalendarEvent[]
 }
 
 export function HomeTab() {
-  const { householdId, user, accessToken } = useAuthStore();
-  const { eventsByDate, load: loadCalendar, events: calendarEvents } = useCalendarStore();
+  const { householdId, user } = useAuthStore();
+  const { eventsByDate, load: loadCalendar } = useCalendarStore();
   const {
     load, subscribeRealtime,
     routineDefinitions, completedRoutineIds,
@@ -166,9 +166,9 @@ export function HomeTab() {
   }, [householdId, load, subscribeRealtime]);
 
   useEffect(() => {
-    if (!householdId || calendarEvents.length > 0) return;
-    loadCalendar(householdId, accessToken);
-  }, [householdId, accessToken, loadCalendar, calendarEvents.length]);
+    if (!householdId) return;
+    loadCalendar(householdId, null);
+  }, [householdId, loadCalendar]);
 
   const tabs = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(today);
