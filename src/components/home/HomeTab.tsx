@@ -157,8 +157,6 @@ export function HomeTab() {
   const [newLabel, setNewLabel] = useState("");
   const [addingImportant, setAddingImportant] = useState(false);
   const [newImportantLabel, setNewImportantLabel] = useState("");
-  const [editingRoutineId, setEditingRoutineId] = useState<string | null>(null);
-  const [editingRoutineLabel, setEditingRoutineLabel] = useState("");
 
   useEffect(() => {
     if (!householdId) return;
@@ -335,7 +333,7 @@ export function HomeTab() {
                 </div>
               )}
               {tasks.map(r => (
-                <div key={r.id} className="flex items-center gap-3 py-2">
+                <div key={r.id} className="flex items-center gap-2.5 py-2">
                   <button
                     onClick={() => toggle(r.id, r.done)}
                     className={cn(
@@ -344,30 +342,15 @@ export function HomeTab() {
                     )}
                     aria-label={r.done ? "undo" : "done"}
                   />
-                  {editingRoutineId === r.id ? (
-                    <input
-                      autoFocus
-                      value={editingRoutineLabel}
-                      onChange={e => setEditingRoutineLabel(e.target.value)}
-                      onBlur={() => setEditingRoutineId(null)}
-                      onKeyDown={e => {
-                        if (e.key === "Enter" || e.key === "Escape") setEditingRoutineId(null);
-                      }}
-                      className="flex-1 bg-transparent text-[13px] outline-none"
-                    />
-                  ) : (
-                    <span className={cn("flex-1 text-[13px]", r.done && "line-through text-muted-foreground")}>
-                      {r.label}
-                    </span>
-                  )}
+                  <span className={cn("flex-1 text-[13px]", r.done && "line-through text-muted-foreground")}>
+                    {r.label}
+                  </span>
                   <button
-                    onClick={() => {
-                      if (editingRoutineId === r.id) { deleteChore(r.id); setEditingRoutineId(null); }
-                      else { setEditingRoutineId(r.id); setEditingRoutineLabel(r.label); }
-                    }}
-                    className="text-[10px] text-muted-foreground"
+                    onClick={() => deleteChore(r.id)}
+                    className="text-muted-foreground/50 hover:text-muted-foreground transition-colors flex-shrink-0 text-[14px] leading-none"
+                    aria-label="delete"
                   >
-                    {editingRoutineId === r.id ? "delete" : "edit"}
+                    ×
                   </button>
                 </div>
               ))}
