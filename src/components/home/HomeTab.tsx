@@ -101,9 +101,19 @@ function ScheduleTimeline({ events, isToday, userId }: { events: CalendarEvent[]
       )}
 
       {/* Column headers */}
-      <div className="flex mb-0.5" style={{ paddingLeft: TIME_W }}>
-        <p className="flex-1 text-[9px] text-muted-foreground tracking-wider truncate">{myName}</p>
-        {hasPartner && <p className="flex-1 text-[9px] text-muted-foreground tracking-wider truncate pl-1">{partnerName}</p>}
+      <div className="flex mb-1" style={{ paddingLeft: TIME_W }}>
+        <div className="flex-1 flex items-center gap-1.5">
+          <span className="w-5 h-5 rounded-full bg-foreground text-background flex items-center justify-center text-[9px] font-medium flex-shrink-0">
+            {myName[0]?.toUpperCase()}
+          </span>
+        </div>
+        {hasPartner && (
+          <div className="flex-1 flex items-center gap-1.5 pl-1">
+            <span className="w-5 h-5 rounded border border-muted-foreground text-muted-foreground flex items-center justify-center text-[9px] flex-shrink-0">
+              {partnerName[0]?.toUpperCase()}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Timeline grid */}
