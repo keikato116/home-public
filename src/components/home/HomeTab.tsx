@@ -282,7 +282,7 @@ export function HomeTab() {
 
         {/* Calendar events for selected date */}
         {(() => {
-          const dateKey = toISODate(selectedDate);
+          const dateKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tokyo" }).format(selectedDate);
           const dayEvents = (eventsByDate()[dateKey] ?? []);
           if (dayEvents.length === 0) return null;
           return (
@@ -290,7 +290,7 @@ export function HomeTab() {
               <p className="text-[9px] tracking-[0.3em] text-muted-foreground uppercase mb-2">schedule</p>
               {dayEvents.map(ev => {
                 const timeStr = ev.start.dateTime
-                  ? new Date(ev.start.dateTime).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false })
+                  ? new Date(ev.start.dateTime).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Tokyo" })
                   : null;
                 return (
                   <div key={ev.id} className="flex items-baseline gap-3 py-2.5 border-b border-border">
