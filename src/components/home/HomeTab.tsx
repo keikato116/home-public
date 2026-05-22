@@ -100,22 +100,6 @@ function ScheduleTimeline({ events, isToday, userId }: { events: CalendarEvent[]
         </div>
       )}
 
-      {/* Column headers */}
-      <div className="flex mb-1" style={{ paddingLeft: TIME_W }}>
-        <div className="flex-1 flex items-center gap-1.5">
-          <span className="w-5 h-5 rounded-full bg-foreground text-background flex items-center justify-center text-[9px] font-medium flex-shrink-0">
-            {myName[0]?.toUpperCase()}
-          </span>
-        </div>
-        {hasPartner && (
-          <div className="flex-1 flex items-center gap-1.5 pl-1">
-            <span className="w-5 h-5 rounded border border-muted-foreground text-muted-foreground flex items-center justify-center text-[9px] flex-shrink-0">
-              {partnerName[0]?.toUpperCase()}
-            </span>
-          </div>
-        )}
-      </div>
-
       {/* Timeline grid */}
       <div className="flex">
         {/* Time labels */}
@@ -129,6 +113,9 @@ function ScheduleTimeline({ events, isToday, userId }: { events: CalendarEvent[]
 
         {/* My column */}
         <div className="relative flex-1 border-l border-border/30" style={{ height: totalH }}>
+          <span className="absolute top-1 left-1.5 text-[9px] text-foreground font-medium leading-none z-10 select-none">
+            {myName[0]?.toUpperCase()}
+          </span>
           {HOURS.map((_, i) => <div key={i} className="absolute inset-x-0 border-t border-border/20" style={{ top: i * HOUR_H }} />)}
           {nowMin !== null && nowMin >= START_H * 60 && (
             <div className="absolute inset-x-0 border-t border-red-400/70 z-10" style={{ top: toTop(nowMin) }} />
@@ -139,6 +126,9 @@ function ScheduleTimeline({ events, isToday, userId }: { events: CalendarEvent[]
         {/* Partner column */}
         {hasPartner && (
           <div className="relative flex-1 border-l border-border/50" style={{ height: totalH }}>
+            <span className="absolute top-1 left-1.5 text-[9px] text-muted-foreground leading-none z-10 select-none">
+              {partnerName[0]?.toUpperCase()}
+            </span>
             {HOURS.map((_, i) => <div key={i} className="absolute inset-x-0 border-t border-border/20" style={{ top: i * HOUR_H }} />)}
             {nowMin !== null && nowMin >= START_H * 60 && (
               <div className="absolute inset-x-0 border-t border-red-400/70 z-10" style={{ top: toTop(nowMin) }} />
