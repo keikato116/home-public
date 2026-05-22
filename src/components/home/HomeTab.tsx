@@ -45,12 +45,17 @@ function tabLabel(date: Date, today: Date) {
 
 function ScheduleTimeline({ events, isToday }: { events: CalendarEvent[]; isToday: boolean }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const HOUR_H = 56;
+  const HOUR_H = 40;
+  const START_H = 8;
+  const END_H = 24;
+  const HOURS = Array.from({ length: END_H - START_H }, (_, i) => i + START_H);
 
   const toMin = (dt: string) => {
     const d = new Date(dt);
     return (d.getUTCHours() * 60 + d.getUTCMinutes() + 9 * 60) % 1440;
   };
+
+  const toTop = (min: number) => (Math.max(START_H * 60, min) - START_H * 60) / 60 * HOUR_H;
 
   const allDay = events.filter(e => !e.start.dateTime);
   const timed = events.filter(e => !!e.start.dateTime);
@@ -64,8 +69,8 @@ function ScheduleTimeline({ events, isToday }: { events: CalendarEvent[]; isToda
 
   useEffect(() => {
     if (!containerRef.current) return;
-    const anchor = nowMin ?? (timed.length > 0 ? toMin(timed[0].start.dateTime!) : 8 * 60);
-    containerRef.current.scrollTop = Math.max(0, (anchor / 60) * HOUR_H - 80);
+    const anchor = nowMin ?? (timed.length > 0 ? toMin(timed[0].start.dateTime!) : START_H * 60);
+    containerRef.current.scrollTop = Math.max(0, toTop(anchor) - 40);
   }, []);
 
   return (
@@ -81,20 +86,20 @@ function ScheduleTimeline({ events, isToday }: { events: CalendarEvent[]; isToda
           ))}
         </div>
       )}
-      <div ref={containerRef} className="overflow-y-auto" style={{ height: 260, scrollbarWidth: "none" }}>
-        <div className="relative" style={{ height: 24 * HOUR_H }}>
-          {Array.from({ length: 24 }, (_, h) => (
-            <div key={h} className="absolute left-0 right-0 flex items-start pointer-events-none" style={{ top: h * HOUR_H }}>
-              <span className="text-[10px] text-muted-foreground w-10 flex-shrink-0 text-right pr-3 leading-none select-none" style={{ marginTop: -7 }}>
-                {h % 2 === 0 ? String(h).padStart(2, "0") : ""}
+      <div ref={containerRef} className="overflow-y-auto" style={{ height: 220, scrollbarWidth: "none" }}>
+        <div className="relative" style={{ height: (END_H - START_H) * HOUR_H }}>
+          {HOURS.map((h, i) => (
+            <div key={h} className="absolute left-0 right-0 flex items-start pointer-events-none" style={{ top: i * HOUR_H }}>
+              <span className="text-[10px] text-muted-foreground w-10 flex-shrink-0 text-right pr-3 leading-none select-none" style={{ marginTop: -6 }}>
+                {String(h).padStart(2, "0")}
               </span>
-              <div className={cn("flex-1 border-t", h % 2 === 0 ? "border-border/50" : "border-border/20")} />
+              <div className="flex-1 border-t border-border/40" />
             </div>
           ))}
-          {nowMin !== null && (
+          {nowMin !== null && nowMin >= START_H * 60 && (
             <div
               className="absolute right-0 flex items-center z-10 pointer-events-none"
-              style={{ top: (nowMin / 60) * HOUR_H, left: 0 }}
+              style={{ top: toTop(nowMin), left: 0 }}
             >
               <div className="w-10 flex-shrink-0 flex justify-end pr-1.5">
                 <div className="w-1.5 h-1.5 rounded-full bg-red-400" />
@@ -105,17 +110,18 @@ function ScheduleTimeline({ events, isToday }: { events: CalendarEvent[]; isToda
           {timed.map(ev => {
             const startMin = toMin(ev.start.dateTime!);
             const endMin = ev.end.dateTime ? toMin(ev.end.dateTime) : startMin + 60;
+            if (endMin <= START_H * 60) return null;
             const durMin = Math.max(15, endMin > startMin ? endMin - startMin : 60);
-            const top = (startMin / 60) * HOUR_H;
-            const height = Math.max(22, (durMin / 60) * HOUR_H - 2);
+            const top = toTop(startMin);
+            const height = Math.max(20, (durMin / 60) * HOUR_H - 1);
             return (
               <div
                 key={ev.id}
-                className="absolute rounded px-2 py-1 bg-muted/70"
+                className="absolute rounded px-2 py-0.5 bg-muted/70"
                 style={{ top, left: 40, right: 0, height }}
               >
-                <p className="text-[12px] leading-tight truncate">{ev.summary}</p>
-                {ev.ownerName && height >= 34 && (
+                <p className="text-[11px] leading-tight truncate">{ev.summary}</p>
+                {ev.ownerName && height >= 32 && (
                   <p className="text-[10px] text-muted-foreground leading-tight">{ev.ownerName}</p>
                 )}
               </div>
