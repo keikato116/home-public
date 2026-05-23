@@ -44,7 +44,7 @@ function tabLabel(date: Date, today: Date) {
 }
 
 function ScheduleTimeline({ events, isToday, userId }: { events: CalendarEvent[]; isToday: boolean; userId?: string }) {
-  const HOUR_H = 18;
+  const HOUR_H = 40;
   const START_H = 8;
   const END_H = 24;
   const HOURS = Array.from({ length: END_H - START_H + 1 }, (_, i) => i + START_H);
@@ -73,12 +73,12 @@ function ScheduleTimeline({ events, isToday, userId }: { events: CalendarEvent[]
     const startMin = toMin(ev.start.dateTime!);
     const endMin = ev.end.dateTime ? toMin(ev.end.dateTime) : startMin + 60;
     if (endMin <= START_H * 60) return null;
-    const durMin = Math.max(15, endMin > startMin ? endMin - startMin : 60);
+    const durMin = Math.max(20, endMin > startMin ? endMin - startMin : 60);
     const top = toTop(startMin);
-    const height = Math.max(14, (durMin / 60) * HOUR_H - 1);
+    const height = Math.max(HOUR_H / 2, (durMin / 60) * HOUR_H - 1);
     return (
-      <div key={ev.id} className="absolute inset-x-0.5 rounded px-1 bg-muted/70 flex items-center overflow-hidden" style={{ top, height }}>
-        <p className="text-[9px] leading-none truncate w-full">{ev.summary}</p>
+      <div key={ev.id} className="absolute inset-x-0.5 rounded px-1.5 py-1 bg-muted/80 border border-border/30 overflow-hidden flex flex-col justify-start" style={{ top, height }}>
+        <p className="text-[9px] leading-tight font-medium truncate w-full">{ev.summary}</p>
       </div>
     );
   });
