@@ -44,7 +44,7 @@ function tabLabel(date: Date, today: Date) {
   return `${m}/${d}`;
 }
 
-function ScheduleTimeline({ events, isToday, userId }: { events: CalendarEvent[]; isToday: boolean; userId?: string }) {
+function ScheduleTimeline({ events, isToday, userId, memberNameMap }: { events: CalendarEvent[]; isToday: boolean; userId?: string; memberNameMap: Record<string, string> }) {
   const HOUR_H = 40;
   const START_H = 8;
   const END_H = 24;
@@ -61,10 +61,10 @@ function ScheduleTimeline({ events, isToday, userId }: { events: CalendarEvent[]
   const timed = events.filter(e => !!e.start.dateTime);
   const myEvents = timed.filter(e => e.ownerId === userId);
   const partnerEvents = timed.filter(e => e.ownerId !== userId);
-  const hasPartner = partnerEvents.length > 0 || allDay.some(e => e.ownerId !== userId);
 
-  const myName = myEvents[0]?.ownerName ?? "me";
-  const partnerName = partnerEvents[0]?.ownerName ?? allDay.find(e => e.ownerId !== userId)?.ownerName ?? "";
+  const myName = myEvents[0]?.ownerName ?? (userId ? memberNameMap[userId] : "") ?? "me";
+  const partnerEntry = Object.entries(memberNameMap).find(([id]) => id !== userId);
+  const partnerName = partnerEvents[0]?.ownerName ?? allDay.find(e => e.ownerId !== userId)?.ownerName ?? (partnerEntry?.[1] ?? "");
 
   const nowMin = isToday
     ? (() => { const n = new Date(); return (n.getUTCHours() * 60 + n.getUTCMinutes() + 9 * 60) % 1440; })()
@@ -138,19 +138,19 @@ function ScheduleTimeline({ events, isToday, userId }: { events: CalendarEvent[]
           {renderCol(myEvents)}
         </div>
 
-        {/* Partner column */}
-        {hasPartner && (
-          <div className="relative flex-1 border-l border-border/50" style={{ height: totalH }}>
+        {/* Partner column — always visible */}
+        <div className="relative flex-1 border-l border-border/50" style={{ height: totalH }}>
+          {partnerName && (
             <span className="absolute top-1 left-1.5 text-[9px] text-muted-foreground leading-none z-10 select-none">
               {partnerName[0]?.toUpperCase()}
             </span>
-            {HOURS.map((_, i) => <div key={i} className="absolute inset-x-0 border-t border-border/20" style={{ top: i * HOUR_H }} />)}
-            {nowMin !== null && nowMin >= START_H * 60 && (
-              <div className="absolute inset-x-0 border-t border-red-400/70 z-10" style={{ top: toTop(nowMin) }} />
-            )}
-            {renderCol(partnerEvents)}
-          </div>
-        )}
+          )}
+          {HOURS.map((_, i) => <div key={i} className="absolute inset-x-0 border-t border-border/20" style={{ top: i * HOUR_H }} />)}
+          {nowMin !== null && nowMin >= START_H * 60 && (
+            <div className="absolute inset-x-0 border-t border-red-400/70 z-10" style={{ top: toTop(nowMin) }} />
+          )}
+          {renderCol(partnerEvents)}
+        </div>
       </div>
     </div>
   );
@@ -161,7 +161,7 @@ export function HomeTab() {
   const { eventsByDate, load: loadCalendar } = useCalendarStore();
   const {
     load, subscribeRealtime,
-    routineDefinitions, completedRoutineIds, completedByMap,
+    routineDefinitions, completedRoutineIds, completedByMap, memberNameMap,
     urgentTodos, toggleUrgentTodo, addUrgentTodo, deleteUrgentTodo,
     markRoutineDone, markRoutineUndone, addChore, deleteChore,
   } = useTodoStore();
@@ -401,6 +401,7 @@ export function HomeTab() {
               events={dayEvents}
               isToday={isSameDay(selectedDate, today)}
               userId={user?.id}
+              memberNameMap={memberNameMap}
             />
           );
         })()}
