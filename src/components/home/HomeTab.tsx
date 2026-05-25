@@ -71,9 +71,18 @@ function ScheduleTimeline({ events, isToday, userId }: { events: CalendarEvent[]
 
   const renderCol = (evs: CalendarEvent[]) => evs.map(ev => {
     const startMin = toMin(ev.start.dateTime!);
-    const endMin = ev.end.dateTime ? toMin(ev.end.dateTime) : startMin + 60;
-    if (endMin <= START_H * 60) return null;
-    const durMin = Math.max(20, endMin > startMin ? endMin - startMin : 60);
+    const rawEndMin = ev.end.dateTime ? toMin(ev.end.dateTime) : startMin + 60;
+    // spans midnight when end wraps around (e.g. 5PM–9AM next day: 1020 → 540)
+    const spansMidnight = rawEndMin <= startMin;
+    const effectiveEndMin = spansMidnight ? END_H * 60 : rawEndMin;
+
+    // skip events entirely outside visible range
+    if (startMin >= END_H * 60) return null;
+    if (!spansMidnight && effectiveEndMin <= START_H * 60) return null;
+
+    const visibleStartMin = Math.max(startMin, START_H * 60);
+    const cappedEndMin = Math.min(effectiveEndMin, END_H * 60);
+    const durMin = Math.max(20, cappedEndMin - visibleStartMin);
     const top = toTop(startMin);
     const height = Math.max(HOUR_H / 2, (durMin / 60) * HOUR_H - 1);
     return (
