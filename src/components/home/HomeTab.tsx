@@ -8,6 +8,7 @@ import { getTodaysRoutines } from "@/lib/routine";
 import { toISODate, cn } from "@/lib/utils";
 import { WeatherWidget } from "./WeatherWidget";
 import { CalendarEvent } from "@/types";
+import { GOOGLE_COLOR_HEX } from "@/lib/calendar";
 
 const JST = "Asia/Tokyo";
 
@@ -85,9 +86,14 @@ function ScheduleTimeline({ events, isToday, userId }: { events: CalendarEvent[]
     const durMin = Math.max(20, cappedEndMin - visibleStartMin);
     const top = toTop(startMin);
     const height = Math.max(HOUR_H / 2, (durMin / 60) * HOUR_H - 1);
+    const hex = ev.colorId ? GOOGLE_COLOR_HEX[ev.colorId] : "#888888";
     return (
-      <div key={ev.id} className="absolute inset-x-0.5 rounded px-1.5 py-1 bg-muted/80 border border-border/30 overflow-hidden flex flex-col justify-start" style={{ top, height }}>
-        <p className="text-[9px] leading-tight font-medium truncate w-full">{ev.summary}</p>
+      <div
+        key={ev.id}
+        className="absolute inset-x-0.5 rounded px-1.5 py-1 overflow-hidden flex flex-col justify-start"
+        style={{ top, height, backgroundColor: hex + "28", borderLeft: `2px solid ${hex}88` }}
+      >
+        <p className="text-[9px] leading-tight font-medium truncate w-full" style={{ color: hex }}>{ev.summary}</p>
       </div>
     );
   });
