@@ -5,7 +5,9 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 const CATEGORIES = ["メイン料理", "副菜", "スープ", "ご飯・麺", "前菜・おつまみ", "デザート"];
 
-const SCHEMA_PROMPT = `Extract recipe information and return ONLY valid JSON (no markdown, no explanation) with these fields:
+const SCHEMA_PROMPT = `Analyze the recipe content. There may be one or multiple recipes.
+Return ONLY a valid JSON array (no markdown, no explanation) — always an array, even for a single recipe.
+Each element must have:
 - title: recipe name (string)
 - category: one of [${CATEGORIES.join(", ")}] — pick the closest
 - servings: number of servings as integer (number or null)
@@ -36,8 +38,9 @@ export async function POST(req: Request) {
       });
 
       const text = msg.content[0].type === "text" ? msg.content[0].text : "";
-      const data = JSON.parse(text);
-      return NextResponse.json({ ...data, thumbnail_url: null, url: null });
+      const parsed = JSON.parse(text);
+      const recipes = Array.isArray(parsed) ? parsed : [parsed];
+      return NextResponse.json(recipes.map((r) => ({ ...r, thumbnail_url: null, url: null })));
 
     } else if (body.type === "url") {
       const { url } = body as { url: string };
@@ -66,8 +69,9 @@ export async function POST(req: Request) {
       });
 
       const raw = msg.content[0].type === "text" ? msg.content[0].text : "";
-      const data = JSON.parse(raw);
-      return NextResponse.json({ ...data, thumbnail_url: ogImage, url });
+      const parsed = JSON.parse(raw);
+      const recipes = Array.isArray(parsed) ? parsed : [parsed];
+      return NextResponse.json(recipes.map((r) => ({ ...r, thumbnail_url: ogImage, url })));
     }
 
     return NextResponse.json({ error: "invalid type" }, { status: 400 });
