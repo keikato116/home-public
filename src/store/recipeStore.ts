@@ -182,13 +182,21 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
   load: async (householdId) => {
     set({ loading: true, loadError: null });
     const supabase = createClient();
-    const { data, error } = await supabase
-      .from("recipes")
-      .select("*")
-      .eq("household_id", householdId)
-      .order("created_at", { ascending: false });
-    if (error) set({ loadError: error.message, loading: false, recipes: [] });
-    else set({ recipes: (data ?? []) as Recipe[], loading: false });
+    try {
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("query timed out after 8s")), 8000)
+      );
+      const query = supabase
+        .from("recipes")
+        .select("id, household_id, title, url, ingredients, thumbnail_url, cook_time_min, servings, category, memo, times_made, last_made_at, created_by, created_at")
+        .eq("household_id", householdId)
+        .order("created_at", { ascending: false });
+      const { data, error } = await Promise.race([query, timeout]);
+      if (error) set({ loadError: error.message, loading: false, recipes: [] });
+      else set({ recipes: (data ?? []) as Recipe[], loading: false });
+    } catch (e: unknown) {
+      set({ loadError: e instanceof Error ? e.message : "load failed", loading: false, recipes: [] });
+    }
   },
 
   loadPreset: async (householdId, userId) => {
