@@ -51,6 +51,11 @@ export interface Recipe {
   ingredients: string | null;
   steps: string | null;
   thumbnail_url: string | null;
+  cook_time_min: number | null;
+  servings: number | null;
+  category: string | null;
+  memo: string | null;
+  created_by: string | null;
   created_at: string;
 }
 

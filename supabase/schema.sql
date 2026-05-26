@@ -77,6 +77,10 @@ create table public.recipes (
   ingredients   text,
   steps         text,
   thumbnail_url text,
+  cook_time_min integer,
+  servings      integer,
+  category      text,
+  memo          text,
   created_by    uuid references auth.users(id),
   created_at    timestamptz default now()
 );

@@ -10,8 +10,8 @@ import { Recipe } from "@/types";
 import { Plus } from "lucide-react";
 
 export function RecipeTab() {
-  const { householdId } = useAuthStore();
-  const { load, recipes, loading } = useRecipeStore();
+  const { householdId, user } = useAuthStore();
+  const { load, loadPreset, recipes, loading, loadingPreset } = useRecipeStore();
   const [selected, setSelected] = useState<Recipe | null>(null);
   const [adding, setAdding] = useState(false);
 
@@ -23,7 +23,13 @@ export function RecipeTab() {
   return (
     <div className="flex flex-col h-full px-7 py-8">
       <div className="flex items-center justify-between mb-8">
-        <div />
+        <button
+          onClick={() => householdId && user && loadPreset(householdId, user.id)}
+          disabled={loadingPreset}
+          className="text-[10px] text-muted-foreground border border-border rounded px-2.5 py-1 hover:text-foreground transition-colors disabled:opacity-40"
+        >
+          {loadingPreset ? "loading..." : "load recipes"}
+        </button>
         <button
           onClick={() => setAdding(true)}
           className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
