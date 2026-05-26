@@ -11,7 +11,7 @@ import { Plus } from "lucide-react";
 
 export function RecipeTab() {
   const { householdId, user } = useAuthStore();
-  const { load, loadPreset, recipes, loading, loadingPreset } = useRecipeStore();
+  const { load, loadPreset, recipes, loading, loadError, loadingPreset } = useRecipeStore();
   const [selected, setSelected] = useState<Recipe | null>(null);
   const [adding, setAdding] = useState(false);
 
@@ -40,8 +40,8 @@ export function RecipeTab() {
       </div>
 
       {loading && <p className="text-[11px] text-muted-foreground">loading...</p>}
-
-      {!loading && recipes.length === 0 && (
+      {loadError && <p className="text-[11px] text-red-500 break-all">{loadError}</p>}
+      {!loading && !loadError && recipes.length === 0 && (
         <p className="text-[11px] text-muted-foreground">no recipes yet. add one to get started.</p>
       )}
 

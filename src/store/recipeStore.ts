@@ -164,6 +164,7 @@ B ウスターソース … 小さじ1
 interface RecipeState {
   recipes: Recipe[];
   loading: boolean;
+  loadError: string | null;
   loadingPreset: boolean;
   load: (householdId: string) => Promise<void>;
   loadPreset: (householdId: string, userId: string) => Promise<void>;
@@ -175,17 +176,19 @@ interface RecipeState {
 export const useRecipeStore = create<RecipeState>((set, get) => ({
   recipes: [],
   loading: false,
+  loadError: null,
   loadingPreset: false,
 
   load: async (householdId) => {
-    set({ loading: true });
+    set({ loading: true, loadError: null });
     const supabase = createClient();
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("recipes")
       .select("*")
       .eq("household_id", householdId)
       .order("created_at", { ascending: false });
-    set({ recipes: (data ?? []) as Recipe[], loading: false });
+    if (error) set({ loadError: error.message, loading: false, recipes: [] });
+    else set({ recipes: (data ?? []) as Recipe[], loading: false });
   },
 
   loadPreset: async (householdId, userId) => {
