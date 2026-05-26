@@ -72,8 +72,8 @@ export function AddRecipeModal({ onClose }: Props) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ type: "photo", imageBase64: base64, mediaType }),
         });
-        if (!res.ok) throw new Error("analysis failed");
         const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? "analysis failed");
         setForm({ ...EMPTY, ...data });
       } else {
         if (!url.trim()) throw new Error("please enter a URL");
@@ -82,9 +82,9 @@ export function AddRecipeModal({ onClose }: Props) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ type: "url", url: url.trim() }),
         });
-        if (!res.ok) throw new Error("analysis failed");
-        const data = await res.json();
-        setForm({ ...EMPTY, ...data, url: url.trim() });
+        const data2 = await res.json();
+        if (!res.ok) throw new Error(data2.error ?? "analysis failed");
+        setForm({ ...EMPTY, ...data2, url: url.trim() });
       }
       setStep("form");
     } catch (e: unknown) {
