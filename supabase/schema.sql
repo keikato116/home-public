@@ -71,16 +71,15 @@ create table public.recipes (
   id            uuid primary key default gen_random_uuid(),
   household_id  uuid references public.households(id) on delete cascade not null,
   title         text not null,
-  source_type   text not null check (source_type in ('url','photo','manual')),
   url           text,
-  photo_path    text,
   ingredients   text,
-  steps         text,
   thumbnail_url text,
   cook_time_min integer,
   servings      integer,
   category      text,
   memo          text,
+  times_made    integer not null default 0,
+  last_made_at  date,
   created_by    uuid references auth.users(id),
   created_at    timestamptz default now()
 );

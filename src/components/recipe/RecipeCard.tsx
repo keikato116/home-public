@@ -23,12 +23,23 @@ export function RecipeCard({ recipe, onClick }: Props) {
           />
         ) : (
           <span className="text-muted-foreground text-[10px] tracking-widest">
-            {recipe.source_type === "manual" ? "manual" : recipe.source_type === "url" ? "url" : "photo"}
+            {recipe.category ?? "recipe"}
           </span>
         )}
       </div>
-      <div className="p-3">
+      <div className="p-3 space-y-1">
         <p className="text-[11px] tracking-wide leading-relaxed line-clamp-2">{recipe.title}</p>
+        <div className="flex items-center gap-2">
+          {recipe.cook_time_min && (
+            <span className="text-[9px] text-muted-foreground">{recipe.cook_time_min}min</span>
+          )}
+          {recipe.servings && (
+            <span className="text-[9px] text-muted-foreground">{recipe.servings}p</span>
+          )}
+          {(recipe.times_made ?? 0) > 0 && (
+            <span className="text-[9px] text-muted-foreground ml-auto">×{recipe.times_made}</span>
+          )}
+        </div>
       </div>
     </button>
   );
