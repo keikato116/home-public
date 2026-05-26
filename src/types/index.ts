@@ -45,16 +45,15 @@ export interface Recipe {
   id: string;
   household_id: string;
   title: string;
-  source_type: "url" | "photo" | "manual";
   url: string | null;
-  photo_path: string | null;
   ingredients: string | null;
-  steps: string | null;
   thumbnail_url: string | null;
   cook_time_min: number | null;
   servings: number | null;
   category: string | null;
   memo: string | null;
+  times_made: number;
+  last_made_at: string | null;
   created_by: string | null;
   created_at: string;
 }
