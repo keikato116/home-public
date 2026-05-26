@@ -233,12 +233,15 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
     if (file) {
       const ext = file.name.split(".").pop() ?? "jpg";
       const path = `${householdId}/${crypto.randomUUID()}.${ext}`;
-      const { error } = await supabase.storage.from("recipes").upload(path, file);
-      if (error) throw error;
-      thumbnail_url = supabase.storage.from("recipes").getPublicUrl(path).data.publicUrl;
+      const { error: uploadError } = await supabase.storage.from("recipes").upload(path, file);
+      if (uploadError) {
+        console.warn("storage upload failed, saving without photo:", uploadError.message);
+      } else {
+        thumbnail_url = supabase.storage.from("recipes").getPublicUrl(path).data.publicUrl;
+      }
     }
 
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("recipes")
       .insert({
         household_id: householdId,
@@ -254,6 +257,7 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
       })
       .select()
       .single();
+    if (error) throw new Error(error.message);
     if (data) set((s) => ({ recipes: [data as Recipe, ...s.recipes] }));
   },
 
