@@ -10,11 +10,50 @@ interface Props {
   onClose: () => void;
 }
 
+const VAGUE = ["適量", "少々", "お好みで", "適宜", "少量", "ひとつまみ"];
+
+function evalNum(s: string): number {
+  const mixed = s.match(/^(\d+)・(\d+)\/(\d+)$/);
+  if (mixed) return Number(mixed[1]) + Number(mixed[2]) / Number(mixed[3]);
+  const frac = s.match(/^(\d+)\/(\d+)$/);
+  if (frac) return Number(frac[1]) / Number(frac[2]);
+  return Number(s);
+}
+
+function fmtNum(n: number): string {
+  if (Number.isInteger(n)) return String(n);
+  const fracs: [number, string][] = [
+    [1 / 6, "1/6"], [1 / 4, "1/4"], [1 / 3, "1/3"], [1 / 2, "1/2"],
+    [2 / 3, "2/3"], [3 / 4, "3/4"], [5 / 6, "5/6"],
+  ];
+  for (const [val, str] of fracs) {
+    if (Math.abs(n - val) < 0.02) return str;
+  }
+  const whole = Math.floor(n);
+  const rem = n - whole;
+  if (whole > 0) {
+    for (const [val, str] of fracs) {
+      if (Math.abs(rem - val) < 0.02) return `${whole}・${str}`;
+    }
+  }
+  return String(Math.round(n * 10) / 10);
+}
+
+function scaleIngredients(text: string, ratio: number): string {
+  return text
+    .split("\n")
+    .map((line) => {
+      if (VAGUE.some((w) => line.includes(w))) return line;
+      return line.replace(/\d+・\d+\/\d+|\d+\/\d+|\d+(?:\.\d+)?/g, (m) =>
+        fmtNum(evalNum(m) * ratio)
+      );
+    })
+    .join("\n");
+}
+
 export function RecipeDetailModal({ recipe, onClose }: Props) {
   const { deleteRecipe, recordMade } = useRecipeStore();
   const [targetServings, setTargetServings] = useState<number>(recipe.servings ?? 2);
-  const [scaledIngredients, setScaledIngredients] = useState<string | null>(null);
-  const [scaling, setScaling] = useState(false);
   const [recording, setRecording] = useState(false);
 
   const handleDelete = async () => {
@@ -23,35 +62,17 @@ export function RecipeDetailModal({ recipe, onClose }: Props) {
     onClose();
   };
 
-  const handleScale = async () => {
-    if (!recipe.ingredients || !recipe.servings) return;
-    if (targetServings === recipe.servings) { setScaledIngredients(null); return; }
-    setScaling(true);
-    try {
-      const res = await fetch("/api/scale-recipe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ingredients: recipe.ingredients,
-          baseServings: recipe.servings,
-          targetServings,
-        }),
-      });
-      const { scaledIngredients } = await res.json();
-      setScaledIngredients(scaledIngredients);
-    } catch {
-      // ignore
-    }
-    setScaling(false);
-  };
-
   const handleMadeIt = async () => {
     setRecording(true);
     await recordMade(recipe.id);
     setRecording(false);
   };
 
-  const displayIngredients = scaledIngredients ?? recipe.ingredients;
+  const ratio = recipe.servings ? targetServings / recipe.servings : 1;
+  const displayIngredients =
+    recipe.ingredients && recipe.servings && targetServings !== recipe.servings
+      ? scaleIngredients(recipe.ingredients, ratio)
+      : recipe.ingredients;
 
   return (
     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex flex-col">
@@ -116,11 +137,14 @@ export function RecipeDetailModal({ recipe, onClose }: Props) {
 
           {recipe.ingredients && (
             <div>
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center justify-between mb-3">
                 <p className="text-[10px] tracking-widest text-muted-foreground uppercase">
                   ingredients
-                  {recipe.servings ? ` (base: ${recipe.servings} servings)` : ""}
-                  {scaledIngredients ? ` → ${targetServings} servings` : ""}
+                  {recipe.servings && targetServings !== recipe.servings
+                    ? ` (scaled to ${targetServings})`
+                    : recipe.servings
+                    ? ` (${recipe.servings} servings)`
+                    : ""}
                 </p>
               </div>
 
@@ -130,23 +154,14 @@ export function RecipeDetailModal({ recipe, onClose }: Props) {
                     type="number"
                     min={1}
                     value={targetServings}
-                    onChange={(e) => { setTargetServings(Number(e.target.value)); setScaledIngredients(null); }}
+                    onChange={(e) => setTargetServings(Math.max(1, Number(e.target.value)))}
                     className="w-14 bg-transparent border-b border-border pb-0.5 text-[12px] focus:outline-none focus:border-foreground/40 text-center"
                   />
                   <span className="text-[11px] text-muted-foreground">servings</span>
-                  <button
-                    type="button"
-                    onClick={handleScale}
-                    disabled={scaling || targetServings === recipe.servings}
-                    className="text-[10px] border border-border rounded px-2.5 py-1 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 flex items-center gap-1"
-                  >
-                    {scaling ? <Loader2 size={10} className="animate-spin" /> : null}
-                    scale
-                  </button>
-                  {scaledIngredients && (
+                  {targetServings !== recipe.servings && (
                     <button
                       type="button"
-                      onClick={() => { setScaledIngredients(null); setTargetServings(recipe.servings!); }}
+                      onClick={() => setTargetServings(recipe.servings!)}
                       className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
                     >
                       reset
