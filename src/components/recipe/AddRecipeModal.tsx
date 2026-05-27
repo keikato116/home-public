@@ -196,29 +196,29 @@ export function AddRecipeModal({ onClose }: Props) {
           const supabase = createClient();
           const allFiles = toSave.flatMap((r) => r.sourceFiles ?? []);
           const uniqueFiles = allFiles.filter((f, i) => allFiles.indexOf(f) === i);
-          for (const f of uniqueFiles) {
+          await Promise.allSettled(uniqueFiles.map(async (f) => {
             try {
               const ext = f.name.split(".").pop() ?? "jpg";
               const path = `${householdId}/${crypto.randomUUID()}.${ext}`;
               const uploadPromise = supabase.storage.from("recipes").upload(path, f);
-              const uploadTimeout = new Promise<{ error: Error }>((_, reject) =>
-                setTimeout(() => reject(new Error("upload timeout")), 25000)
+              const uploadTimeout = new Promise<never>((_, reject) =>
+                setTimeout(() => reject(new Error("upload timeout")), 60000)
               );
-              const { error } = await Promise.race([uploadPromise, uploadTimeout]) as { error: Error | null };
-              fileUrlMap.set(f, error ? null : supabase.storage.from("recipes").getPublicUrl(path).data.publicUrl);
+              await Promise.race([uploadPromise, uploadTimeout]);
+              fileUrlMap.set(f, supabase.storage.from("recipes").getPublicUrl(path).data.publicUrl);
             } catch {
               fileUrlMap.set(f, null);
             }
-          }
+          }));
         }
-        for (const r of toSave) {
+        await Promise.all(toSave.map(async (r) => {
           const uploadedUrls = (r.sourceFiles ?? [])
             .map((f) => fileUrlMap.get(f) ?? null)
             .filter(Boolean) as string[];
           const thumbnail_url = uploadedUrls[0] ?? r.thumbnail_url;
           const photo_urls = uploadedUrls.length > 1 ? uploadedUrls.slice(1) : null;
           await add(householdId, { ...r, title: r.title.trim(), created_by: user.id, thumbnail_url, photo_urls });
-        }
+        }));
       };
 
       await Promise.race([
