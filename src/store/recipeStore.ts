@@ -282,7 +282,21 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
 
   deleteRecipe: async (id) => {
     const supabase = createClient();
+    const recipe = get().recipes.find((r) => r.id === id);
+
     await supabase.from("recipes").delete().eq("id", id);
     set((s) => ({ recipes: s.recipes.filter((r) => r.id !== id) }));
+
+    // delete from Storage only if no other recipe shares the same thumbnail_url
+    if (recipe?.thumbnail_url) {
+      const stillUsed = get().recipes.some((r) => r.thumbnail_url === recipe.thumbnail_url);
+      if (!stillUsed) {
+        const url = new URL(recipe.thumbnail_url);
+        const pathMatch = url.pathname.match(/\/object\/public\/recipes\/(.+)/);
+        if (pathMatch) {
+          await supabase.storage.from("recipes").remove([pathMatch[1]]);
+        }
+      }
+    }
   },
 }));
