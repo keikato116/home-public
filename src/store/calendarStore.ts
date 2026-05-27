@@ -117,8 +117,21 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
 
       const [{ data: localData }, { data: memberTokens }] = await Promise.all([
         supabase.from("local_calendar_events").select("*").eq("household_id", householdId),
-        supabase.from("user_tokens").select("user_id, google_access_token, display_name, calendar_colors").eq("household_id", householdId),
+        supabase.from("user_tokens").select("user_id, google_access_token, display_name").eq("household_id", householdId),
       ]);
+
+      // Best-effort: fetch per-user color prefs (requires migration; ignored if column absent)
+      const colorMap: Record<string, string[]> = {};
+      try {
+        const { data: colorRows } = await supabase
+          .from("user_tokens")
+          .select("user_id, calendar_colors")
+          .eq("household_id", householdId);
+        for (const row of colorRows ?? []) {
+          const colors = (row as { calendar_colors?: string[] | null }).calendar_colors;
+          if (colors) colorMap[row.user_id] = colors;
+        }
+      } catch { /* column not yet migrated — fall back to partner's colors being empty (show all) */ }
 
       const nameMap: Record<string, string> = {};
       for (const m of memberTokens ?? []) {
@@ -164,7 +177,7 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
           partnerTokens.map(async (member) => {
             if (!member.google_access_token) return [];
             try {
-              const partnerColors = (member as { calendar_colors?: string[] | null }).calendar_colors ?? [];
+              const partnerColors = colorMap[member.user_id] ?? [];
               const events = await fetchCalendarEvents(member.google_access_token, partnerColors, fetchFrom);
               return events.map(e => ({
                 ...e,
