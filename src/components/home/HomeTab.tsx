@@ -282,7 +282,6 @@ export function HomeTab() {
         {(() => {
           const dateKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tokyo" }).format(selectedDate);
           const dayEvents = eventsByDate()[dateKey] ?? [];
-          if (dayEvents.length === 0) return null;
           return (
             <ScheduleTimeline
               key={dateKey}
