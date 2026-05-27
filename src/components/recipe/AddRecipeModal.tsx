@@ -308,14 +308,6 @@ export function AddRecipeModal({ onClose }: Props) {
                         className="w-full bg-transparent border-b border-border pb-1 text-[12px] focus:outline-none focus:border-foreground/40 resize-none"
                       />
                     </Field>
-                    <Field label="memo">
-                      <textarea
-                        value={r.memo ?? ""}
-                        onChange={(e) => updateRecipe(i, { memo: e.target.value || null })}
-                        rows={2}
-                        className="w-full bg-transparent border-b border-border pb-1 text-[12px] focus:outline-none focus:border-foreground/40 resize-none"
-                      />
-                    </Field>
                   </div>
                 )}
               </div>

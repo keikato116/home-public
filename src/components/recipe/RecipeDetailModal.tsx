@@ -167,13 +167,6 @@ export function RecipeDetailModal({ recipe, onClose }: Props) {
             </div>
           )}
 
-          {recipe.memo && (
-            <div>
-              <p className="text-[10px] tracking-widest text-muted-foreground uppercase mb-2">memo</p>
-              <p className="text-[12px] leading-relaxed whitespace-pre-wrap text-muted-foreground">{recipe.memo}</p>
-            </div>
-          )}
-
           {recipe.thumbnail_url && (
             <div>
               <p className="text-[10px] tracking-widest text-muted-foreground uppercase mb-2">photo</p>
