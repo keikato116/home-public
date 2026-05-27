@@ -51,7 +51,7 @@ export async function POST(req: Request) {
 
       const msg = await client.messages.create({
         model: "claude-sonnet-4-6",
-        max_tokens: 1024,
+        max_tokens: 4096,
         messages: [{
           role: "user",
           content: [
@@ -96,7 +96,7 @@ export async function POST(req: Request) {
 
       const msg = await client.messages.create({
         model: "claude-sonnet-4-6",
-        max_tokens: 1024,
+        max_tokens: 4096,
         messages: [{
           role: "user",
           content: `The following is text extracted from a recipe webpage. ${SCHEMA_PROMPT}\n\n${text}`,
