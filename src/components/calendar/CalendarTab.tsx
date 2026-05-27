@@ -112,58 +112,78 @@ function WeekStrip({ weekDays, selectedDate, today, eventsMap, onSelect }: WeekS
   );
 }
 
-// Month grid — event title chips inside each cell
+// Month grid — full-screen, self events (solid) vs partner events (outlined)
 interface MonthGridProps {
   selectedDate: Date;
   today: Date;
   eventsMap: Record<string, CalendarEvent[]>;
+  currentUserId: string | undefined;
   onSelect: (d: Date) => void;
 }
 
-function MonthGrid({ selectedDate, today, eventsMap, onSelect }: MonthGridProps) {
+function MonthGrid({ selectedDate, today, eventsMap, currentUserId, onSelect }: MonthGridProps) {
   const year = selectedDate.getFullYear();
   const month = selectedDate.getMonth();
   const cells = getMonthDays(year, month);
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const rows = Math.ceil((firstDay + daysInMonth) / 7);
 
   return (
-    <div className="px-1 pb-2 border-b border-border">
-      <div className="grid grid-cols-7 mb-1">
+    <div className="flex flex-col flex-1 overflow-hidden px-1 pb-1">
+      <div className="grid grid-cols-7 mb-0.5">
         {DOW_LETTERS.map((l, i) => (
-          <div key={i} className="flex justify-center">
+          <div key={i} className="flex justify-center py-1">
             <span className="text-[9px] text-muted-foreground tracking-wide">{l}</span>
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-7">
+      <div
+        className="flex-1 min-h-0 grid grid-cols-7 border-l border-t border-border/20"
+        style={{ gridTemplateRows: `repeat(${rows}, 1fr)` }}
+      >
         {cells.map((d, i) => {
-          if (!d) return <div key={i} className="min-h-[60px]" />;
+          if (!d) return <div key={i} className="border-r border-b border-border/20" />;
           const isSelected = isSameDay(d, selectedDate);
           const isToday = isSameDay(d, today);
           const dayEvents = eventsMap[toDateStr(d)] ?? [];
+          const myEvents = dayEvents.filter(e => e.ownerId === currentUserId);
+          const partnerEvents = dayEvents.filter(e => e.ownerId !== currentUserId);
           return (
-            <button key={i} className="flex flex-col items-center pt-1 pb-1 min-h-[60px]" onClick={() => onSelect(d)}>
+            <button
+              key={i}
+              className="flex flex-col items-start p-0.5 border-r border-b border-border/20 overflow-hidden text-left"
+              onClick={() => onSelect(d)}
+            >
               <span className={[
-                "w-6 h-6 rounded-full flex items-center justify-center text-[11px] mb-0.5 flex-shrink-0",
+                "w-[18px] h-[18px] rounded-full flex items-center justify-center text-[10px] mb-0.5 flex-shrink-0",
                 isSelected ? "bg-foreground text-background"
                   : isToday ? "border border-foreground text-foreground"
                   : "text-foreground",
               ].join(" ")}>
                 {d.getDate()}
               </span>
-              <div className="w-full px-0.5 space-y-px">
-                {dayEvents.slice(0, 2).map((e) => {
+              <div className="w-full space-y-px overflow-hidden">
+                {myEvents.slice(0, 3).map(e => {
                   const color = eventColor(e);
                   return (
-                    <div key={e.id + (e.ownerId ?? "")}
-                      className="w-full text-[7px] leading-tight truncate rounded-sm px-0.5 py-px text-left"
-                      style={{ backgroundColor: color + "28", color }}>
+                    <div key={e.id + "my"}
+                      className="w-full text-[6.5px] leading-none truncate rounded-[2px] px-0.5 py-px"
+                      style={{ backgroundColor: color + "38", color }}>
                       {e.summary}
                     </div>
                   );
                 })}
-                {dayEvents.length > 2 && (
-                  <span className="text-[7px] text-muted-foreground block pl-0.5">+{dayEvents.length - 2}</span>
-                )}
+                {partnerEvents.slice(0, 3).map(e => {
+                  const color = eventColor(e);
+                  return (
+                    <div key={e.id + "pt"}
+                      className="w-full text-[6.5px] leading-none truncate rounded-[2px] px-0.5 py-px border-l-2"
+                      style={{ borderColor: color, color, opacity: 0.8 }}>
+                      {e.summary}
+                    </div>
+                  );
+                })}
               </div>
             </button>
           );
@@ -325,17 +345,26 @@ export function CalendarTab() {
         ))}
       </div>
 
-      {/* Calendar grid */}
+      {/* Month: full-screen grid — clicking a day drills into day view */}
+      {viewMode === "month" && (
+        <MonthGrid
+          selectedDate={selectedDate}
+          today={today}
+          eventsMap={eventsMap}
+          currentUserId={currentUserId}
+          onSelect={(d) => { setSelectedDate(d); setViewMode("day"); }}
+        />
+      )}
+
+      {/* Day / week: week strip + scrollable content */}
       {(viewMode === "week" || viewMode === "day") && (
         <WeekStrip weekDays={weekDays} selectedDate={selectedDate} today={today}
           eventsMap={eventsMap} onSelect={setSelectedDate} />
       )}
-      {viewMode === "month" && (
-        <MonthGrid selectedDate={selectedDate} today={today} eventsMap={eventsMap} onSelect={setSelectedDate} />
-      )}
 
-      {/* Content area */}
-      <div ref={viewMode === "day" ? timelineScrollRef : undefined} className="flex-1 overflow-y-auto px-7 py-4">
+      {/* Content area — only for day/week */}
+      <div ref={viewMode === "day" ? timelineScrollRef : undefined}
+        className={`flex-1 overflow-y-auto px-7 py-4${viewMode === "month" ? " hidden" : ""}`}>
         {/* Add event button + form */}
         <div className="flex items-center justify-between mb-3">
           <span className="text-[10px] tracking-widest text-muted-foreground uppercase">
