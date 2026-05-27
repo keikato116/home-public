@@ -23,7 +23,7 @@ interface ParsedRecipe {
   url: string | null;
   selected: boolean;
   expanded: boolean;
-  sourceFile?: File;
+  sourceFiles?: File[];
 }
 
 const makeEmpty = (): ParsedRecipe => ({
@@ -92,7 +92,7 @@ export function AddRecipeModal({ onClose }: Props) {
           const data = await res.json();
           if (!res.ok) throw new Error(data.error ?? "analysis failed");
           const parsed = (Array.isArray(data) ? data : [data]) as ParsedRecipe[];
-          parsed.forEach((r) => all.push({ ...makeEmpty(), ...r, sourceFile: file, expanded: all.length === 0 }));
+          parsed.forEach((r) => all.push({ ...makeEmpty(), ...r, sourceFiles: [file], expanded: all.length === 0 }));
         }
       } else {
         if (!url.trim()) throw new Error("please enter a URL");
@@ -128,9 +128,12 @@ export function AddRecipeModal({ onClose }: Props) {
     const mergedIngredients = [base.ingredients, ...rest.map((r) => r.ingredients)]
       .filter(Boolean)
       .join("\n");
+    const allFiles = [base, ...rest].flatMap((r) => r.sourceFiles ?? []);
+    const uniqueFiles = allFiles.filter((f, i) => allFiles.indexOf(f) === i);
     const merged: ParsedRecipe = {
       ...base,
       ingredients: mergedIngredients || null,
+      sourceFiles: uniqueFiles,
       expanded: true,
     };
     setRecipes((rs) => [
@@ -152,27 +155,30 @@ export function AddRecipeModal({ onClose }: Props) {
         if (mode === "photo") {
           const { createClient } = await import("@/lib/supabase/client");
           const supabase = createClient();
-          for (const r of toSave) {
-            if (r.sourceFile && !fileUrlMap.has(r.sourceFile)) {
-              const f = r.sourceFile;
-              try {
-                const ext = f.name.split(".").pop() ?? "jpg";
-                const path = `${householdId}/${crypto.randomUUID()}.${ext}`;
-                const uploadPromise = supabase.storage.from("recipes").upload(path, f);
-                const uploadTimeout = new Promise<{ error: Error }>((_, reject) =>
-                  setTimeout(() => reject(new Error("upload timeout")), 10000)
-                );
-                const { error } = await Promise.race([uploadPromise, uploadTimeout]) as { error: Error | null };
-                fileUrlMap.set(f, error ? null : supabase.storage.from("recipes").getPublicUrl(path).data.publicUrl);
-              } catch {
-                fileUrlMap.set(f, null);
-              }
+          const allFiles = toSave.flatMap((r) => r.sourceFiles ?? []);
+          const uniqueFiles = allFiles.filter((f, i) => allFiles.indexOf(f) === i);
+          for (const f of uniqueFiles) {
+            try {
+              const ext = f.name.split(".").pop() ?? "jpg";
+              const path = `${householdId}/${crypto.randomUUID()}.${ext}`;
+              const uploadPromise = supabase.storage.from("recipes").upload(path, f);
+              const uploadTimeout = new Promise<{ error: Error }>((_, reject) =>
+                setTimeout(() => reject(new Error("upload timeout")), 10000)
+              );
+              const { error } = await Promise.race([uploadPromise, uploadTimeout]) as { error: Error | null };
+              fileUrlMap.set(f, error ? null : supabase.storage.from("recipes").getPublicUrl(path).data.publicUrl);
+            } catch {
+              fileUrlMap.set(f, null);
             }
           }
         }
         for (const r of toSave) {
-          const thumbnail_url = r.sourceFile ? (fileUrlMap.get(r.sourceFile) ?? r.thumbnail_url) : r.thumbnail_url;
-          await add(householdId, { ...r, title: r.title.trim(), created_by: user.id, thumbnail_url });
+          const uploadedUrls = (r.sourceFiles ?? [])
+            .map((f) => fileUrlMap.get(f) ?? null)
+            .filter(Boolean) as string[];
+          const thumbnail_url = uploadedUrls[0] ?? r.thumbnail_url;
+          const photo_urls = uploadedUrls.length > 1 ? uploadedUrls.slice(1) : null;
+          await add(householdId, { ...r, title: r.title.trim(), created_by: user.id, thumbnail_url, photo_urls });
         }
       };
 

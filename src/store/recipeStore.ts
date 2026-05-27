@@ -190,7 +190,7 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
     const supabase = createClient();
     const { data, error } = await supabase
       .from("recipes")
-      .select("id, household_id, title, url, ingredients, thumbnail_url, cook_time_min, servings, category, subcategory, memo, times_made, last_made_at, created_by, created_at")
+      .select("id, household_id, title, url, ingredients, thumbnail_url, photo_urls, cook_time_min, servings, category, subcategory, memo, times_made, last_made_at, created_by, created_at")
       .eq("household_id", householdId)
       .order("created_at", { ascending: false });
     if (error) set({ loadError: error.message, loading: false, recipes: [] });
@@ -251,6 +251,7 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
         ingredients: input.ingredients ?? null,
         url: input.url ?? null,
         thumbnail_url,
+        photo_urls: input.photo_urls ?? null,
         memo: input.memo ?? null,
         created_by: input.created_by ?? null,
       })
@@ -287,19 +288,25 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
     await supabase.from("recipes").delete().eq("id", id);
     set((s) => ({ recipes: s.recipes.filter((r) => r.id !== id) }));
 
-    // delete from Storage only if no other recipe shares the same thumbnail_url
-    if (recipe?.thumbnail_url) {
+    // delete from Storage (best-effort; never throws)
+    const urlsToCheck = [
+      recipe?.thumbnail_url,
+      ...(recipe?.photo_urls ?? []),
+    ].filter(Boolean) as string[];
+    for (const rawUrl of urlsToCheck) {
       try {
-        const stillUsed = get().recipes.some((r) => r.thumbnail_url === recipe.thumbnail_url);
+        const stillUsed = get().recipes.some(
+          (r) => r.thumbnail_url === rawUrl || r.photo_urls?.includes(rawUrl)
+        );
         if (!stillUsed) {
-          const url = new URL(recipe.thumbnail_url);
-          const pathMatch = url.pathname.match(/\/object\/public\/recipes\/(.+)/);
+          const parsed = new URL(rawUrl);
+          const pathMatch = parsed.pathname.match(/\/object\/public\/recipes\/(.+)/);
           if (pathMatch) {
             await supabase.storage.from("recipes").remove([pathMatch[1]]);
           }
         }
       } catch {
-        // storage cleanup is best-effort; don't fail the delete over it
+        // ignore storage errors
       }
     }
   },

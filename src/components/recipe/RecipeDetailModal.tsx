@@ -234,11 +234,13 @@ export function RecipeDetailModal({ recipe, onClose }: Props) {
             </div>
           )}
 
-          {recipe.thumbnail_url && (
-            <div>
-              <p className="text-[10px] tracking-widest text-muted-foreground uppercase mb-2">photo</p>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={recipe.thumbnail_url} alt={recipe.title} className="w-full h-auto rounded" />
+          {(recipe.thumbnail_url || (recipe.photo_urls?.length ?? 0) > 0) && (
+            <div className="space-y-2">
+              <p className="text-[10px] tracking-widest text-muted-foreground uppercase">photo</p>
+              {[recipe.thumbnail_url, ...(recipe.photo_urls ?? [])].filter(Boolean).map((url, i) => (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img key={i} src={url!} alt={recipe.title} className="w-full h-auto rounded" />
+              ))}
             </div>
           )}
 

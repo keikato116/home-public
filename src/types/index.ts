@@ -48,6 +48,7 @@ export interface Recipe {
   url: string | null;
   ingredients: string | null;
   thumbnail_url: string | null;
+  photo_urls: string[] | null;
   cook_time_min: number | null;
   servings: number | null;
   category: string | null;
