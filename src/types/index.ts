@@ -51,6 +51,7 @@ export interface Recipe {
   cook_time_min: number | null;
   servings: number | null;
   category: string | null;
+  subcategory: string | null;
   memo: string | null;
   times_made: number;
   last_made_at: string | null;

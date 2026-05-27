@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { useRecipeStore, RECIPE_CATEGORIES } from "@/store/recipeStore";
+import { useRecipeStore, RECIPE_CATEGORIES, SUBCATEGORIES } from "@/store/recipeStore";
 import { useAuthStore } from "@/store/authStore";
 import { X, Loader2, ChevronDown, ChevronUp } from "lucide-react";
 
@@ -14,6 +14,7 @@ type Mode = "photo" | "url";
 interface ParsedRecipe {
   title: string;
   category: string | null;
+  subcategory: string | null;
   servings: number | null;
   cook_time_min: number | null;
   ingredients: string | null;
@@ -28,6 +29,7 @@ interface ParsedRecipe {
 const makeEmpty = (): ParsedRecipe => ({
   title: "",
   category: null,
+  subcategory: null,
   servings: null,
   cook_time_min: null,
   ingredients: null,
@@ -271,7 +273,7 @@ export function AddRecipeModal({ onClose }: Props) {
                     <Field label="category">
                       <select
                         value={r.category ?? ""}
-                        onChange={(e) => updateRecipe(i, { category: e.target.value || null })}
+                        onChange={(e) => updateRecipe(i, { category: e.target.value || null, subcategory: null })}
                         className="w-full bg-transparent border-b border-border pb-1 text-[12px] focus:outline-none focus:border-foreground/40"
                       >
                         <option value="">—</option>
@@ -280,6 +282,20 @@ export function AddRecipeModal({ onClose }: Props) {
                         ))}
                       </select>
                     </Field>
+                    {r.category && SUBCATEGORIES[r.category] && (
+                      <Field label="subcategory">
+                        <select
+                          value={r.subcategory ?? ""}
+                          onChange={(e) => updateRecipe(i, { subcategory: e.target.value || null })}
+                          className="w-full bg-transparent border-b border-border pb-1 text-[12px] focus:outline-none focus:border-foreground/40"
+                        >
+                          <option value="">—</option>
+                          {SUBCATEGORIES[r.category]!.map((s) => (
+                            <option key={s} value={s}>{s}</option>
+                          ))}
+                        </select>
+                      </Field>
+                    )}
                     <div className="flex gap-4">
                       <Field label="servings" className="flex-1">
                         <input

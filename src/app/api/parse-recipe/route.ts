@@ -10,6 +10,7 @@ Return ONLY a valid JSON array (no markdown, no explanation) — always an array
 Each element must have:
 - title: recipe name (string)
 - category: one of [${CATEGORIES.join(", ")}] — pick the closest
+- subcategory: for "main" use one of [meat, fish, others]; for "noodles" use one of [udon, soba, ramen]; for all other categories use null
 - servings: number of servings as integer (number or null)
 - cook_time_min: total cooking time in minutes as integer (number or null)
 - ingredients: full ingredients list, one item per line (string or null)

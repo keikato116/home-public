@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRecipeStore, RECIPE_CATEGORIES } from "@/store/recipeStore";
+import { useRecipeStore, RECIPE_CATEGORIES, SUBCATEGORIES } from "@/store/recipeStore";
 import { useAuthStore } from "@/store/authStore";
 import { RecipeCard } from "./RecipeCard";
 import { RecipeDetailModal } from "./RecipeDetailModal";
@@ -9,24 +9,31 @@ import { AddRecipeModal } from "./AddRecipeModal";
 import { Recipe } from "@/types";
 import { Plus } from "lucide-react";
 
-type Category = typeof RECIPE_CATEGORIES[number] | "all";
+type Category = typeof RECIPE_CATEGORIES[number];
 
 export function RecipeTab() {
   const { householdId, user } = useAuthStore();
   const { load, loadPreset, recipes, loading, loadError, loadingPreset } = useRecipeStore();
   const [selected, setSelected] = useState<Recipe | null>(null);
   const [adding, setAdding] = useState(false);
-  const [activeCategory, setActiveCategory] = useState<Category>("all");
+  const [activeCategory, setActiveCategory] = useState<Category>(RECIPE_CATEGORIES[0]);
+  const [activeSubcategory, setActiveSubcategory] = useState<string | null>(null);
 
   useEffect(() => {
     if (!householdId) return;
     load(householdId);
   }, [householdId, load]);
 
-  const tabs: Category[] = ["all", ...RECIPE_CATEGORIES];
-  const filtered = activeCategory === "all"
-    ? recipes
-    : recipes.filter((r) => r.category === activeCategory);
+  const subcategories = SUBCATEGORIES[activeCategory];
+
+  const filtered = recipes
+    .filter((r) => r.category === activeCategory)
+    .filter((r) => !activeSubcategory || r.subcategory === activeSubcategory);
+
+  const handleCategoryChange = (cat: Category) => {
+    setActiveCategory(cat);
+    setActiveSubcategory(null);
+  };
 
   return (
     <div className="flex flex-col h-full py-8">
@@ -47,31 +54,54 @@ export function RecipeTab() {
         </button>
       </div>
 
-      <div className="flex gap-2 overflow-x-auto px-7 pb-4 scrollbar-hide">
-        {tabs.map((tab) => {
-          const count = tab === "all" ? recipes.length : recipes.filter((r) => r.category === tab).length;
-          return (
+      <div className="flex gap-2 overflow-x-auto px-7 pb-3 scrollbar-hide">
+        {RECIPE_CATEGORIES.map((cat) => (
+          <button
+            key={cat}
+            onClick={() => handleCategoryChange(cat)}
+            className={`shrink-0 text-[10px] tracking-wider px-3 py-1.5 rounded border transition-colors ${
+              activeCategory === cat
+                ? "bg-foreground text-background border-foreground"
+                : "border-border text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {cat}
+          </button>
+        ))}
+      </div>
+
+      {subcategories && (
+        <div className="flex gap-2 overflow-x-auto px-7 pb-3 scrollbar-hide">
+          <button
+            onClick={() => setActiveSubcategory(null)}
+            className={`shrink-0 text-[10px] tracking-wider px-3 py-1.5 rounded border transition-colors ${
+              !activeSubcategory
+                ? "bg-foreground text-background border-foreground"
+                : "border-border text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            all
+          </button>
+          {subcategories.map((sub) => (
             <button
-              key={tab}
-              onClick={() => setActiveCategory(tab)}
+              key={sub}
+              onClick={() => setActiveSubcategory(sub)}
               className={`shrink-0 text-[10px] tracking-wider px-3 py-1.5 rounded border transition-colors ${
-                activeCategory === tab
+                activeSubcategory === sub
                   ? "bg-foreground text-background border-foreground"
                   : "border-border text-muted-foreground hover:text-foreground"
               }`}
             >
-              {tab}{count > 0 ? ` ${count}` : ""}
+              {sub}
             </button>
-          );
-        })}
-      </div>
+          ))}
+        </div>
+      )}
 
       {loading && <p className="text-[11px] text-muted-foreground px-7">loading...</p>}
       {loadError && <p className="text-[11px] text-red-500 break-all px-7">{loadError}</p>}
       {!loading && !loadError && filtered.length === 0 && (
-        <p className="text-[11px] text-muted-foreground px-7">
-          {activeCategory === "all" ? "no recipes yet. add one to get started." : "no recipes in this category."}
-        </p>
+        <p className="text-[11px] text-muted-foreground px-7">no recipes yet.</p>
       )}
 
       <div className="flex-1 overflow-y-auto px-7">

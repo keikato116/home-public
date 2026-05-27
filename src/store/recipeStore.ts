@@ -6,7 +6,12 @@ import { Recipe } from "@/types";
 
 export const RECIPE_CATEGORIES = ["main", "side", "soup", "rice & bowl", "pasta", "noodles", "dessert"] as const;
 
-const PRESET_RECIPES: Omit<Recipe, "id" | "household_id" | "times_made" | "last_made_at" | "created_by" | "created_at" | "thumbnail_url" | "url">[] = [
+export const SUBCATEGORIES: Partial<Record<string, string[]>> = {
+  main: ["meat", "fish", "others"],
+  noodles: ["udon", "soba", "ramen"],
+};
+
+const PRESET_RECIPES: Omit<Recipe, "id" | "household_id" | "times_made" | "last_made_at" | "created_by" | "created_at" | "thumbnail_url" | "url" | "subcategory">[] = [
   {
     title: "魚の煮つけ",
     category: "main",
@@ -247,6 +252,7 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
         household_id: householdId,
         title: input.title,
         category: input.category ?? null,
+        subcategory: input.subcategory ?? null,
         cook_time_min: input.cook_time_min ?? null,
         servings: input.servings ?? null,
         ingredients: input.ingredients ?? null,
