@@ -171,28 +171,16 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
 
       const googleEvents: CalendarEvent[] = [...ownEvents];
 
-      const partnerTokens = (memberTokens ?? []).filter(m => m.user_id !== currentUserId);
-      if (partnerTokens.length > 0) {
-        const results = await Promise.allSettled(
-          partnerTokens.map(async (member) => {
-            if (!member.google_access_token) return [];
-            try {
-              const partnerColors = colorMap[member.user_id] ?? [];
-              const events = await fetchCalendarEvents(member.google_access_token, partnerColors, fetchFrom);
-              return events.map(e => ({
-                ...e,
-                ownerId: member.user_id,
-                ownerName: (member.display_name ?? "").split(" ")[0],
-              }));
-            } catch {
-              return [];
-            }
-          })
+      // Fetch partner events via server-side API (bypasses RLS, handles token refresh)
+      try {
+        const partnerRes = await fetch(
+          `/api/partner-calendar?householdId=${encodeURIComponent(householdId)}&from=${fetchFrom}`
         );
-        for (const r of results) {
-          if (r.status === "fulfilled") googleEvents.push(...r.value);
+        if (partnerRes.ok) {
+          const { events: partnerEvents } = await partnerRes.json();
+          googleEvents.push(...(partnerEvents as CalendarEvent[]));
         }
-      }
+      } catch { /* ignore — partner events are best-effort */ }
 
       const allEvents = [...googleEvents, ...localEvents];
       allEvents.sort((a, b) =>
