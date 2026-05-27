@@ -50,7 +50,6 @@ export function RecipeTab() {
       <div className="flex gap-2 overflow-x-auto px-7 pb-4 scrollbar-hide">
         {tabs.map((tab) => {
           const count = tab === "all" ? recipes.length : recipes.filter((r) => r.category === tab).length;
-          if (tab !== "all" && count === 0) return null;
           return (
             <button
               key={tab}
@@ -61,7 +60,7 @@ export function RecipeTab() {
                   : "border-border text-muted-foreground hover:text-foreground"
               }`}
             >
-              {tab}{tab !== "all" && count > 0 ? ` ${count}` : count > 0 ? ` ${count}` : ""}
+              {tab}{count > 0 ? ` ${count}` : ""}
             </button>
           );
         })}
