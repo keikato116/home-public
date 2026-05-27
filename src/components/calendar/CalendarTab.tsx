@@ -3,7 +3,9 @@
 import { useEffect, useState, useRef } from "react";
 import { useCalendarStore } from "@/store/calendarStore";
 import { useAuthStore } from "@/store/authStore";
+import { useTodoStore } from "@/store/todoStore";
 import { CalendarEventRow } from "./CalendarEventRow";
+import { ScheduleTimeline } from "./ScheduleTimeline";
 import { RefreshCw, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { CalendarEvent } from "@/types";
 import { GOOGLE_COLOR_HEX } from "@/lib/calendar";
@@ -216,111 +218,10 @@ function WeekAgenda({ weekDays, eventsMap, currentUserId, today, onDelete }: Wee
   );
 }
 
-// Day timeline — vertical hour grid with events positioned by time
-const HOUR_HEIGHT = 52; // px per hour
-
-interface DayTimelineProps {
-  date: Date;
-  events: CalendarEvent[];
-  today: Date;
-  currentUserId: string | undefined;
-  onDelete: (id: string) => void;
-  scrollRef: React.RefObject<HTMLDivElement | null>;
-}
-
-function DayTimeline({ date, events, today, currentUserId, onDelete, scrollRef }: DayTimelineProps) {
-  const isToday = isSameDay(date, today);
-  const allDayEvents = events.filter(e => !e.start.dateTime);
-  const timedEvents = events.filter(e => !!e.start.dateTime);
-
-  const getTop = (dt: string) => {
-    const d = new Date(dt);
-    return (d.getHours() + d.getMinutes() / 60) * HOUR_HEIGHT;
-  };
-  const getHeight = (start: string, end?: string) => {
-    if (!end) return HOUR_HEIGHT * 0.5;
-    const dur = (new Date(end).getTime() - new Date(start).getTime()) / 3600000;
-    return Math.max(dur * HOUR_HEIGHT, 22);
-  };
-
-  const now = new Date();
-  const nowTop = isToday ? (now.getHours() + now.getMinutes() / 60) * HOUR_HEIGHT : null;
-
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    let scrollTo = 8 * HOUR_HEIGHT; // default: 8am
-    if (isToday) {
-      scrollTo = Math.max(0, nowTop! - 80);
-    } else if (timedEvents.length > 0) {
-      const firstTop = getTop(timedEvents[0].start.dateTime!);
-      scrollTo = Math.max(0, firstTop - 80);
-    }
-    el.scrollTop = scrollTo;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [toDateStr(date)]);
-
-  return (
-    <div>
-      {allDayEvents.length > 0 && (
-        <div className="mb-2 pb-2 border-b border-border">
-          {allDayEvents.map(e => (
-            <CalendarEventRow key={e.id + (e.ownerId ?? "")} event={e}
-              isOwn={e.ownerId === currentUserId}
-              onDelete={e.isLocal ? onDelete : undefined} />
-          ))}
-        </div>
-      )}
-      <div className="relative" style={{ height: 24 * HOUR_HEIGHT }}>
-        {/* Hour grid lines */}
-        {Array.from({ length: 24 }, (_, i) => (
-          <div key={i} className="absolute left-0 right-0 flex items-start pointer-events-none"
-            style={{ top: i * HOUR_HEIGHT }}>
-            <span className="text-[9px] text-muted-foreground w-8 pr-2 text-right leading-none -translate-y-[6px]">
-              {String(i).padStart(2, "0")}
-            </span>
-            <div className="flex-1 border-t border-border/30" />
-          </div>
-        ))}
-
-        {/* Now indicator */}
-        {nowTop !== null && (
-          <div className="absolute left-8 right-0 z-20 flex items-center pointer-events-none"
-            style={{ top: nowTop }}>
-            <div className="w-2 h-2 rounded-full bg-red-500 -translate-x-1 flex-shrink-0" />
-            <div className="flex-1 border-t border-red-500" />
-          </div>
-        )}
-
-        {/* Timed events */}
-        {timedEvents.map(e => {
-          const top = getTop(e.start.dateTime!);
-          const height = getHeight(e.start.dateTime!, e.end?.dateTime);
-          const color = eventColor(e);
-          const startLabel = new Date(e.start.dateTime!).toLocaleTimeString("ja-JP", {
-            hour: "2-digit", minute: "2-digit", hour12: false,
-          });
-          return (
-            <div key={e.id + (e.ownerId ?? "")}
-              className="absolute left-9 right-0 rounded px-1.5 py-0.5 overflow-hidden"
-              style={{ top, height, backgroundColor: color + "22", borderLeft: `2px solid ${color}` }}>
-              <p className="text-[10px] font-medium leading-tight truncate" style={{ color }}>
-                {startLabel} {e.summary}
-              </p>
-              {e.ownerName && height > 30 && (
-                <p className="text-[9px] text-muted-foreground truncate">{e.ownerName}</p>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 export function CalendarTab() {
   const { householdId, reAuthGoogle, user } = useAuthStore();
   const { load, eventsByDate, loading, syncing, error, addLocalEvent, deleteLocalEvent } = useCalendarStore();
+  const { memberNameMap } = useTodoStore();
   const currentUserId = user?.id;
 
   const today = useRef(new Date()).current;
@@ -495,13 +396,11 @@ export function CalendarTab() {
 
         {/* Day view: timeline */}
         {!loading && viewMode === "day" && (
-          <DayTimeline
-            date={selectedDate}
+          <ScheduleTimeline
             events={dayEvents}
-            today={today}
-            currentUserId={currentUserId}
-            onDelete={deleteLocalEvent}
-            scrollRef={timelineScrollRef}
+            isToday={isSameDay(selectedDate, today)}
+            userId={currentUserId}
+            memberNameMap={memberNameMap}
           />
         )}
 
