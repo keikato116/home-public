@@ -75,7 +75,7 @@ export function RecipeDetailModal({ recipe, onClose }: Props) {
       : recipe.ingredients;
 
   return (
-    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex flex-col">
+    <div className="fixed inset-0 bg-background z-50 flex flex-col">
       <div className="flex-1 overflow-y-auto">
         <div className="px-7 py-6 space-y-6">
           <div className="flex items-start justify-between gap-4">

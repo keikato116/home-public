@@ -143,7 +143,7 @@ export function AddRecipeModal({ onClose }: Props) {
   const selectedCount = recipes.filter((r) => r.selected).length;
 
   return (
-    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex flex-col">
+    <div className="fixed inset-0 bg-background z-50 flex flex-col">
       <div className="flex-1 overflow-y-auto px-7 py-8">
         <div className="flex items-center justify-between mb-6">
           <p className="text-[10px] tracking-widest text-muted-foreground uppercase">add recipe</p>
