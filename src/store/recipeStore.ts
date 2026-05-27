@@ -289,13 +289,17 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
 
     // delete from Storage only if no other recipe shares the same thumbnail_url
     if (recipe?.thumbnail_url) {
-      const stillUsed = get().recipes.some((r) => r.thumbnail_url === recipe.thumbnail_url);
-      if (!stillUsed) {
-        const url = new URL(recipe.thumbnail_url);
-        const pathMatch = url.pathname.match(/\/object\/public\/recipes\/(.+)/);
-        if (pathMatch) {
-          await supabase.storage.from("recipes").remove([pathMatch[1]]);
+      try {
+        const stillUsed = get().recipes.some((r) => r.thumbnail_url === recipe.thumbnail_url);
+        if (!stillUsed) {
+          const url = new URL(recipe.thumbnail_url);
+          const pathMatch = url.pathname.match(/\/object\/public\/recipes\/(.+)/);
+          if (pathMatch) {
+            await supabase.storage.from("recipes").remove([pathMatch[1]]);
+          }
         }
+      } catch {
+        // storage cleanup is best-effort; don't fail the delete over it
       }
     }
   },

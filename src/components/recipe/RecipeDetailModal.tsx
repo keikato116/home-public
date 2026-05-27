@@ -60,10 +60,19 @@ export function RecipeDetailModal({ recipe, onClose }: Props) {
   const [editSubcategory, setEditSubcategory] = useState(recipe.subcategory ?? "");
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   const handleDelete = async () => {
-    await deleteRecipe(recipe.id);
-    onClose();
+    setDeleting(true);
+    setDeleteError("");
+    try {
+      await deleteRecipe(recipe.id);
+      onClose();
+    } catch (e: unknown) {
+      setDeleteError(e instanceof Error ? e.message : "delete failed");
+      setDeleting(false);
+    }
   };
 
   const handleMadeIt = async () => {
@@ -233,11 +242,14 @@ export function RecipeDetailModal({ recipe, onClose }: Props) {
             </div>
           )}
 
+          {deleteError && <p className="text-[11px] text-red-500">{deleteError}</p>}
           {confirmDelete ? (
             <div className="flex items-center gap-4">
               <p className="text-[11px] text-muted-foreground">delete this recipe?</p>
-              <button onClick={handleDelete} className="text-[11px] text-red-500 tracking-wider">yes</button>
-              <button onClick={() => setConfirmDelete(false)} className="text-[11px] text-muted-foreground tracking-wider">cancel</button>
+              <button onClick={handleDelete} disabled={deleting} className="text-[11px] text-red-500 tracking-wider disabled:opacity-40">
+                {deleting ? "deleting..." : "yes"}
+              </button>
+              <button onClick={() => setConfirmDelete(false)} disabled={deleting} className="text-[11px] text-muted-foreground tracking-wider">cancel</button>
             </div>
           ) : (
             <button
