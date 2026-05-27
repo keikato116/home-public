@@ -147,7 +147,7 @@ export function AddRecipeModal({ onClose }: Props) {
     setSaving(true);
     setError("");
     try {
-      // pre-upload each unique photo once
+      // pre-upload each unique photo once (skip on failure)
       const fileUrlMap = new Map<File, string | null>();
       if (mode === "photo") {
         const { createClient } = await import("@/lib/supabase/client");
@@ -155,10 +155,18 @@ export function AddRecipeModal({ onClose }: Props) {
         for (const r of toSave) {
           if (r.sourceFile && !fileUrlMap.has(r.sourceFile)) {
             const f = r.sourceFile;
-            const ext = f.name.split(".").pop() ?? "jpg";
-            const path = `${householdId}/${crypto.randomUUID()}.${ext}`;
-            const { error } = await supabase.storage.from("recipes").upload(path, f);
-            fileUrlMap.set(f, error ? null : supabase.storage.from("recipes").getPublicUrl(path).data.publicUrl);
+            try {
+              const ext = f.name.split(".").pop() ?? "jpg";
+              const path = `${householdId}/${crypto.randomUUID()}.${ext}`;
+              const uploadPromise = supabase.storage.from("recipes").upload(path, f);
+              const timeout = new Promise<{ error: Error }>((_, reject) =>
+                setTimeout(() => reject(new Error("upload timeout")), 10000)
+              );
+              const { error } = await Promise.race([uploadPromise, timeout]) as { error: Error | null };
+              fileUrlMap.set(f, error ? null : supabase.storage.from("recipes").getPublicUrl(path).data.publicUrl);
+            } catch {
+              fileUrlMap.set(f, null);
+            }
           }
         }
       }
