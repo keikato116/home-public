@@ -77,13 +77,6 @@ export function RecipeDetailModal({ recipe, onClose }: Props) {
   return (
     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex flex-col">
       <div className="flex-1 overflow-y-auto">
-        {recipe.thumbnail_url && (
-          <div className="aspect-video bg-muted overflow-hidden">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={recipe.thumbnail_url} alt={recipe.title} className="w-full h-full object-cover" />
-          </div>
-        )}
-
         <div className="px-7 py-6 space-y-6">
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1 space-y-1">
@@ -178,6 +171,14 @@ export function RecipeDetailModal({ recipe, onClose }: Props) {
             <div>
               <p className="text-[10px] tracking-widest text-muted-foreground uppercase mb-2">memo</p>
               <p className="text-[12px] leading-relaxed whitespace-pre-wrap text-muted-foreground">{recipe.memo}</p>
+            </div>
+          )}
+
+          {recipe.thumbnail_url && (
+            <div>
+              <p className="text-[10px] tracking-widest text-muted-foreground uppercase mb-2">photo</p>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={recipe.thumbnail_url} alt={recipe.title} className="w-full h-auto rounded" />
             </div>
           )}
 
