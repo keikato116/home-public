@@ -120,6 +120,25 @@ export function AddRecipeModal({ onClose }: Props) {
   const updateRecipe = (i: number, patch: Partial<ParsedRecipe>) =>
     setRecipes((rs) => rs.map((r, idx) => idx === i ? { ...r, ...patch } : r));
 
+  const mergeSelected = () => {
+    const selectedIdxs = recipes.map((r, i) => r.selected ? i : -1).filter((i) => i >= 0);
+    if (selectedIdxs.length < 2) return;
+    const base = recipes[selectedIdxs[0]];
+    const rest = selectedIdxs.slice(1).map((i) => recipes[i]);
+    const mergedIngredients = [base.ingredients, ...rest.map((r) => r.ingredients)]
+      .filter(Boolean)
+      .join("\n");
+    const merged: ParsedRecipe = {
+      ...base,
+      ingredients: mergedIngredients || null,
+      expanded: true,
+    };
+    setRecipes((rs) => [
+      ...rs.filter((_, i) => !selectedIdxs.includes(i)).map((r) => ({ ...r, expanded: false })),
+      merged,
+    ]);
+  };
+
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!householdId || !user) return;
@@ -235,9 +254,20 @@ export function AddRecipeModal({ onClose }: Props) {
               >
                 ← back
               </button>
-              <p className="text-[10px] text-muted-foreground">
-                {recipes.length} recipe{recipes.length > 1 ? "s" : ""} found
-              </p>
+              <div className="flex items-center gap-3">
+                {recipes.filter((r) => r.selected).length >= 2 && (
+                  <button
+                    type="button"
+                    onClick={mergeSelected}
+                    className="text-[10px] border border-border rounded px-2.5 py-1 text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    merge selected
+                  </button>
+                )}
+                <p className="text-[10px] text-muted-foreground">
+                  {recipes.length} recipe{recipes.length > 1 ? "s" : ""} found
+                </p>
+              </div>
             </div>
 
             {recipes.map((r, i) => (
