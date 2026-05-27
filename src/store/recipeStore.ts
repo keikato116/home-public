@@ -4,12 +4,12 @@ import { create } from "zustand";
 import { createClient } from "@/lib/supabase/client";
 import { Recipe } from "@/types";
 
-export const RECIPE_CATEGORIES = ["メイン料理", "副菜", "スープ", "ご飯・麺", "前菜・おつまみ", "デザート"] as const;
+export const RECIPE_CATEGORIES = ["main", "side", "soup", "rice & bowl", "pasta", "noodles", "dessert"] as const;
 
 const PRESET_RECIPES: Omit<Recipe, "id" | "household_id" | "times_made" | "last_made_at" | "created_by" | "created_at" | "thumbnail_url" | "url">[] = [
   {
     title: "魚の煮つけ",
-    category: "メイン料理",
+    category: "main",
     cook_time_min: 20,
     servings: 4,
     ingredients: `真鯛（あれば骨付き）… 4切れ（1切れ120g）
@@ -27,7 +27,7 @@ A 砂糖 … 大さじ1
   },
   {
     title: "しらすと野菜の手作りふりかけ",
-    category: "副菜",
+    category: "side",
     cook_time_min: 20,
     servings: 4,
     ingredients: `青菜の軸（ほうれん草・小松菜・大根の葉など）… 60g
@@ -43,7 +43,7 @@ A 塩 … ひとつまみ
   },
   {
     title: "キャベツとささ身の和え物",
-    category: "副菜",
+    category: "side",
     cook_time_min: 15,
     servings: 4,
     ingredients: `キャベツ … 360g
@@ -59,7 +59,7 @@ B 白いりごま … 適量`,
   },
   {
     title: "エビマヨ",
-    category: "メイン料理",
+    category: "main",
     cook_time_min: 20,
     servings: 4,
     ingredients: `むきエビ … 300g（殻付きは330〜350gくらい）
@@ -78,7 +78,7 @@ C レモン汁 … 小さじ1/3
   },
   {
     title: "ワンタンスープ",
-    category: "スープ",
+    category: "soup",
     cook_time_min: 30,
     servings: 4,
     ingredients: `A 豚ひき肉 … 180g
@@ -99,7 +99,7 @@ B 白こしょう … 少々`,
   },
   {
     title: "白菜とツナの中華和え",
-    category: "副菜",
+    category: "side",
     cook_time_min: 20,
     servings: 4,
     ingredients: `白菜 … 1/8株（240g）
@@ -113,7 +113,7 @@ A 酢 … 小さじ1/2`,
   },
   {
     title: "からすみのパスタ",
-    category: "ご飯・麺",
+    category: "pasta",
     cook_time_min: 25,
     servings: 4,
     ingredients: `にんにく … 1かけ（10g）
@@ -130,7 +130,7 @@ A 酢 … 小さじ1/2`,
   },
   {
     title: "シュリンプカクテル",
-    category: "前菜・おつまみ",
+    category: "side",
     cook_time_min: 20,
     servings: 4,
     ingredients: `エビ（殻付き）… 12尾（240g）
@@ -147,7 +147,7 @@ B ウスターソース … 小さじ1
   },
   {
     title: "彩野菜のクリスマスアスピック",
-    category: "前菜・おつまみ",
+    category: "side",
     servings: 4,
     cook_time_min: null,
     ingredients: `水 … 適量

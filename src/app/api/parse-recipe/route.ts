@@ -3,7 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-const CATEGORIES = ["メイン料理", "副菜", "スープ", "ご飯・麺", "前菜・おつまみ", "デザート"];
+const CATEGORIES = ["main", "side", "soup", "rice & bowl", "pasta", "noodles", "dessert"];
 
 const SCHEMA_PROMPT = `Analyze the recipe content. There may be one or multiple recipes.
 Return ONLY a valid JSON array (no markdown, no explanation) — always an array, even for a single recipe.
