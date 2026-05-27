@@ -117,7 +117,7 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
 
       const [{ data: localData }, { data: memberTokens }] = await Promise.all([
         supabase.from("local_calendar_events").select("*").eq("household_id", householdId),
-        supabase.from("user_tokens").select("user_id, google_access_token, display_name").eq("household_id", householdId),
+        supabase.from("user_tokens").select("user_id, google_access_token, display_name, calendar_colors").eq("household_id", householdId),
       ]);
 
       const nameMap: Record<string, string> = {};
@@ -164,7 +164,8 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
           partnerTokens.map(async (member) => {
             if (!member.google_access_token) return [];
             try {
-              const events = await fetchCalendarEvents(member.google_access_token, settings.selected_colors, fetchFrom);
+              const partnerColors = (member as { calendar_colors?: string[] | null }).calendar_colors ?? [];
+              const events = await fetchCalendarEvents(member.google_access_token, partnerColors, fetchFrom);
               return events.map(e => ({
                 ...e,
                 ownerId: member.user_id,
@@ -250,7 +251,19 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
     const supabase = createClient();
     const current = get().settings ?? { household_id: householdId, selected_colors: [], start_date: toISODate(new Date()) };
     const updated = { ...current, ...partial };
-    await supabase.from("calendar_settings").upsert({ ...updated, updated_at: new Date().toISOString() });
+    const { user } = useAuthStore.getState();
+    const settingsOp = supabase.from("calendar_settings").upsert({ ...updated, updated_at: new Date().toISOString() });
+    if (partial.selected_colors !== undefined && user) {
+      await Promise.all([
+        settingsOp,
+        supabase.from("user_tokens")
+          .update({ calendar_colors: partial.selected_colors })
+          .eq("user_id", user.id)
+          .eq("household_id", householdId),
+      ]);
+    } else {
+      await settingsOp;
+    }
     set({ settings: updated });
   },
 }));
