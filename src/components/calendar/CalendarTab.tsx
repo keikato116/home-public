@@ -347,106 +347,93 @@ export function CalendarTab() {
 
       {/* Month: full-screen grid — clicking a day drills into day view */}
       {viewMode === "month" && (
-        <MonthGrid
-          selectedDate={selectedDate}
-          today={today}
-          eventsMap={eventsMap}
-          currentUserId={currentUserId}
-          onSelect={(d) => { setSelectedDate(d); setViewMode("day"); }}
-        />
+        <>
+          {(error || loading) && (
+            <div className="px-7 pb-2">
+              {error && !error.startsWith("TOKEN") && <p className="text-[11px] text-muted-foreground">{error}</p>}
+              {error && error.startsWith("TOKEN") && (
+                <button onClick={reAuthGoogle} className="text-[10px] text-muted-foreground underline underline-offset-2">connect google calendar</button>
+              )}
+              {loading && <p className="text-[11px] text-muted-foreground">loading...</p>}
+            </div>
+          )}
+          <MonthGrid
+            selectedDate={selectedDate}
+            today={today}
+            eventsMap={eventsMap}
+            currentUserId={currentUserId}
+            onSelect={(d) => { setSelectedDate(d); setViewMode("day"); }}
+          />
+        </>
       )}
 
       {/* Day / week: week strip + scrollable content */}
       {(viewMode === "week" || viewMode === "day") && (
-        <WeekStrip weekDays={weekDays} selectedDate={selectedDate} today={today}
-          eventsMap={eventsMap} onSelect={setSelectedDate} />
-      )}
+        <>
+          <WeekStrip weekDays={weekDays} selectedDate={selectedDate} today={today}
+            eventsMap={eventsMap} onSelect={setSelectedDate} />
 
-      {/* Content area — only for day/week */}
-      <div ref={viewMode === "day" ? timelineScrollRef : undefined}
-        className={`flex-1 overflow-y-auto px-7 py-4${viewMode === "month" ? " hidden" : ""}`}>
-        {/* Add event button + form */}
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-[10px] tracking-widest text-muted-foreground uppercase">
-            {selectedDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-          </span>
-          <button onClick={() => setShowAddForm(v => !v)}
-            className="text-muted-foreground hover:text-foreground transition-colors" aria-label="add event">
-            <Plus size={14} />
-          </button>
-        </div>
-
-        {showAddForm && (
-          <div className="mb-4 space-y-2 border border-border rounded p-3">
-            <input type="text" placeholder="event title" value={newTitle}
-              onChange={e => setNewTitle(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && handleAddLocalEvent()}
-              className="w-full bg-transparent text-[12px] tracking-wide outline-none placeholder:text-muted-foreground border-b border-border pb-1"
-              autoFocus />
-            <div className="flex gap-2">
-              <input type="time" value={newStartTime} onChange={e => setNewStartTime(e.target.value)}
-                className="bg-transparent text-[11px] text-muted-foreground outline-none flex-1" />
-              <span className="text-[11px] text-muted-foreground">–</span>
-              <input type="time" value={newEndTime} onChange={e => setNewEndTime(e.target.value)}
-                className="bg-transparent text-[11px] text-muted-foreground outline-none flex-1" />
-            </div>
-            <div className="flex gap-2 pt-1">
-              <button onClick={handleAddLocalEvent}
-                className="text-[10px] tracking-widest border border-border rounded px-3 py-1 hover:bg-muted transition-colors">
-                add
-              </button>
-              <button onClick={() => { setShowAddForm(false); setNewTitle(""); setNewStartTime(""); setNewEndTime(""); }}
-                className="text-[10px] tracking-widest text-muted-foreground">
-                cancel
+          <div ref={viewMode === "day" ? timelineScrollRef : undefined} className="flex-1 overflow-y-auto px-7 py-4">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[10px] tracking-widest text-muted-foreground uppercase">
+                {selectedDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+              </span>
+              <button onClick={() => setShowAddForm(v => !v)}
+                className="text-muted-foreground hover:text-foreground transition-colors" aria-label="add event">
+                <Plus size={14} />
               </button>
             </div>
+
+            {showAddForm && (
+              <div className="mb-4 space-y-2 border border-border rounded p-3">
+                <input type="text" placeholder="event title" value={newTitle}
+                  onChange={e => setNewTitle(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && handleAddLocalEvent()}
+                  className="w-full bg-transparent text-[12px] tracking-wide outline-none placeholder:text-muted-foreground border-b border-border pb-1"
+                  autoFocus />
+                <div className="flex gap-2">
+                  <input type="time" value={newStartTime} onChange={e => setNewStartTime(e.target.value)}
+                    className="bg-transparent text-[11px] text-muted-foreground outline-none flex-1" />
+                  <span className="text-[11px] text-muted-foreground">–</span>
+                  <input type="time" value={newEndTime} onChange={e => setNewEndTime(e.target.value)}
+                    className="bg-transparent text-[11px] text-muted-foreground outline-none flex-1" />
+                </div>
+                <div className="flex gap-2 pt-1">
+                  <button onClick={handleAddLocalEvent}
+                    className="text-[10px] tracking-widest border border-border rounded px-3 py-1 hover:bg-muted transition-colors">
+                    add
+                  </button>
+                  <button onClick={() => { setShowAddForm(false); setNewTitle(""); setNewStartTime(""); setNewEndTime(""); }}
+                    className="text-[10px] tracking-widest text-muted-foreground">
+                    cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {error && !error.startsWith("TOKEN") && <p className="text-[11px] text-muted-foreground mb-3">{error}</p>}
+            {error && error.startsWith("TOKEN") && (
+              <button onClick={reAuthGoogle} className="text-[10px] text-muted-foreground underline underline-offset-2 mb-3 hover:text-foreground transition-colors">
+                connect google calendar
+              </button>
+            )}
+            {loading && <p className="text-[11px] text-muted-foreground">loading...</p>}
+
+            {!loading && viewMode === "week" && (
+              <WeekAgenda weekDays={weekDays} eventsMap={eventsMap}
+                currentUserId={currentUserId} today={today} onDelete={deleteLocalEvent} />
+            )}
+            {!loading && viewMode === "day" && (
+              <ScheduleTimeline
+                events={dayEvents}
+                isToday={isSameDay(selectedDate, today)}
+                userId={currentUserId}
+                memberNameMap={memberNameMap}
+              />
+            )}
           </div>
-        )}
-
-        {error && !error.startsWith("TOKEN") && (
-          <p className="text-[11px] text-muted-foreground mb-3">{error}</p>
-        )}
-        {error && error.startsWith("TOKEN") && (
-          <button
-            onClick={reAuthGoogle}
-            className="text-[10px] text-muted-foreground underline underline-offset-2 mb-3 hover:text-foreground transition-colors"
-          >
-            connect google calendar
-          </button>
-        )}
-
-        {loading && <p className="text-[11px] text-muted-foreground">loading...</p>}
-
-        {/* Week view: show all 7 days inline */}
-        {!loading && viewMode === "week" && (
-          <WeekAgenda weekDays={weekDays} eventsMap={eventsMap}
-            currentUserId={currentUserId} today={today} onDelete={deleteLocalEvent} />
-        )}
-
-        {/* Day view: timeline */}
-        {!loading && viewMode === "day" && (
-          <ScheduleTimeline
-            events={dayEvents}
-            isToday={isSameDay(selectedDate, today)}
-            userId={currentUserId}
-            memberNameMap={memberNameMap}
-          />
-        )}
-
-        {/* Month view: selected day events */}
-        {!loading && viewMode === "month" && (
-          <>
-            {dayEvents.length === 0
-              ? <p className="text-[11px] text-muted-foreground">no events</p>
-              : dayEvents.map(e => (
-                <CalendarEventRow key={e.id + (e.ownerId ?? "")} event={e}
-                  isOwn={e.ownerId === currentUserId}
-                  onDelete={e.isLocal ? deleteLocalEvent : undefined} />
-              ))
-            }
-          </>
-        )}
-      </div>
+        </>
+      )}
     </div>
   );
 }
