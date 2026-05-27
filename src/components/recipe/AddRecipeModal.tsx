@@ -357,6 +357,17 @@ export function AddRecipeModal({ onClose }: Props) {
 
                 {r.expanded && (
                   <div className="px-4 pb-4 space-y-4 border-t border-border pt-4">
+                    {mode === "photo" && (r.sourceFiles?.length ?? 0) > 0 && (
+                      <div className={`grid gap-1 ${r.sourceFiles!.length === 1 ? "grid-cols-1" : "grid-cols-2"}`}>
+                        {r.sourceFiles!.map((f, fi) => {
+                          const idx = files.indexOf(f);
+                          const src = idx >= 0 ? previews[idx] : null;
+                          return src
+                            ? <img key={fi} src={src} alt="" className="w-full aspect-video object-cover rounded" />
+                            : null;
+                        })}
+                      </div>
+                    )}
                     <Field label="title">
                       <input
                         type="text"
