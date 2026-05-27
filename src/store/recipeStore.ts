@@ -11,7 +11,7 @@ export const SUBCATEGORIES: Partial<Record<string, string[]>> = {
   noodles: ["udon", "soba", "ramen"],
 };
 
-const PRESET_RECIPES: Omit<Recipe, "id" | "household_id" | "times_made" | "last_made_at" | "created_by" | "created_at" | "thumbnail_url" | "url" | "subcategory">[] = [
+const PRESET_RECIPES: Omit<Recipe, "id" | "household_id" | "times_made" | "last_made_at" | "created_by" | "created_at" | "thumbnail_url" | "photo_urls" | "url" | "subcategory">[] = [
   {
     title: "魚の煮つけ",
     category: "main",
