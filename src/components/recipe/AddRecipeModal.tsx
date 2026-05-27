@@ -107,8 +107,18 @@ export function AddRecipeModal({ onClose }: Props) {
           const data = await res.json();
           if (!res.ok) throw new Error(data.error ?? "analysis failed");
           const parsed = (Array.isArray(data) ? data : [data]) as (ParsedRecipe & { sourcePhotoIndices?: number[] })[];
+          // fallback: if Claude didn't return sourcePhotoIndices and recipe count matches
+          // photo count, assign each recipe its own photo in order
+          const allHaveIndices = parsed.every((r) => Array.isArray(r.sourcePhotoIndices) && r.sourcePhotoIndices.length > 0);
           parsed.forEach((r, i) => {
-            const indices = r.sourcePhotoIndices ?? [0];
+            let indices: number[];
+            if (allHaveIndices) {
+              indices = r.sourcePhotoIndices!;
+            } else if (parsed.length === files.length) {
+              indices = [i];
+            } else {
+              indices = [Math.min(i, files.length - 1)];
+            }
             const sourceFiles = indices.map((idx) => files[idx]).filter(Boolean);
             all.push({ ...makeEmpty(), ...r, sourceFiles, expanded: i === 0 });
           });
