@@ -147,42 +147,45 @@ export function AddRecipeModal({ onClose }: Props) {
     setSaving(true);
     setError("");
     try {
-      // pre-upload each unique photo once (skip on failure)
-      const fileUrlMap = new Map<File, string | null>();
-      if (mode === "photo") {
-        const { createClient } = await import("@/lib/supabase/client");
-        const supabase = createClient();
-        for (const r of toSave) {
-          if (r.sourceFile && !fileUrlMap.has(r.sourceFile)) {
-            const f = r.sourceFile;
-            try {
-              const ext = f.name.split(".").pop() ?? "jpg";
-              const path = `${householdId}/${crypto.randomUUID()}.${ext}`;
-              const uploadPromise = supabase.storage.from("recipes").upload(path, f);
-              const timeout = new Promise<{ error: Error }>((_, reject) =>
-                setTimeout(() => reject(new Error("upload timeout")), 10000)
-              );
-              const { error } = await Promise.race([uploadPromise, timeout]) as { error: Error | null };
-              fileUrlMap.set(f, error ? null : supabase.storage.from("recipes").getPublicUrl(path).data.publicUrl);
-            } catch {
-              fileUrlMap.set(f, null);
+      const doSave = async () => {
+        const fileUrlMap = new Map<File, string | null>();
+        if (mode === "photo") {
+          const { createClient } = await import("@/lib/supabase/client");
+          const supabase = createClient();
+          for (const r of toSave) {
+            if (r.sourceFile && !fileUrlMap.has(r.sourceFile)) {
+              const f = r.sourceFile;
+              try {
+                const ext = f.name.split(".").pop() ?? "jpg";
+                const path = `${householdId}/${crypto.randomUUID()}.${ext}`;
+                const uploadPromise = supabase.storage.from("recipes").upload(path, f);
+                const uploadTimeout = new Promise<{ error: Error }>((_, reject) =>
+                  setTimeout(() => reject(new Error("upload timeout")), 10000)
+                );
+                const { error } = await Promise.race([uploadPromise, uploadTimeout]) as { error: Error | null };
+                fileUrlMap.set(f, error ? null : supabase.storage.from("recipes").getPublicUrl(path).data.publicUrl);
+              } catch {
+                fileUrlMap.set(f, null);
+              }
             }
           }
         }
-      }
+        for (const r of toSave) {
+          const thumbnail_url = r.sourceFile ? (fileUrlMap.get(r.sourceFile) ?? r.thumbnail_url) : r.thumbnail_url;
+          await add(householdId, { ...r, title: r.title.trim(), created_by: user.id, thumbnail_url });
+        }
+      };
 
-      for (const r of toSave) {
-        const thumbnail_url = r.sourceFile ? (fileUrlMap.get(r.sourceFile) ?? r.thumbnail_url) : r.thumbnail_url;
-        await add(
-          householdId,
-          { ...r, title: r.title.trim(), created_by: user.id, thumbnail_url },
-        );
-      }
+      await Promise.race([
+        doSave(),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error("save timed out")), 30000)),
+      ]);
       onClose();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "something went wrong");
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   const selectedCount = recipes.filter((r) => r.selected).length;
