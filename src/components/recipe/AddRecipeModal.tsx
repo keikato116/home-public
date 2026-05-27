@@ -24,6 +24,7 @@ interface ParsedRecipe {
   selected: boolean;
   expanded: boolean;
   sourceFiles?: File[];
+  previewUrls?: string[];
 }
 
 const makeEmpty = (): ParsedRecipe => ({
@@ -93,7 +94,7 @@ export function AddRecipeModal({ onClose }: Props) {
           const data = await res.json();
           if (!res.ok) throw new Error(data.error ?? "analysis failed");
           const parsed = (Array.isArray(data) ? data : [data]) as ParsedRecipe[];
-          parsed.forEach((r) => all.push({ ...makeEmpty(), ...r, sourceFiles: [files[i]], expanded: false }));
+          parsed.forEach((r) => all.push({ ...makeEmpty(), ...r, sourceFiles: [files[i]], previewUrls: [previews[i]], expanded: false }));
         }
 
         // Step 2: auto-group consecutive recipes that span multiple pages
@@ -120,7 +121,8 @@ export function AddRecipeModal({ onClose }: Props) {
                   const items = group.map((idx) => snapshot[idx]);
                   const mergedIngredients = items.map((r) => r.ingredients).filter(Boolean).join("\n");
                   const uniqueFiles = items.flatMap((r) => r.sourceFiles ?? []).filter((f, i, arr) => arr.indexOf(f) === i);
-                  all.push({ ...items[0], ingredients: mergedIngredients || null, sourceFiles: uniqueFiles, expanded: all.length === 0 });
+                  const mergedPreviews = items.flatMap((r) => r.previewUrls ?? []);
+                  all.push({ ...items[0], ingredients: mergedIngredients || null, sourceFiles: uniqueFiles, previewUrls: mergedPreviews, expanded: all.length === 0 });
                 }
               }
             }
@@ -165,10 +167,12 @@ export function AddRecipeModal({ onClose }: Props) {
       .join("\n");
     const allFiles = [base, ...rest].flatMap((r) => r.sourceFiles ?? []);
     const uniqueFiles = allFiles.filter((f, i) => allFiles.indexOf(f) === i);
+    const mergedPreviews = [base, ...rest].flatMap((r) => r.previewUrls ?? []);
     const merged: ParsedRecipe = {
       ...base,
       ingredients: mergedIngredients || null,
       sourceFiles: uniqueFiles,
+      previewUrls: mergedPreviews,
       expanded: true,
     };
     setRecipes((rs) => [
@@ -363,15 +367,12 @@ export function AddRecipeModal({ onClose }: Props) {
 
                 {r.expanded && (
                   <div className="px-4 pb-4 space-y-4 border-t border-border pt-4">
-                    {mode === "photo" && (r.sourceFiles?.length ?? 0) > 0 && (
-                      <div className={`grid gap-1 ${r.sourceFiles!.length === 1 ? "grid-cols-1" : "grid-cols-2"}`}>
-                        {r.sourceFiles!.map((f, fi) => {
-                          const idx = files.indexOf(f);
-                          const src = idx >= 0 ? previews[idx] : null;
-                          return src
-                            ? <img key={fi} src={src} alt="" className="w-full aspect-video object-cover rounded" />
-                            : null;
-                        })}
+                    {mode === "photo" && (r.previewUrls?.length ?? 0) > 0 && (
+                      <div className={`grid gap-1 ${r.previewUrls!.length === 1 ? "grid-cols-1" : "grid-cols-2"}`}>
+                        {r.previewUrls!.map((src, fi) => (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img key={fi} src={src} alt="" className="w-full aspect-video object-cover rounded" />
+                        ))}
                       </div>
                     )}
                     <Field label="title">
