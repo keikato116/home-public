@@ -38,7 +38,8 @@ export async function POST(req: Request) {
         }],
       });
 
-      const text = msg.content[0].type === "text" ? msg.content[0].text : "";
+      const raw = msg.content[0].type === "text" ? msg.content[0].text : "";
+      const text = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
       const parsed = JSON.parse(text);
       const recipes = Array.isArray(parsed) ? parsed : [parsed];
       return NextResponse.json(recipes.map((r) => ({ ...r, thumbnail_url: null, url: null })));
@@ -69,8 +70,9 @@ export async function POST(req: Request) {
         }],
       });
 
-      const raw = msg.content[0].type === "text" ? msg.content[0].text : "";
-      const parsed = JSON.parse(raw);
+      const rawUrl = msg.content[0].type === "text" ? msg.content[0].text : "";
+      const cleanUrl = rawUrl.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
+      const parsed = JSON.parse(cleanUrl);
       const recipes = Array.isArray(parsed) ? parsed : [parsed];
       return NextResponse.json(recipes.map((r) => ({ ...r, thumbnail_url: ogImage, url })));
     }
