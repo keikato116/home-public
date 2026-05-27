@@ -202,7 +202,7 @@ export function AddRecipeModal({ onClose }: Props) {
               const path = `${householdId}/${crypto.randomUUID()}.${ext}`;
               const uploadPromise = supabase.storage.from("recipes").upload(path, f);
               const uploadTimeout = new Promise<{ error: Error }>((_, reject) =>
-                setTimeout(() => reject(new Error("upload timeout")), 10000)
+                setTimeout(() => reject(new Error("upload timeout")), 25000)
               );
               const { error } = await Promise.race([uploadPromise, uploadTimeout]) as { error: Error | null };
               fileUrlMap.set(f, error ? null : supabase.storage.from("recipes").getPublicUrl(path).data.publicUrl);
@@ -223,7 +223,7 @@ export function AddRecipeModal({ onClose }: Props) {
 
       await Promise.race([
         doSave(),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error("save timed out")), 30000)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error("save timed out")), 120000)),
       ]);
       onClose();
     } catch (e: unknown) {

@@ -62,6 +62,7 @@ export function RecipeDetailModal({ recipe, onClose }: Props) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+  const [zoomedPhoto, setZoomedPhoto] = useState<string | null>(null);
 
   const handleDelete = async () => {
     setDeleting(true);
@@ -238,9 +239,21 @@ export function RecipeDetailModal({ recipe, onClose }: Props) {
             <div className="space-y-2">
               <p className="text-[10px] tracking-widest text-muted-foreground uppercase">photo</p>
               {[recipe.thumbnail_url, ...(recipe.photo_urls ?? [])].filter(Boolean).map((url, i) => (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img key={i} src={url!} alt={recipe.title} className="w-full h-auto rounded" />
+                <button key={i} type="button" onClick={() => setZoomedPhoto(url!)} className="w-full">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={url!} alt={recipe.title} className="w-full h-auto rounded" />
+                </button>
               ))}
+            </div>
+          )}
+
+          {zoomedPhoto && (
+            <div
+              className="fixed inset-0 bg-black/90 z-[60] flex items-center justify-center"
+              onClick={() => setZoomedPhoto(null)}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={zoomedPhoto} alt="" className="max-w-full max-h-full object-contain" />
             </div>
           )}
 
