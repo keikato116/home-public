@@ -80,10 +80,11 @@ export function AddRecipeModal({ onClose }: Props) {
       if (mode === "photo") {
         if (files.length === 0) throw new Error("please select a photo");
 
-        if (files.length === 1) {
-          setAnalyzeProgress("analyzing...");
-          const base64 = await fileToBase64(files[0]);
-          const mediaType = (files[0].type || "image/jpeg") as "image/jpeg" | "image/png" | "image/webp";
+        // Step 1: analyze each photo individually
+        for (let i = 0; i < files.length; i++) {
+          setAnalyzeProgress(files.length > 1 ? `analyzing photo ${i + 1} / ${files.length}...` : "analyzing...");
+          const base64 = await fileToBase64(files[i]);
+          const mediaType = (files[i].type || "image/jpeg") as "image/jpeg" | "image/png" | "image/webp";
           const res = await fetch("/api/parse-recipe", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -92,37 +93,42 @@ export function AddRecipeModal({ onClose }: Props) {
           const data = await res.json();
           if (!res.ok) throw new Error(data.error ?? "analysis failed");
           const parsed = (Array.isArray(data) ? data : [data]) as ParsedRecipe[];
-          parsed.forEach((r, i) => all.push({ ...makeEmpty(), ...r, sourceFiles: [files[0]], expanded: i === 0 }));
-        } else {
-          setAnalyzeProgress(`analyzing ${files.length} photos...`);
-          const images = await Promise.all(files.map(async (f) => ({
-            imageBase64: await fileToBase64(f),
-            mediaType: (f.type || "image/jpeg") as "image/jpeg" | "image/png" | "image/webp",
-          })));
-          const res = await fetch("/api/parse-recipe", {
+          parsed.forEach((r) => all.push({ ...makeEmpty(), ...r, sourceFiles: [files[i]], expanded: false }));
+        }
+
+        // Step 2: auto-group consecutive recipes that span multiple pages
+        if (files.length > 1 && all.length > 1) {
+          setAnalyzeProgress("grouping...");
+          const groupRes = await fetch("/api/parse-recipe", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ type: "photos", images }),
+            body: JSON.stringify({
+              type: "group",
+              recipes: all.map((r) => ({ title: r.title, ingredients: r.ingredients })),
+            }),
           });
-          const data = await res.json();
-          if (!res.ok) throw new Error(data.error ?? "analysis failed");
-          const parsed = (Array.isArray(data) ? data : [data]) as (ParsedRecipe & { sourcePhotoIndices?: number[] })[];
-          // fallback: if Claude didn't return sourcePhotoIndices and recipe count matches
-          // photo count, assign each recipe its own photo in order
-          const allHaveIndices = parsed.every((r) => Array.isArray(r.sourcePhotoIndices) && r.sourcePhotoIndices.length > 0);
-          parsed.forEach((r, i) => {
-            let indices: number[];
-            if (allHaveIndices) {
-              indices = r.sourcePhotoIndices!;
-            } else if (parsed.length === files.length) {
-              indices = [i];
-            } else {
-              indices = [Math.min(i, files.length - 1)];
+          if (groupRes.ok) {
+            const raw = await groupRes.json();
+            const groups: number[][] = Array.isArray(raw) ? raw : [];
+            if (groups.length > 0 && groups.length < all.length) {
+              const snapshot = [...all];
+              all.length = 0;
+              for (const group of groups) {
+                if (group.length === 1) {
+                  all.push({ ...snapshot[group[0]], expanded: all.length === 0 });
+                } else {
+                  const items = group.map((idx) => snapshot[idx]);
+                  const mergedIngredients = items.map((r) => r.ingredients).filter(Boolean).join("\n");
+                  const uniqueFiles = items.flatMap((r) => r.sourceFiles ?? []).filter((f, i, arr) => arr.indexOf(f) === i);
+                  all.push({ ...items[0], ingredients: mergedIngredients || null, sourceFiles: uniqueFiles, expanded: all.length === 0 });
+                }
+              }
             }
-            const sourceFiles = indices.map((idx) => files[idx]).filter(Boolean);
-            all.push({ ...makeEmpty(), ...r, sourceFiles, expanded: i === 0 });
-          });
+          }
         }
+
+        if (all.length > 0) all[0] = { ...all[0], expanded: true };
+
       } else {
         if (!url.trim()) throw new Error("please enter a URL");
         setAnalyzeProgress("analyzing...");

@@ -18,21 +18,19 @@ Return ONLY a valid JSON array (no markdown, no explanation) — always an array
 Each element must have:
 ${FIELDS}`;
 
-function buildMultiPhotoPrompt(n: number) {
-  return `You are given ${n} recipe photos (photo 0 to photo ${n - 1}).
-These photos are pages from a recipe handout or booklet.
+function buildGroupPrompt(recipes: { title: string; ingredients: string | null }[]) {
+  const n = recipes.length;
+  const list = recipes.map((r, i) =>
+    `[${i}] title: "${r.title || "no title"}"\ningredients preview: "${(r.ingredients ?? "").slice(0, 200)}"`
+  ).join("\n\n");
+  return `${n} recipes were extracted from ${n} consecutive recipe photos (indexed 0 to ${n - 1}).
+Some adjacent recipes may be PARTS OF THE SAME RECIPE that spans multiple pages — e.g. ingredients or steps continue on the next page with no new title.
 
-HOW TO GROUP:
-- If a photo starts with a recipe TITLE and ends completely → single-page recipe → sourcePhotoIndices: [i]
-- If a recipe STARTS on one photo and CONTINUES on the next photo WITHOUT a new title (ingredients or steps just keep going) → multi-page recipe → sourcePhotoIndices: [i, i+1]
-- One photo may contain multiple complete recipes
+${list}
 
-For multi-page recipes, merge ALL ingredients from all photos into one list.
-
-Return ONLY a valid JSON array (no markdown, no explanation).
-Each element MUST have ALL of these fields:
-${FIELDS}
-- sourcePhotoIndices: REQUIRED — array of photo indices (0-based) for this recipe, e.g. [0] or [0,1] or [2,3]`;
+Task: group indices of recipes that belong to the same multi-page recipe. Only group CONSECUTIVE indices.
+Return ONLY a valid JSON array of groups, e.g. [[0,1],[2],[3]] or [[0],[1],[2]].
+No markdown, no explanation.`;
 }
 
 function parseJson(raw: string) {
@@ -67,29 +65,18 @@ export async function POST(req: Request) {
       const recipes = parseJson(raw);
       return NextResponse.json(recipes.map((r) => ({ ...r, thumbnail_url: null, url: null })));
 
-    } else if (body.type === "photos") {
-      const { images } = body as {
-        images: { imageBase64: string; mediaType: "image/jpeg" | "image/png" | "image/webp" }[];
-      };
+    } else if (body.type === "group") {
+      const { recipes } = body as { recipes: { title: string; ingredients: string | null }[] };
 
       const msg = await client.messages.create({
-        model: "claude-sonnet-4-6",
-        max_tokens: 4096,
-        messages: [{
-          role: "user",
-          content: [
-            ...images.map((img) => ({
-              type: "image" as const,
-              source: { type: "base64" as const, media_type: img.mediaType, data: img.imageBase64 },
-            })),
-            { type: "text" as const, text: buildMultiPhotoPrompt(images.length) },
-          ],
-        }],
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 256,
+        messages: [{ role: "user", content: buildGroupPrompt(recipes) }],
       });
 
       const raw = msg.content[0].type === "text" ? msg.content[0].text : "";
-      const recipes = parseJson(raw);
-      return NextResponse.json(recipes.map((r) => ({ ...r, thumbnail_url: null, url: null })));
+      const groups = parseJson(raw);
+      return NextResponse.json(groups);
 
     } else if (body.type === "url") {
       const { url } = body as { url: string };
