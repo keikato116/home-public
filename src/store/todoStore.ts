@@ -3,7 +3,7 @@
 import { create } from "zustand";
 import { createClient } from "@/lib/supabase/client";
 import { RoutineDefinition, RoutineTodo, SharedTodo } from "@/types";
-import { getTodaysRoutines } from "@/lib/routine";
+import { getTodaysRoutines, getLastScheduledDate } from "@/lib/routine";
 import { toISODate } from "@/lib/utils";
 
 interface TodoState {
@@ -11,6 +11,7 @@ interface TodoState {
   completedRoutineIds: Set<string>;
   completedByMap: Record<string, string>; // definitionId → display name
   memberNameMap: Record<string, string>;  // userId → display name
+  overdueIds: Set<string>;
   urgentTodos: SharedTodo[];
   loading: boolean;
   todaysRoutines: () => RoutineTodo[];
@@ -30,14 +31,25 @@ export const useTodoStore = create<TodoState>((set, get) => ({
   completedRoutineIds: new Set(),
   completedByMap: {},
   memberNameMap: {},
+  overdueIds: new Set(),
   urgentTodos: [],
   loading: false,
 
   todaysRoutines: () => {
     const today = new Date();
-    const defs = getTodaysRoutines(get().routineDefinitions, today);
+    const todayDefs = getTodaysRoutines(get().routineDefinitions, today);
     const completed = get().completedRoutineIds;
-    return defs.map((d) => ({ ...d, done: completed.has(d.id) }));
+    const overdue = get().overdueIds;
+    const todayIds = new Set(todayDefs.map((d) => d.id));
+
+    const todayItems: RoutineTodo[] = todayDefs.map((d) => ({
+      ...d, done: completed.has(d.id), overdue: false,
+    }));
+    const overdueItems: RoutineTodo[] = get().routineDefinitions
+      .filter((d) => overdue.has(d.id) && !todayIds.has(d.id))
+      .map((d) => ({ ...d, done: completed.has(d.id), overdue: true }));
+
+    return [...overdueItems, ...todayItems];
   },
 
   load: async (householdId) => {
@@ -82,11 +94,45 @@ export const useTodoStore = create<TodoState>((set, get) => ({
       }
     }
 
+    // Compute overdue: routines whose last scheduled date has no completion
+    const overdueIds = new Set<string>();
+    const now = new Date();
+    const todayStr = toISODate(now);
+
+    // once: overdue if due_date < today and not completed
+    for (const def of defs.filter((d) => d.frequency === "once")) {
+      if (def.due_date && def.due_date < todayStr && !completedIds.has(def.id)) {
+        overdueIds.add(def.id);
+      }
+    }
+
+    // weekly/monthly: check if completed since last scheduled date
+    const periodicEntries: { id: string; lastDate: string }[] = [];
+    for (const def of defs.filter((d) => d.frequency === "weekly" || d.frequency === "monthly")) {
+      if (completedIds.has(def.id)) continue;
+      const lastDate = getLastScheduledDate(def, now);
+      if (lastDate) periodicEntries.push({ id: def.id, lastDate });
+    }
+    if (periodicEntries.length > 0) {
+      const minDate = periodicEntries.reduce((m, e) => (e.lastDate < m ? e.lastDate : m), periodicEntries[0].lastDate);
+      const { data: pastComps } = await supabase
+        .from("routine_completions")
+        .select("definition_id")
+        .eq("household_id", householdId)
+        .in("definition_id", periodicEntries.map((e) => e.id))
+        .gte("completed_on", minDate);
+      const completedSince = new Set(pastComps?.map((c) => c.definition_id) ?? []);
+      for (const { id } of periodicEntries) {
+        if (!completedSince.has(id)) overdueIds.add(id);
+      }
+    }
+
     set({
       routineDefinitions: defs,
       completedRoutineIds: completedIds,
       completedByMap,
       memberNameMap,
+      overdueIds,
       urgentTodos: (todosRes.data ?? []) as SharedTodo[],
       loading: false,
     });

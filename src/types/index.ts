@@ -19,6 +19,7 @@ export interface RoutineDefinition {
 
 export interface RoutineTodo extends RoutineDefinition {
   done: boolean;
+  overdue: boolean;
 }
 
 export interface SharedTodo {

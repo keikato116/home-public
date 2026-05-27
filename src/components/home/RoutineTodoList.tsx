@@ -28,7 +28,10 @@ export function RoutineTodoList() {
             onChange={() => toggle(r.id, r.done)}
             className="w-3.5 h-3.5 accent-foreground cursor-pointer"
           />
-          <span className={cn("text-[12px] tracking-wide flex-1", r.done && "line-through text-muted-foreground")}>
+          <span className={cn(
+            "text-[12px] tracking-wide flex-1",
+            r.done ? "line-through text-muted-foreground" : r.overdue ? "text-red-500" : "",
+          )}>
             {r.label}
           </span>
           <button
