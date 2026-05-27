@@ -79,11 +79,11 @@ export function AddRecipeModal({ onClose }: Props) {
     try {
       if (mode === "photo") {
         if (files.length === 0) throw new Error("please select a photo");
-        for (let i = 0; i < files.length; i++) {
-          const file = files[i];
-          setAnalyzeProgress(files.length > 1 ? `analyzing ${i + 1} / ${files.length}...` : "analyzing...");
-          const base64 = await fileToBase64(file);
-          const mediaType = (file.type || "image/jpeg") as "image/jpeg" | "image/png" | "image/webp";
+
+        if (files.length === 1) {
+          setAnalyzeProgress("analyzing...");
+          const base64 = await fileToBase64(files[0]);
+          const mediaType = (files[0].type || "image/jpeg") as "image/jpeg" | "image/png" | "image/webp";
           const res = await fetch("/api/parse-recipe", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -92,7 +92,26 @@ export function AddRecipeModal({ onClose }: Props) {
           const data = await res.json();
           if (!res.ok) throw new Error(data.error ?? "analysis failed");
           const parsed = (Array.isArray(data) ? data : [data]) as ParsedRecipe[];
-          parsed.forEach((r) => all.push({ ...makeEmpty(), ...r, sourceFiles: [file], expanded: all.length === 0 }));
+          parsed.forEach((r, i) => all.push({ ...makeEmpty(), ...r, sourceFiles: [files[0]], expanded: i === 0 }));
+        } else {
+          setAnalyzeProgress(`analyzing ${files.length} photos...`);
+          const images = await Promise.all(files.map(async (f) => ({
+            imageBase64: await fileToBase64(f),
+            mediaType: (f.type || "image/jpeg") as "image/jpeg" | "image/png" | "image/webp",
+          })));
+          const res = await fetch("/api/parse-recipe", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ type: "photos", images }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error ?? "analysis failed");
+          const parsed = (Array.isArray(data) ? data : [data]) as (ParsedRecipe & { sourcePhotoIndices?: number[] })[];
+          parsed.forEach((r, i) => {
+            const indices = r.sourcePhotoIndices ?? [0];
+            const sourceFiles = indices.map((idx) => files[idx]).filter(Boolean);
+            all.push({ ...makeEmpty(), ...r, sourceFiles, expanded: i === 0 });
+          });
         }
       } else {
         if (!url.trim()) throw new Error("please enter a URL");
@@ -318,6 +337,9 @@ export function AddRecipeModal({ onClose }: Props) {
                     className="shrink-0"
                   />
                   <span className="flex-1 text-[12px] truncate">{r.title || "(no title)"}</span>
+                  {(r.sourceFiles?.length ?? 0) > 1 && (
+                    <span className="text-[9px] text-muted-foreground shrink-0">{r.sourceFiles!.length} photos</span>
+                  )}
                   {r.expanded
                     ? <ChevronUp size={13} className="text-muted-foreground shrink-0" />
                     : <ChevronDown size={13} className="text-muted-foreground shrink-0" />}
