@@ -147,11 +147,27 @@ export function AddRecipeModal({ onClose }: Props) {
     setSaving(true);
     setError("");
     try {
+      // pre-upload each unique photo once
+      const fileUrlMap = new Map<File, string | null>();
+      if (mode === "photo") {
+        const { createClient } = await import("@/lib/supabase/client");
+        const supabase = createClient();
+        for (const r of toSave) {
+          if (r.sourceFile && !fileUrlMap.has(r.sourceFile)) {
+            const f = r.sourceFile;
+            const ext = f.name.split(".").pop() ?? "jpg";
+            const path = `${householdId}/${crypto.randomUUID()}.${ext}`;
+            const { error } = await supabase.storage.from("recipes").upload(path, f);
+            fileUrlMap.set(f, error ? null : supabase.storage.from("recipes").getPublicUrl(path).data.publicUrl);
+          }
+        }
+      }
+
       for (const r of toSave) {
+        const thumbnail_url = r.sourceFile ? (fileUrlMap.get(r.sourceFile) ?? r.thumbnail_url) : r.thumbnail_url;
         await add(
           householdId,
-          { ...r, title: r.title.trim(), created_by: user.id },
-          mode === "photo" && r.sourceFile ? r.sourceFile : undefined,
+          { ...r, title: r.title.trim(), created_by: user.id, thumbnail_url },
         );
       }
       onClose();
