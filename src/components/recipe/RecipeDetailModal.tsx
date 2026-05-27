@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { Recipe } from "@/types";
-import { useRecipeStore } from "@/store/recipeStore";
-import { ExternalLink, X, Loader2 } from "lucide-react";
+import { useRecipeStore, RECIPE_CATEGORIES, SUBCATEGORIES } from "@/store/recipeStore";
+import { ExternalLink, X, Loader2, Pencil, Check } from "lucide-react";
 
 interface Props {
   recipe: Recipe;
@@ -52,9 +52,13 @@ function scaleIngredients(text: string, ratio: number): string {
 }
 
 export function RecipeDetailModal({ recipe, onClose }: Props) {
-  const { deleteRecipe, recordMade } = useRecipeStore();
+  const { deleteRecipe, recordMade, updateRecipe } = useRecipeStore();
   const [targetServings, setTargetServings] = useState<number>(recipe.servings ?? 2);
   const [recording, setRecording] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editCategory, setEditCategory] = useState(recipe.category ?? "");
+  const [editSubcategory, setEditSubcategory] = useState(recipe.subcategory ?? "");
+  const [saving, setSaving] = useState(false);
 
   const handleDelete = async () => {
     if (!confirm("delete this recipe?")) return;
@@ -68,6 +72,18 @@ export function RecipeDetailModal({ recipe, onClose }: Props) {
     setRecording(false);
   };
 
+  const handleSaveEdit = async () => {
+    setSaving(true);
+    await updateRecipe(recipe.id, {
+      category: editCategory || null,
+      subcategory: editSubcategory || null,
+    });
+    setSaving(false);
+    setEditing(false);
+  };
+
+  const subcategories = editCategory ? SUBCATEGORIES[editCategory] : null;
+
   const ratio = recipe.servings ? targetServings / recipe.servings : 1;
   const displayIngredients =
     recipe.ingredients && recipe.servings && targetServings !== recipe.servings
@@ -79,16 +95,58 @@ export function RecipeDetailModal({ recipe, onClose }: Props) {
       <div className="flex-1 overflow-y-auto">
         <div className="px-7 py-6 space-y-6">
           <div className="flex items-start justify-between gap-4">
-            <div className="flex-1 space-y-1">
+            <div className="flex-1 space-y-2">
               <h2 className="text-[18px] tracking-wide leading-snug">{recipe.title}</h2>
-              <div className="flex items-center gap-3 flex-wrap">
-                {recipe.category && (
-                  <span className="text-[10px] tracking-widest text-muted-foreground uppercase">{recipe.category}</span>
-                )}
-                {recipe.cook_time_min && (
-                  <span className="text-[10px] text-muted-foreground">{recipe.cook_time_min} min</span>
-                )}
-              </div>
+
+              {editing ? (
+                <div className="space-y-2">
+                  <select
+                    value={editCategory}
+                    onChange={(e) => { setEditCategory(e.target.value); setEditSubcategory(""); }}
+                    className="bg-transparent border-b border-foreground/40 pb-0.5 text-[11px] focus:outline-none pr-2"
+                  >
+                    <option value="">—</option>
+                    {RECIPE_CATEGORIES.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                  {subcategories && (
+                    <select
+                      value={editSubcategory}
+                      onChange={(e) => setEditSubcategory(e.target.value)}
+                      className="bg-transparent border-b border-foreground/40 pb-0.5 text-[11px] focus:outline-none pr-2 ml-3"
+                    >
+                      <option value="">—</option>
+                      {subcategories.map((s) => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                  )}
+                  <div className="flex gap-3 pt-1">
+                    <button
+                      onClick={handleSaveEdit}
+                      disabled={saving}
+                      className="flex items-center gap-1 text-[10px] text-foreground"
+                    >
+                      {saving ? <Loader2 size={10} className="animate-spin" /> : <Check size={10} />}
+                      save
+                    </button>
+                    <button onClick={() => setEditing(false)} className="text-[10px] text-muted-foreground">
+                      cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] tracking-widest text-muted-foreground uppercase">
+                    {recipe.category}{recipe.subcategory ? ` · ${recipe.subcategory}` : ""}
+                    {recipe.cook_time_min ? `  ${recipe.cook_time_min} min` : ""}
+                  </span>
+                  <button onClick={() => setEditing(true)} className="text-muted-foreground hover:text-foreground">
+                    <Pencil size={10} />
+                  </button>
+                </div>
+              )}
             </div>
             <button onClick={onClose} className="text-muted-foreground hover:text-foreground mt-1">
               <X size={16} />

@@ -174,6 +174,7 @@ interface RecipeState {
   load: (householdId: string) => Promise<void>;
   loadPreset: (householdId: string, userId: string) => Promise<void>;
   add: (householdId: string, input: Partial<Recipe> & { title: string }, file?: File) => Promise<void>;
+  updateRecipe: (id: string, patch: Partial<Pick<Recipe, "category" | "subcategory" | "title">>) => Promise<void>;
   recordMade: (id: string) => Promise<void>;
   deleteRecipe: (id: string) => Promise<void>;
 }
@@ -268,6 +269,14 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
     await supabase.from("recipes").update({ times_made, last_made_at: today }).eq("id", id);
     set((s) => ({
       recipes: s.recipes.map((r) => r.id === id ? { ...r, times_made, last_made_at: today } : r),
+    }));
+  },
+
+  updateRecipe: async (id, patch) => {
+    const supabase = createClient();
+    await supabase.from("recipes").update(patch).eq("id", id);
+    set((s) => ({
+      recipes: s.recipes.map((r) => r.id === id ? { ...r, ...patch } : r),
     }));
   },
 
