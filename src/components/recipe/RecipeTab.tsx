@@ -11,7 +11,7 @@ import { Plus, Search, X } from "lucide-react";
 
 type Category = typeof RECIPE_CATEGORIES[number];
 
-type SortKey = "default" | "times_made" | "cook_time_min";
+type SortKey = "times_made_desc" | "times_made_asc" | "cook_time_asc" | "cook_time_desc";
 
 export function RecipeTab() {
   const { householdId, user } = useAuthStore();
@@ -22,7 +22,7 @@ export function RecipeTab() {
   const [activeSubcategory, setActiveSubcategory] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
-  const [sortKey, setSortKey] = useState<SortKey>("default");
+  const [sortKey, setSortKey] = useState<SortKey>("times_made_desc");
 
   useEffect(() => {
     if (!householdId) return;
@@ -41,9 +41,10 @@ export function RecipeTab() {
         .filter((r) => r.category === activeCategory)
         .filter((r) => !activeSubcategory || r.subcategory === activeSubcategory)
   ).slice().sort((a, b) => {
-    if (sortKey === "times_made") return (b.times_made ?? 0) - (a.times_made ?? 0);
-    if (sortKey === "cook_time_min") return (a.cook_time_min ?? 9999) - (b.cook_time_min ?? 9999);
-    return 0;
+    if (sortKey === "times_made_desc") return (b.times_made ?? 0) - (a.times_made ?? 0);
+    if (sortKey === "times_made_asc") return (a.times_made ?? 0) - (b.times_made ?? 0);
+    if (sortKey === "cook_time_asc") return (a.cook_time_min ?? 9999) - (b.cook_time_min ?? 9999);
+    return (b.cook_time_min ?? 0) - (a.cook_time_min ?? 0);
   });
 
   const handleCategoryChange = (cat: Category) => {
@@ -71,16 +72,16 @@ export function RecipeTab() {
         </div>
         <div className="flex items-center gap-3">
           <button
-            onClick={() => setSortKey(k => k === "times_made" ? "default" : "times_made")}
-            className={`text-[10px] tracking-wider transition-colors ${sortKey === "times_made" ? "text-foreground" : "text-muted-foreground"}`}
+            onClick={() => setSortKey(k => k === "times_made_desc" ? "times_made_asc" : "times_made_desc")}
+            className={`text-[10px] tracking-wider transition-colors ${sortKey.startsWith("times_made") ? "text-foreground" : "text-muted-foreground"}`}
           >
-            made
+            made {sortKey === "times_made_desc" ? "↓" : sortKey === "times_made_asc" ? "↑" : "↓"}
           </button>
           <button
-            onClick={() => setSortKey(k => k === "cook_time_min" ? "default" : "cook_time_min")}
-            className={`text-[10px] tracking-wider transition-colors ${sortKey === "cook_time_min" ? "text-foreground" : "text-muted-foreground"}`}
+            onClick={() => setSortKey(k => k === "cook_time_asc" ? "cook_time_desc" : "cook_time_asc")}
+            className={`text-[10px] tracking-wider transition-colors ${sortKey.startsWith("cook_time") ? "text-foreground" : "text-muted-foreground"}`}
           >
-            time
+            time {sortKey === "cook_time_asc" ? "↑" : sortKey === "cook_time_desc" ? "↓" : "↑"}
           </button>
           <button
             onClick={() => setAdding(true)}
