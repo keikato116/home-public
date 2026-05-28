@@ -29,10 +29,13 @@ function toJSTMinOfDay(dt: string): number {
 
 function hasEveningEvent(events: CalendarEvent[]): boolean {
   return events.some((ev) => {
-    if (!ev.start.dateTime) return false;
+    // Exclude all-day events: they have start.date only, no start.dateTime
+    if (!ev.start.dateTime || ev.start.date) return false;
     const startMin = toJSTMinOfDay(ev.start.dateTime);
     const endMin = ev.end.dateTime ? toJSTMinOfDay(ev.end.dateTime) : startMin + 60;
-    const spansMidnight = endMin <= startMin;
+    // Overlaps 18:00+ window: starts at/after 18:00, or ends after 18:00
+    // spansMidnight: endMin wrapped around (e.g. event 23:00–01:00)
+    const spansMidnight = endMin < startMin;
     return startMin >= 18 * 60 || endMin > 18 * 60 || spansMidnight;
   });
 }
