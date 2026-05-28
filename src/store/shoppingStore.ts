@@ -8,7 +8,7 @@ interface ShoppingState {
   items: ShoppingItem[];
   loading: boolean;
   load: (householdId: string) => Promise<void>;
-  addItem: (householdId: string, label: string, category: string) => Promise<void>;
+  addItem: (householdId: string, label: string, category: string, date?: string) => Promise<void>;
   toggleItem: (id: string, done: boolean) => Promise<void>;
   deleteItem: (id: string) => Promise<void>;
   clearDone: (householdId: string) => Promise<void>;
@@ -41,12 +41,12 @@ export const useShoppingStore = create<ShoppingState>((set, get) => ({
     set({ items: (data ?? []) as ShoppingItem[], loading: false });
   },
 
-  addItem: async (householdId, label, category) => {
+  addItem: async (householdId, label, category, date) => {
     const supabase = createClient();
     const maxOrder = get().items.reduce((m, i) => Math.max(m, i.order ?? 0), 0);
     const { data, error } = await supabase
       .from("shopping_items")
-      .insert({ household_id: householdId, label, category, order: maxOrder + 1 })
+      .insert({ household_id: householdId, label, category, order: maxOrder + 1, date: date ?? null })
       .select()
       .single();
     if (error) throw new Error(error.message);

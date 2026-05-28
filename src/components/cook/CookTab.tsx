@@ -7,7 +7,8 @@ import { useAuthStore } from "@/store/authStore";
 import { useCalendarStore } from "@/store/calendarStore";
 import { useShoppingStore } from "@/store/shoppingStore";
 import { useTodoStore } from "@/store/todoStore";
-import { MealPlan, CalendarEvent } from "@/types";
+import { RecipePicker } from "@/components/recipe/RecipePicker";
+import { MealPlan, CalendarEvent, Recipe } from "@/types";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -91,17 +92,14 @@ function EditSheet({ date, plan, onClose }: EditSheetProps) {
   const { addItem } = useShoppingStore();
   const { addChore } = useTodoStore();
   const [label, setLabel] = useState(plan?.label ?? "");
-  const [recipeId, setRecipeId] = useState(plan?.recipe_id ?? "");
+  const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(
+    plan?.recipe_id ? (recipes.find((r) => r.id === plan.recipe_id) ?? null) : null
+  );
   const [saving, setSaving] = useState(false);
-  const [mode, setMode] = useState<"text" | "recipe">(plan?.recipe_id ? "recipe" : "text");
-  const [recipeSearch, setRecipeSearch] = useState("");
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const dateLabel = date.toLocaleDateString("ja-JP", { month: "long", day: "numeric", weekday: "short" });
-
-  const filteredRecipes = recipes.filter((r) =>
-    r.title.toLowerCase().includes(recipeSearch.toLowerCase()) ||
-    (r.ingredients ?? "").toLowerCase().includes(recipeSearch.toLowerCase())
-  );
+  const isRecipeMode = selectedRecipe !== null;
 
   const handleSave = async () => {
     if (!householdId) return;
@@ -111,24 +109,21 @@ function EditSheet({ date, plan, onClose }: EditSheetProps) {
       let mealTitle: string | null = null;
       let ingredientLines: string[] = [];
 
-      if (mode === "recipe" && recipeId) {
-        const recipe = recipes.find((r) => r.id === recipeId);
-        mealTitle = recipe?.title ?? null;
-        if (recipe?.ingredients) {
-          ingredientLines = parseIngredientLines(recipe.ingredients);
+      if (isRecipeMode) {
+        mealTitle = selectedRecipe.title;
+        if (selectedRecipe.ingredients) {
+          ingredientLines = parseIngredientLines(selectedRecipe.ingredients);
         }
-        await setMeal(householdId, dateStr, "dinner", recipeId, mealTitle);
+        await setMeal(householdId, dateStr, "dinner", selectedRecipe.id, mealTitle);
       } else {
         mealTitle = label.trim() || null;
         await setMeal(householdId, dateStr, "dinner", null, mealTitle);
       }
 
-      // Add ingredients to shopping list
       await Promise.allSettled(
-        ingredientLines.map((line) => addItem(householdId, line, "other"))
+        ingredientLines.map((line) => addItem(householdId, line, "other", dateStr))
       );
 
-      // Add 買い出し chore to home tab for that day
       if (mealTitle) {
         await addChore(householdId, `買い出し（${mealTitle}）`, false, undefined, dateStr, null);
       }
@@ -144,6 +139,15 @@ function EditSheet({ date, plan, onClose }: EditSheetProps) {
     onClose();
   };
 
+  if (pickerOpen) {
+    return (
+      <RecipePicker
+        onSelect={(r) => { setSelectedRecipe(r); setPickerOpen(false); }}
+        onClose={() => setPickerOpen(false)}
+      />
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex flex-col justify-end bg-black/30" onClick={onClose}>
       <div
@@ -156,63 +160,40 @@ function EditSheet({ date, plan, onClose }: EditSheetProps) {
           <button onClick={onClose}><X size={14} className="text-muted-foreground" /></button>
         </div>
 
-        <div className="flex gap-2">
-          <button
-            onClick={() => setMode("text")}
-            className={cn("text-[10px] tracking-wider px-3 py-1.5 rounded border transition-colors",
-              mode === "text" ? "bg-foreground text-background border-foreground" : "border-border text-muted-foreground")}
-          >free text</button>
-          <button
-            onClick={() => setMode("recipe")}
-            className={cn("text-[10px] tracking-wider px-3 py-1.5 rounded border transition-colors",
-              mode === "recipe" ? "bg-foreground text-background border-foreground" : "border-border text-muted-foreground")}
-          >from recipes</button>
-        </div>
+        {/* Recipe selection */}
+        <button
+          onClick={() => setPickerOpen(true)}
+          className={cn(
+            "w-full text-left rounded-lg px-3 py-2.5 text-[13px] border transition-colors",
+            selectedRecipe
+              ? "border-foreground/40 text-foreground"
+              : "border-border text-muted-foreground"
+          )}
+        >
+          {selectedRecipe ? selectedRecipe.title : "choose from recipes..."}
+        </button>
+        {selectedRecipe && (
+          <button onClick={() => setSelectedRecipe(null)} className="text-[10px] text-muted-foreground -mt-2">
+            clear recipe
+          </button>
+        )}
 
-        {mode === "text" && (
+        {/* Free text (only when no recipe selected) */}
+        {!selectedRecipe && (
           <input
-
             type="text"
             value={label}
             onChange={(e) => setLabel(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") handleSave(); }}
-            placeholder="e.g. カレー"
+            placeholder="or type freely... e.g. カレー"
             className="w-full bg-muted/40 rounded-lg px-3 py-2 text-[13px] outline-none placeholder:text-muted-foreground"
           />
-        )}
-
-        {mode === "recipe" && (
-          <div className="space-y-2">
-            <input
-  
-              type="text"
-              value={recipeSearch}
-              onChange={(e) => setRecipeSearch(e.target.value)}
-              placeholder="search recipes..."
-              className="w-full bg-muted/40 rounded-lg px-3 py-1.5 text-[12px] outline-none placeholder:text-muted-foreground"
-            />
-            <div className="max-h-40 overflow-y-auto space-y-0.5">
-              {filteredRecipes.map((r) => (
-                <button
-                  key={r.id}
-                  onClick={() => setRecipeId(r.id)}
-                  className={cn("w-full text-left px-3 py-2 rounded text-[12px] transition-colors",
-                    recipeId === r.id ? "bg-foreground text-background" : "hover:bg-muted/40 text-foreground")}
-                >
-                  {r.title}
-                </button>
-              ))}
-              {filteredRecipes.length === 0 && (
-                <p className="text-[11px] text-muted-foreground px-3 py-2">no recipes found</p>
-              )}
-            </div>
-          </div>
         )}
 
         <div className="flex gap-3 items-center pt-1">
           <button
             onClick={handleSave}
-            disabled={saving || (mode === "text" ? !label.trim() : !recipeId)}
+            disabled={saving || (!selectedRecipe && !label.trim())}
             className="bg-foreground text-background rounded px-5 py-2 text-[12px] tracking-wider disabled:opacity-40"
           >
             {saving ? "saving..." : "save"}
@@ -231,7 +212,7 @@ function EditSheet({ date, plan, onClose }: EditSheetProps) {
 export function CookTab() {
   const { householdId } = useAuthStore();
   const { plans, loading, load } = useMealPlanStore();
-  const { load: loadRecipes, recipes } = useRecipeStore();
+  const { load: loadRecipes } = useRecipeStore();
   const { eventsByDate } = useCalendarStore();
 
   const today = new Date();

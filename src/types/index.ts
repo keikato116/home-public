@@ -39,6 +39,7 @@ export interface ShoppingItem {
   category: string;
   done: boolean;
   order: number;
+  date: string | null;
   created_at: string;
 }
 
