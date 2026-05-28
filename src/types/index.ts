@@ -61,6 +61,16 @@ export interface Recipe {
   created_at: string;
 }
 
+export interface MealPlan {
+  id: string;
+  household_id: string;
+  date: string;
+  meal_type: "dinner" | "lunch";
+  recipe_id: string | null;
+  label: string | null;
+  created_at: string;
+}
+
 export interface CalendarSettings {
   household_id: string;
   selected_colors: string[];
