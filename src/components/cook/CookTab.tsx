@@ -50,7 +50,7 @@ function DayCell({ date, plan, isToday, freeEvening, onSelect }: DayPickerProps)
       onClick={onSelect}
       className={cn(
         "flex flex-col items-start p-0.5 border-r border-b border-border/20 overflow-hidden min-w-0 text-left",
-        freeEvening && !plan && "bg-blue-500/5"
+        freeEvening && "bg-blue-500/5"
       )}
     >
       <span className={cn(
@@ -59,7 +59,7 @@ function DayCell({ date, plan, isToday, freeEvening, onSelect }: DayPickerProps)
       )}>
         {date.getDate()}
       </span>
-      {freeEvening && !plan && (
+      {freeEvening && (
         <span className="w-1 h-1 rounded-full bg-blue-400/60 mt-0.5" />
       )}
       {label && (
