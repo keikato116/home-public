@@ -11,6 +11,8 @@ import { Plus, Search, X } from "lucide-react";
 
 type Category = typeof RECIPE_CATEGORIES[number];
 
+type SortKey = "default" | "times_made" | "cook_time_min";
+
 export function RecipeTab() {
   const { householdId, user } = useAuthStore();
   const { load, loadPreset, recipes, loading, loadError, loadingPreset } = useRecipeStore();
@@ -20,6 +22,7 @@ export function RecipeTab() {
   const [activeSubcategory, setActiveSubcategory] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
+  const [sortKey, setSortKey] = useState<SortKey>("default");
 
   useEffect(() => {
     if (!householdId) return;
@@ -29,14 +32,19 @@ export function RecipeTab() {
   const subcategories = SUBCATEGORIES[activeCategory];
 
   const q = searchQuery.trim().toLowerCase();
-  const filtered = q
+  const filtered = (q
     ? recipes.filter((r) =>
         (r.ingredients ?? "").toLowerCase().includes(q) ||
         r.title.toLowerCase().includes(q)
       )
     : recipes
         .filter((r) => r.category === activeCategory)
-        .filter((r) => !activeSubcategory || r.subcategory === activeSubcategory);
+        .filter((r) => !activeSubcategory || r.subcategory === activeSubcategory)
+  ).slice().sort((a, b) => {
+    if (sortKey === "times_made") return (b.times_made ?? 0) - (a.times_made ?? 0);
+    if (sortKey === "cook_time_min") return (a.cook_time_min ?? 9999) - (b.cook_time_min ?? 9999);
+    return 0;
+  });
 
   const handleCategoryChange = (cat: Category) => {
     setActiveCategory(cat);
@@ -61,13 +69,27 @@ export function RecipeTab() {
             <Search size={13} />
           </button>
         </div>
-        <button
-          onClick={() => setAdding(true)}
-          className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <Plus size={12} />
-          <span className="tracking-wider">add</span>
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setSortKey(k => k === "times_made" ? "default" : "times_made")}
+            className={`text-[10px] tracking-wider transition-colors ${sortKey === "times_made" ? "text-foreground" : "text-muted-foreground"}`}
+          >
+            made
+          </button>
+          <button
+            onClick={() => setSortKey(k => k === "cook_time_min" ? "default" : "cook_time_min")}
+            className={`text-[10px] tracking-wider transition-colors ${sortKey === "cook_time_min" ? "text-foreground" : "text-muted-foreground"}`}
+          >
+            time
+          </button>
+          <button
+            onClick={() => setAdding(true)}
+            className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Plus size={12} />
+            <span className="tracking-wider">add</span>
+          </button>
+        </div>
       </div>
 
       {searchOpen && (
