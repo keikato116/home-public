@@ -252,8 +252,7 @@ export function CookTab() {
         </p>
         <button
           onClick={() => goMonth(1)}
-          disabled={viewYear === today.getFullYear() && viewMonth === today.getMonth()}
-          className="text-muted-foreground p-1 disabled:opacity-30"
+          className="text-muted-foreground p-1"
         >
           <ChevronRight size={16} />
         </button>
