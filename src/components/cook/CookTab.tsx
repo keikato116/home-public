@@ -5,9 +5,18 @@ import { useMealPlanStore } from "@/store/mealPlanStore";
 import { useRecipeStore } from "@/store/recipeStore";
 import { useAuthStore } from "@/store/authStore";
 import { useCalendarStore } from "@/store/calendarStore";
+import { useShoppingStore } from "@/store/shoppingStore";
+import { useTodoStore } from "@/store/todoStore";
 import { MealPlan, CalendarEvent } from "@/types";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+function parseIngredientLines(text: string): string[] {
+  return text
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0 && !/^【.*】$/.test(l));
+}
 
 const DOW = ["S", "M", "T", "W", "T", "F", "S"];
 const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -79,6 +88,8 @@ function EditSheet({ date, plan, onClose }: EditSheetProps) {
   const { householdId } = useAuthStore();
   const { setMeal, deleteMeal } = useMealPlanStore();
   const { recipes } = useRecipeStore();
+  const { addItem } = useShoppingStore();
+  const { addChore } = useTodoStore();
   const [label, setLabel] = useState(plan?.label ?? "");
   const [recipeId, setRecipeId] = useState(plan?.recipe_id ?? "");
   const [saving, setSaving] = useState(false);
@@ -96,12 +107,32 @@ function EditSheet({ date, plan, onClose }: EditSheetProps) {
     if (!householdId) return;
     setSaving(true);
     try {
+      const dateStr = toDateStr(date);
+      let mealTitle: string | null = null;
+      let ingredientLines: string[] = [];
+
       if (mode === "recipe" && recipeId) {
         const recipe = recipes.find((r) => r.id === recipeId);
-        await setMeal(householdId, toDateStr(date), "dinner", recipeId, recipe?.title ?? null);
+        mealTitle = recipe?.title ?? null;
+        if (recipe?.ingredients) {
+          ingredientLines = parseIngredientLines(recipe.ingredients);
+        }
+        await setMeal(householdId, dateStr, "dinner", recipeId, mealTitle);
       } else {
-        await setMeal(householdId, toDateStr(date), "dinner", null, label.trim() || null);
+        mealTitle = label.trim() || null;
+        await setMeal(householdId, dateStr, "dinner", null, mealTitle);
       }
+
+      // Add ingredients to shopping list
+      await Promise.allSettled(
+        ingredientLines.map((line) => addItem(householdId, line, "other"))
+      );
+
+      // Add 買い出し chore to home tab for that day
+      if (mealTitle) {
+        await addChore(householdId, `買い出し（${mealTitle}）`, false, undefined, dateStr, null);
+      }
+
       onClose();
     } finally {
       setSaving(false);
