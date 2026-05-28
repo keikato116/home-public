@@ -133,22 +133,6 @@ export function RecipeDetailModal({ recipe, onClose }: Props) {
 
           {editing && (
             <div className="space-y-4 bg-muted/30 rounded-xl px-4 py-4">
-              <div className="flex gap-3 items-center">
-                <button
-                  onClick={handleSaveEdit}
-                  disabled={saving}
-                  className="flex items-center gap-1.5 text-[12px] bg-foreground text-background rounded px-4 py-2 disabled:opacity-40"
-                >
-                  {saving ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />}
-                  save
-                </button>
-                <button
-                  onClick={() => { setEditing(false); setEditIngredients(recipe.ingredients ?? ""); setEditMemo(recipe.memo ?? ""); setEditServings(recipe.servings != null ? String(recipe.servings) : ""); }}
-                  className="text-[12px] text-muted-foreground px-2 py-2"
-                >
-                  cancel
-                </button>
-              </div>
               <div className="flex gap-3">
                 <select
                   value={editCategory}
@@ -317,6 +301,25 @@ export function RecipeDetailModal({ recipe, onClose }: Props) {
           )}
         </div>
       </div>
+
+      {editing && (
+        <div className="flex gap-3 px-7 py-4 border-t border-border/30">
+          <button
+            onClick={handleSaveEdit}
+            disabled={saving}
+            className="flex items-center gap-1.5 text-[12px] bg-foreground text-background rounded px-4 py-2 disabled:opacity-40"
+          >
+            {saving ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />}
+            save
+          </button>
+          <button
+            onClick={() => { setEditing(false); setEditIngredients(recipe.ingredients ?? ""); setEditMemo(recipe.memo ?? ""); setEditServings(recipe.servings != null ? String(recipe.servings) : ""); }}
+            className="text-[12px] text-muted-foreground px-4 py-2"
+          >
+            cancel
+          </button>
+        </div>
+      )}
 
 
     </div>
