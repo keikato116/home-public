@@ -113,91 +113,77 @@ export function RecipeDetailModal({ recipe, onClose }: Props) {
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1 space-y-2">
               <h2 className="text-[18px] tracking-wide leading-snug">{recipe.title}</h2>
-
-              {editing ? (
-                <div className="space-y-2">
-                  <select
-                    value={editCategory}
-                    onChange={(e) => { setEditCategory(e.target.value); setEditSubcategory(""); }}
-                    className="bg-transparent border-b border-foreground/40 pb-0.5 text-[11px] focus:outline-none pr-2"
-                  >
-                    <option value="">—</option>
-                    {RECIPE_CATEGORIES.map((c) => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </select>
-                  {subcategories && (
-                    <select
-                      value={editSubcategory}
-                      onChange={(e) => setEditSubcategory(e.target.value)}
-                      className="bg-transparent border-b border-foreground/40 pb-0.5 text-[11px] focus:outline-none pr-2 ml-3"
-                    >
-                      <option value="">—</option>
-                      {subcategories.map((s) => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
-                    </select>
-                  )}
-                  <div className="space-y-2 pt-1">
-                    <div>
-                      <p className="text-[9px] tracking-widest text-muted-foreground uppercase mb-1">servings</p>
-                      <input
-                        type="number"
-                        min={1}
-                        value={editServings}
-                        onChange={(e) => setEditServings(e.target.value)}
-                        className="w-14 bg-transparent border-b border-foreground/40 pb-0.5 text-[12px] focus:outline-none text-center"
-                      />
-                    </div>
-                    <div>
-                      <p className="text-[9px] tracking-widest text-muted-foreground uppercase mb-1">ingredients</p>
-                      <textarea
-                        value={editIngredients}
-                        onChange={(e) => setEditIngredients(e.target.value)}
-                        rows={6}
-                        className="w-full bg-muted/40 rounded px-2 py-1.5 text-[12px] leading-relaxed focus:outline-none resize-none"
-                      />
-                    </div>
-                    <div>
-                      <p className="text-[9px] tracking-widest text-muted-foreground uppercase mb-1">memo</p>
-                      <textarea
-                        value={editMemo}
-                        onChange={(e) => setEditMemo(e.target.value)}
-                        rows={3}
-                        className="w-full bg-muted/40 rounded px-2 py-1.5 text-[12px] leading-relaxed focus:outline-none resize-none"
-                      />
-                    </div>
-                  </div>
-                  <div className="flex gap-3 pt-1">
-                    <button
-                      onClick={handleSaveEdit}
-                      disabled={saving}
-                      className="flex items-center gap-1 text-[10px] text-foreground"
-                    >
-                      {saving ? <Loader2 size={10} className="animate-spin" /> : <Check size={10} />}
-                      save
-                    </button>
-                    <button onClick={() => { setEditing(false); setEditIngredients(recipe.ingredients ?? ""); setEditMemo(recipe.memo ?? ""); setEditServings(recipe.servings != null ? String(recipe.servings) : ""); }} className="text-[10px] text-muted-foreground">
-                      cancel
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] tracking-widest text-muted-foreground uppercase">
-                    {recipe.category}{recipe.subcategory ? ` · ${recipe.subcategory}` : ""}
-                    {recipe.cook_time_min ? `  ${recipe.cook_time_min} min` : ""}
-                  </span>
-                  <button onClick={() => setEditing(true)} className="text-muted-foreground hover:text-foreground">
-                    <Pencil size={10} />
-                  </button>
-                </div>
-              )}
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] tracking-widest text-muted-foreground uppercase">
+                  {recipe.category}{recipe.subcategory ? ` · ${recipe.subcategory}` : ""}
+                  {recipe.cook_time_min ? `  ${recipe.cook_time_min} min` : ""}
+                </span>
+                <button onClick={() => setEditing(e => !e)} className="text-muted-foreground hover:text-foreground">
+                  <Pencil size={10} />
+                </button>
+              </div>
             </div>
             <button onClick={onClose} className="text-muted-foreground hover:text-foreground mt-1">
               <X size={16} />
             </button>
           </div>
+
+          {editing && (
+            <div className="space-y-4 bg-muted/30 rounded-xl px-4 py-4">
+              <div className="flex gap-3">
+                <select
+                  value={editCategory}
+                  onChange={(e) => { setEditCategory(e.target.value); setEditSubcategory(""); }}
+                  className="bg-transparent border-b border-foreground/40 pb-0.5 text-[11px] focus:outline-none pr-2"
+                >
+                  <option value="">—</option>
+                  {RECIPE_CATEGORIES.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+                {subcategories && (
+                  <select
+                    value={editSubcategory}
+                    onChange={(e) => setEditSubcategory(e.target.value)}
+                    className="bg-transparent border-b border-foreground/40 pb-0.5 text-[11px] focus:outline-none pr-2"
+                  >
+                    <option value="">—</option>
+                    {subcategories.map((s) => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                )}
+              </div>
+              <div>
+                <p className="text-[9px] tracking-widest text-muted-foreground uppercase mb-1">servings</p>
+                <input
+                  type="number"
+                  min={1}
+                  value={editServings}
+                  onChange={(e) => setEditServings(e.target.value)}
+                  className="w-14 bg-transparent border-b border-foreground/40 pb-0.5 text-[12px] focus:outline-none text-center"
+                />
+              </div>
+              <div>
+                <p className="text-[9px] tracking-widest text-muted-foreground uppercase mb-1">ingredients</p>
+                <textarea
+                  value={editIngredients}
+                  onChange={(e) => setEditIngredients(e.target.value)}
+                  rows={6}
+                  className="w-full bg-background rounded px-2 py-1.5 text-[12px] leading-relaxed focus:outline-none resize-none"
+                />
+              </div>
+              <div>
+                <p className="text-[9px] tracking-widest text-muted-foreground uppercase mb-1">memo</p>
+                <textarea
+                  value={editMemo}
+                  onChange={(e) => setEditMemo(e.target.value)}
+                  rows={3}
+                  className="w-full bg-background rounded px-2 py-1.5 text-[12px] leading-relaxed focus:outline-none resize-none"
+                />
+              </div>
+            </div>
+          )}
 
           <div className="flex items-center gap-4">
             <div>
@@ -312,6 +298,25 @@ export function RecipeDetailModal({ recipe, onClose }: Props) {
           )}
         </div>
       </div>
+
+      {editing && (
+        <div className="flex gap-3 px-7 py-4 border-t border-border/30">
+          <button
+            onClick={handleSaveEdit}
+            disabled={saving}
+            className="flex items-center gap-1.5 text-[12px] bg-foreground text-background rounded px-4 py-2 disabled:opacity-40"
+          >
+            {saving ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />}
+            save
+          </button>
+          <button
+            onClick={() => { setEditing(false); setEditIngredients(recipe.ingredients ?? ""); setEditMemo(recipe.memo ?? ""); setEditServings(recipe.servings != null ? String(recipe.servings) : ""); }}
+            className="text-[12px] text-muted-foreground px-4 py-2"
+          >
+            cancel
+          </button>
+        </div>
+      )}
     </div>
   );
 }
