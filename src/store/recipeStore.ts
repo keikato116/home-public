@@ -174,7 +174,7 @@ interface RecipeState {
   load: (householdId: string) => Promise<void>;
   loadPreset: (householdId: string, userId: string) => Promise<void>;
   add: (householdId: string, input: Partial<Recipe> & { title: string }, file?: File) => Promise<void>;
-  updateRecipe: (id: string, patch: Partial<Pick<Recipe, "category" | "subcategory" | "title">>) => Promise<void>;
+  updateRecipe: (id: string, patch: Partial<Pick<Recipe, "category" | "subcategory" | "title" | "ingredients" | "memo" | "servings">>) => Promise<void>;
   recordMade: (id: string) => Promise<void>;
   deleteRecipe: (id: string) => Promise<void>;
 }

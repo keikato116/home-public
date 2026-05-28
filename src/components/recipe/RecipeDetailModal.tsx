@@ -58,6 +58,9 @@ export function RecipeDetailModal({ recipe, onClose }: Props) {
   const [editing, setEditing] = useState(false);
   const [editCategory, setEditCategory] = useState(recipe.category ?? "");
   const [editSubcategory, setEditSubcategory] = useState(recipe.subcategory ?? "");
+  const [editIngredients, setEditIngredients] = useState(recipe.ingredients ?? "");
+  const [editMemo, setEditMemo] = useState(recipe.memo ?? "");
+  const [editServings, setEditServings] = useState<string>(recipe.servings != null ? String(recipe.servings) : "");
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -87,6 +90,9 @@ export function RecipeDetailModal({ recipe, onClose }: Props) {
     await updateRecipe(recipe.id, {
       category: editCategory || null,
       subcategory: editSubcategory || null,
+      ingredients: editIngredients || null,
+      memo: editMemo || null,
+      servings: editServings ? Number(editServings) : null,
     });
     setSaving(false);
     setEditing(false);
@@ -132,6 +138,36 @@ export function RecipeDetailModal({ recipe, onClose }: Props) {
                       ))}
                     </select>
                   )}
+                  <div className="space-y-2 pt-1">
+                    <div>
+                      <p className="text-[9px] tracking-widest text-muted-foreground uppercase mb-1">servings</p>
+                      <input
+                        type="number"
+                        min={1}
+                        value={editServings}
+                        onChange={(e) => setEditServings(e.target.value)}
+                        className="w-14 bg-transparent border-b border-foreground/40 pb-0.5 text-[12px] focus:outline-none text-center"
+                      />
+                    </div>
+                    <div>
+                      <p className="text-[9px] tracking-widest text-muted-foreground uppercase mb-1">ingredients</p>
+                      <textarea
+                        value={editIngredients}
+                        onChange={(e) => setEditIngredients(e.target.value)}
+                        rows={6}
+                        className="w-full bg-muted/40 rounded px-2 py-1.5 text-[12px] leading-relaxed focus:outline-none resize-none"
+                      />
+                    </div>
+                    <div>
+                      <p className="text-[9px] tracking-widest text-muted-foreground uppercase mb-1">memo</p>
+                      <textarea
+                        value={editMemo}
+                        onChange={(e) => setEditMemo(e.target.value)}
+                        rows={3}
+                        className="w-full bg-muted/40 rounded px-2 py-1.5 text-[12px] leading-relaxed focus:outline-none resize-none"
+                      />
+                    </div>
+                  </div>
                   <div className="flex gap-3 pt-1">
                     <button
                       onClick={handleSaveEdit}
@@ -141,7 +177,7 @@ export function RecipeDetailModal({ recipe, onClose }: Props) {
                       {saving ? <Loader2 size={10} className="animate-spin" /> : <Check size={10} />}
                       save
                     </button>
-                    <button onClick={() => setEditing(false)} className="text-[10px] text-muted-foreground">
+                    <button onClick={() => { setEditing(false); setEditIngredients(recipe.ingredients ?? ""); setEditMemo(recipe.memo ?? ""); setEditServings(recipe.servings != null ? String(recipe.servings) : ""); }} className="text-[10px] text-muted-foreground">
                       cancel
                     </button>
                   </div>
