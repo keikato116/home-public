@@ -7,7 +7,7 @@ import { GOOGLE_COLOR_MAP, GOOGLE_COLOR_HEX } from "@/lib/calendar";
 import { toISODate } from "@/lib/utils";
 
 export function CalendarSettings() {
-  const { householdId, accessToken } = useAuthStore();
+  const { householdId, accessToken, isOwner } = useAuthStore();
   const { settings, updateSettings, load } = useCalendarStore();
 
   const [selectedColors, setSelectedColors] = useState<string[]>(settings?.selected_colors ?? []);
@@ -70,15 +70,17 @@ export function CalendarSettings() {
         )}
       </div>
 
-      <div>
-        <p className="text-[11px] text-muted-foreground mb-2">show events from</p>
-        <input
-          type="date"
-          value={startDate}
-          onChange={(e) => setStartDate(e.target.value)}
-          className="bg-transparent border-b border-border pb-1 text-[12px] focus:outline-none focus:border-foreground/40"
-        />
-      </div>
+      {isOwner && (
+        <div>
+          <p className="text-[11px] text-muted-foreground mb-2">show events from</p>
+          <input
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            className="bg-transparent border-b border-border pb-1 text-[12px] focus:outline-none focus:border-foreground/40"
+          />
+        </div>
+      )}
 
       <button
         onClick={save}

@@ -12,6 +12,7 @@ interface AuthState {
   loading: boolean;
   settingsOpen: boolean;
   activeTab: string;
+  isOwner: boolean;
   setHouseholdId: (id: string, inviteCode?: string) => void;
   setSettingsOpen: (open: boolean) => void;
   setActiveTab: (tab: string) => void;
@@ -172,6 +173,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   loading: true,
   settingsOpen: false,
   activeTab: "home",
+  isOwner: false,
 
   setHouseholdId: (id, inviteCode) => set({ householdId: id, inviteCode: inviteCode ?? null }),
   setSettingsOpen: (open) => set({ settingsOpen: open }),
@@ -183,6 +185,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     const cachedUser = localStorage.getItem("cached_user");
     const cachedHouseholdId = localStorage.getItem("cached_household_id");
     const cachedInviteCode = localStorage.getItem("cached_invite_code");
+    const cachedIsOwner = localStorage.getItem("cached_is_owner") === "true";
 
     try {
       if (cachedUser) {
@@ -192,6 +195,7 @@ export const useAuthStore = create<AuthState>((set) => ({
           householdId: cachedHouseholdId,
           inviteCode: cachedInviteCode,
           accessToken: localStorage.getItem(TOKEN_KEY),
+          isOwner: cachedIsOwner,
           loading: false,
         });
         // Proactively refresh in the background so the cached token is fresh
@@ -230,11 +234,24 @@ export const useAuthStore = create<AuthState>((set) => ({
         const hid = member?.household_id ?? null;
         const ic = (member?.households as { invite_code?: string } | null)?.invite_code ?? null;
 
+        let isOwner = false;
+        if (hid) {
+          const { data: firstMember } = await supabase
+            .from("household_members")
+            .select("user_id")
+            .eq("household_id", hid)
+            .order("joined_at", { ascending: true })
+            .limit(1)
+            .single();
+          isOwner = firstMember?.user_id === session.user.id;
+        }
+
         localStorage.setItem("cached_user", JSON.stringify(session.user));
         localStorage.setItem("cached_household_id", hid ?? "");
         localStorage.setItem("cached_invite_code", ic ?? "");
+        localStorage.setItem("cached_is_owner", String(isOwner));
 
-        set({ user: session.user, householdId: hid, inviteCode: ic, accessToken: token, loading: false });
+        set({ user: session.user, householdId: hid, inviteCode: ic, accessToken: token, isOwner, loading: false });
 
         if (hid && token) {
           const displayName = session.user.user_metadata?.full_name ?? session.user.email ?? "";
@@ -295,7 +312,8 @@ export const useAuthStore = create<AuthState>((set) => ({
           localStorage.removeItem("cached_user");
           localStorage.removeItem("cached_household_id");
           localStorage.removeItem("cached_invite_code");
-          set({ user: null, householdId: null, inviteCode: null, accessToken: null });
+          localStorage.removeItem("cached_is_owner");
+          set({ user: null, householdId: null, inviteCode: null, accessToken: null, isOwner: false });
         } else {
           const { data: { session: recovered } } = await supabase.auth.refreshSession();
           if (recovered) {
