@@ -7,7 +7,7 @@ import { RecipeCard } from "./RecipeCard";
 import { RecipeDetailModal } from "./RecipeDetailModal";
 import { AddRecipeModal } from "./AddRecipeModal";
 import { Recipe } from "@/types";
-import { Plus } from "lucide-react";
+import { Plus, Search, X } from "lucide-react";
 
 type Category = typeof RECIPE_CATEGORIES[number];
 
@@ -19,6 +19,7 @@ export function RecipeTab() {
   const [activeCategory, setActiveCategory] = useState<Category>(RECIPE_CATEGORIES[0]);
   const [activeSubcategory, setActiveSubcategory] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
 
   useEffect(() => {
     if (!householdId) return;
@@ -45,13 +46,21 @@ export function RecipeTab() {
   return (
     <div className="flex flex-col h-full py-8">
       <div className="flex items-center justify-between mb-4 px-7">
-        <button
-          onClick={() => householdId && user && loadPreset(householdId, user.id)}
-          disabled={loadingPreset}
-          className="text-[10px] text-muted-foreground border border-border rounded px-2.5 py-1 hover:text-foreground transition-colors disabled:opacity-40"
-        >
-          {loadingPreset ? "loading..." : "load recipes"}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => householdId && user && loadPreset(householdId, user.id)}
+            disabled={loadingPreset}
+            className="text-[10px] text-muted-foreground border border-border rounded px-2.5 py-1 hover:text-foreground transition-colors disabled:opacity-40"
+          >
+            {loadingPreset ? "loading..." : "load recipes"}
+          </button>
+          <button
+            onClick={() => { setSearchOpen(o => !o); setSearchQuery(""); }}
+            className="text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Search size={13} />
+          </button>
+        </div>
         <button
           onClick={() => setAdding(true)}
           className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
@@ -61,17 +70,24 @@ export function RecipeTab() {
         </button>
       </div>
 
-      <div className="px-7 pb-3">
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="search by ingredient..."
-          className="w-full bg-muted/40 rounded-lg px-3 py-2 text-[12px] outline-none placeholder:text-muted-foreground"
-        />
-      </div>
+      {searchOpen && (
+        <div className="flex items-center gap-2 px-7 pb-3">
+          <input
+            autoFocus
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Escape") { setSearchOpen(false); setSearchQuery(""); } }}
+            placeholder="ingredient..."
+            className="flex-1 bg-muted/40 rounded-lg px-3 py-1.5 text-[12px] outline-none placeholder:text-muted-foreground"
+          />
+          <button onClick={() => { setSearchOpen(false); setSearchQuery(""); }} className="text-muted-foreground">
+            <X size={13} />
+          </button>
+        </div>
+      )}
 
-      {!q && (
+      {!searchOpen && (
         <div className="flex gap-2 overflow-x-auto px-7 pb-3 scrollbar-hide">
           {RECIPE_CATEGORIES.map((cat) => (
             <button
@@ -89,7 +105,7 @@ export function RecipeTab() {
         </div>
       )}
 
-      {!q && subcategories && (
+      {!searchOpen && subcategories && (
         <div className="flex gap-2 overflow-x-auto px-7 pb-3 scrollbar-hide">
           <button
             onClick={() => setActiveSubcategory(null)}
