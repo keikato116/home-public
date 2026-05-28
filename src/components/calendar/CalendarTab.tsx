@@ -174,16 +174,12 @@ function MonthGrid({ selectedDate, today, eventsMap, currentUserId, onSelect }: 
                     </div>
                   );
                 })}
-                {partnerEvents.slice(0, 3).map(e => {
-                  const color = eventColor(e);
-                  return (
-                    <div key={e.id + "pt"}
-                      className="w-full text-[6.5px] leading-none truncate rounded-[2px] px-0.5 py-px border-l-2"
-                      style={{ borderColor: color, color, opacity: 0.8 }}>
-                      {e.summary}
-                    </div>
-                  );
-                })}
+                {partnerEvents.slice(0, 3).map(e => (
+                  <div key={e.id + "pt"}
+                    className="w-full text-[6.5px] leading-none truncate rounded-[2px] px-0.5 py-px text-muted-foreground border-l-2 border-muted-foreground/40">
+                    {e.summary}
+                  </div>
+                ))}
               </div>
             </button>
           );
