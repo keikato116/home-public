@@ -140,7 +140,7 @@ function EditSheet({ date, plan, onClose }: EditSheetProps) {
 
         {mode === "text" && (
           <input
-            autoFocus
+
             type="text"
             value={label}
             onChange={(e) => setLabel(e.target.value)}
@@ -153,7 +153,7 @@ function EditSheet({ date, plan, onClose }: EditSheetProps) {
         {mode === "recipe" && (
           <div className="space-y-2">
             <input
-              autoFocus
+  
               type="text"
               value={recipeSearch}
               onChange={(e) => setRecipeSearch(e.target.value)}
@@ -214,9 +214,9 @@ export function CookTab() {
   }, [householdId, viewYear, viewMonth, load]);
 
   useEffect(() => {
-    if (!householdId || recipes.length > 0) return;
+    if (!householdId) return;
     loadRecipes(householdId);
-  }, [householdId, loadRecipes, recipes.length]);
+  }, [householdId, loadRecipes]);
 
   const goMonth = (dir: number) => {
     const d = new Date(viewYear, viewMonth + dir, 1);
