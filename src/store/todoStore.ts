@@ -226,8 +226,6 @@ export const useTodoStore = create<TodoState>((set, get) => ({
   },
 
   deleteChore: async (id) => {
-    const supabase = createClient();
-    await supabase.from("routine_definitions").delete().eq("id", id);
     set((s) => ({
       routineDefinitions: s.routineDefinitions.filter((d) => d.id !== id),
       completedRoutineIds: (() => {
@@ -236,6 +234,8 @@ export const useTodoStore = create<TodoState>((set, get) => ({
         return next;
       })(),
     }));
+    const supabase = createClient();
+    await supabase.from("routine_definitions").delete().eq("id", id);
   },
 
   subscribeRealtime: (householdId) => {
@@ -243,6 +243,34 @@ export const useTodoStore = create<TodoState>((set, get) => ({
 
     const channel = supabase
       .channel(`todos-${householdId}`)
+      .on("postgres_changes", {
+        event: "*",
+        schema: "public",
+        table: "routine_definitions",
+        filter: `household_id=eq.${householdId}`,
+      }, (payload) => {
+        const { eventType, new: newRow, old: oldRow } = payload;
+        set((s) => {
+          if (eventType === "INSERT") {
+            const def = newRow as RoutineDefinition;
+            if (s.routineDefinitions.some((d) => d.id === def.id)) return s;
+            return { routineDefinitions: [...s.routineDefinitions, def] };
+          }
+          if (eventType === "UPDATE") {
+            return { routineDefinitions: s.routineDefinitions.map((d) => d.id === (newRow as RoutineDefinition).id ? newRow as RoutineDefinition : d) };
+          }
+          if (eventType === "DELETE") {
+            const deletedId = (oldRow as RoutineDefinition).id;
+            const next = new Set(s.completedRoutineIds);
+            next.delete(deletedId);
+            return {
+              routineDefinitions: s.routineDefinitions.filter((d) => d.id !== deletedId),
+              completedRoutineIds: next,
+            };
+          }
+          return s;
+        });
+      })
       .on("postgres_changes", {
         event: "*",
         schema: "public",
