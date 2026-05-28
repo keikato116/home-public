@@ -4,7 +4,7 @@ import { create } from "zustand";
 import { createClient } from "@/lib/supabase/client";
 import { Recipe } from "@/types";
 
-export const RECIPE_CATEGORIES = ["main", "side", "soup", "rice & bowl", "pasta", "noodles", "dessert"] as const;
+export const RECIPE_CATEGORIES = ["main", "side", "soup", "rice & bowl", "pasta", "noodles", "dessert", "seasonal"] as const;
 
 export const SUBCATEGORIES: Partial<Record<string, string[]>> = {
   main: ["meat", "fish", "others"],

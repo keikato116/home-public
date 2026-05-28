@@ -3,7 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-const CATEGORIES = ["main", "side", "soup", "rice & bowl", "pasta", "noodles", "dessert"];
+const CATEGORIES = ["main", "side", "soup", "rice & bowl", "pasta", "noodles", "dessert", "seasonal"];
 
 const FIELDS = `- title: recipe name (string)
 - category: one of [${CATEGORIES.join(", ")}] — pick the closest
