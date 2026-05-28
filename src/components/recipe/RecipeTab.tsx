@@ -18,6 +18,7 @@ export function RecipeTab() {
   const [adding, setAdding] = useState(false);
   const [activeCategory, setActiveCategory] = useState<Category>(RECIPE_CATEGORIES[0]);
   const [activeSubcategory, setActiveSubcategory] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     if (!householdId) return;
@@ -26,9 +27,15 @@ export function RecipeTab() {
 
   const subcategories = SUBCATEGORIES[activeCategory];
 
-  const filtered = recipes
-    .filter((r) => r.category === activeCategory)
-    .filter((r) => !activeSubcategory || r.subcategory === activeSubcategory);
+  const q = searchQuery.trim().toLowerCase();
+  const filtered = q
+    ? recipes.filter((r) =>
+        (r.ingredients ?? "").toLowerCase().includes(q) ||
+        r.title.toLowerCase().includes(q)
+      )
+    : recipes
+        .filter((r) => r.category === activeCategory)
+        .filter((r) => !activeSubcategory || r.subcategory === activeSubcategory);
 
   const handleCategoryChange = (cat: Category) => {
     setActiveCategory(cat);
@@ -54,23 +61,35 @@ export function RecipeTab() {
         </button>
       </div>
 
-      <div className="flex gap-2 overflow-x-auto px-7 pb-3 scrollbar-hide">
-        {RECIPE_CATEGORIES.map((cat) => (
-          <button
-            key={cat}
-            onClick={() => handleCategoryChange(cat)}
-            className={`shrink-0 text-[10px] tracking-wider px-3 py-1.5 rounded border transition-colors ${
-              activeCategory === cat
-                ? "bg-foreground text-background border-foreground"
-                : "border-border text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {cat}
-          </button>
-        ))}
+      <div className="px-7 pb-3">
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="search by ingredient..."
+          className="w-full bg-muted/40 rounded-lg px-3 py-2 text-[12px] outline-none placeholder:text-muted-foreground"
+        />
       </div>
 
-      {subcategories && (
+      {!q && (
+        <div className="flex gap-2 overflow-x-auto px-7 pb-3 scrollbar-hide">
+          {RECIPE_CATEGORIES.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => handleCategoryChange(cat)}
+              className={`shrink-0 text-[10px] tracking-wider px-3 py-1.5 rounded border transition-colors ${
+                activeCategory === cat
+                  ? "bg-foreground text-background border-foreground"
+                  : "border-border text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {!q && subcategories && (
         <div className="flex gap-2 overflow-x-auto px-7 pb-3 scrollbar-hide">
           <button
             onClick={() => setActiveSubcategory(null)}
