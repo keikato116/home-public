@@ -9,8 +9,8 @@ const TABS = [
   { id: "calendar", label: "calendar" },
   { id: "cook", label: "cook" },
   { id: "workout", label: "workout" },
-  { id: "recipe", label: "recipes" },
   { id: "shopping", label: "shopping" },
+  { id: "recipe", label: "recipes" },
 ];
 
 export function BottomTabBar() {
