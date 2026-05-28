@@ -25,10 +25,12 @@ export async function GET(request: Request) {
 
     const abort = new AbortController();
     const abortTimer = setTimeout(() => abort.abort(), 9000);
-    const res = await fetch(url.toString(), {
-      headers: { Authorization: `Bearer ${accessToken}` },
-      signal: abort.signal,
-    });
+    const [res, calRes] = await Promise.all([
+      fetch(url.toString(), { headers: { Authorization: `Bearer ${accessToken}` }, signal: abort.signal }),
+      fetch("https://www.googleapis.com/calendar/v3/users/me/calendarList/primary", {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      }),
+    ]);
     clearTimeout(abortTimer);
 
     if (!res.ok) {
@@ -37,7 +39,9 @@ export async function GET(request: Request) {
     }
 
     const data = await res.json();
-    let events = data.items ?? [];
+    const calData = calRes.ok ? await calRes.json() : {};
+    const calendarColor: string | undefined = calData.backgroundColor;
+    let events = (data.items ?? []).map((e: object) => ({ ...e, calendarColor }));
 
     if (selectedColors.length > 0) {
       // Events without a colorId (default) always pass; filter only applies to explicitly colored events

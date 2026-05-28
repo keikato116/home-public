@@ -53,7 +53,7 @@ export function ScheduleTimeline({ events, isToday, userId, memberNameMap }: Pro
     const durMin = Math.max(20, cappedEndMin - visibleStartMin);
     const top = toTop(startMin);
     const height = Math.max(HOUR_H / 2, (durMin / 60) * HOUR_H - 1);
-    const hex = ev.colorId ? GOOGLE_COLOR_HEX[ev.colorId] : "#888888";
+    const hex = ev.colorId ? GOOGLE_COLOR_HEX[ev.colorId] : (ev.calendarColor ?? "#888888");
     return (
       <div
         key={ev.id}

@@ -36,17 +36,22 @@ async function fetchPartnerEvents(
 
     const abort = new AbortController();
     const timer = setTimeout(() => abort.abort(), 9000);
-    const res = await fetch(url.toString(), {
-      headers: { Authorization: `Bearer ${accessToken}` },
-      signal: abort.signal,
-    });
+    const [res, calRes] = await Promise.all([
+      fetch(url.toString(), { headers: { Authorization: `Bearer ${accessToken}` }, signal: abort.signal }),
+      fetch("https://www.googleapis.com/calendar/v3/users/me/calendarList/primary", {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      }),
+    ]);
     clearTimeout(timer);
 
     if (res.status === 401) return null; // expired — caller should refresh
     if (!res.ok) return [];
 
     const data = await res.json();
-    let events: { colorId?: string }[] = data.items ?? [];
+    const calData = calRes.ok ? await calRes.json() : {};
+    const calendarColor: string | undefined = calData.backgroundColor;
+
+    let events: { colorId?: string }[] = (data.items ?? []).map((e: object) => ({ ...e, calendarColor }));
     if (colors.length > 0) {
       events = events.filter((e) => !e.colorId || colors.includes(e.colorId));
     }
