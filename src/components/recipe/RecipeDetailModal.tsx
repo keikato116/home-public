@@ -87,15 +87,18 @@ export function RecipeDetailModal({ recipe, onClose }: Props) {
 
   const handleSaveEdit = async () => {
     setSaving(true);
-    await updateRecipe(recipe.id, {
-      category: editCategory || null,
-      subcategory: editSubcategory || null,
-      ingredients: editIngredients || null,
-      memo: editMemo || null,
-      servings: editServings ? Number(editServings) : null,
-    });
-    setSaving(false);
-    setEditing(false);
+    try {
+      await updateRecipe(recipe.id, {
+        category: editCategory || null,
+        subcategory: editSubcategory || null,
+        ingredients: editIngredients || null,
+        memo: editMemo || null,
+        servings: editServings ? Number(editServings) : null,
+      });
+      setEditing(false);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const subcategories = editCategory ? SUBCATEGORIES[editCategory] : null;
