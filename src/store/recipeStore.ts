@@ -8,7 +8,6 @@ export const RECIPE_CATEGORIES = ["main", "side", "soup", "rice & bowl", "pasta"
 
 export const SUBCATEGORIES: Partial<Record<string, string[]>> = {
   main: ["meat", "fish", "others"],
-  noodles: ["udon", "soba", "ramen"],
 };
 
 const PRESET_RECIPES: Omit<Recipe, "id" | "household_id" | "times_made" | "last_made_at" | "created_by" | "created_at" | "thumbnail_url" | "photo_urls" | "url" | "subcategory">[] = [
