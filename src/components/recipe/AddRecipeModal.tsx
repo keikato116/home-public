@@ -183,7 +183,7 @@ export function AddRecipeModal({ onClose }: Props) {
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!householdId || !user) return;
+    if (!householdId || !user) { setError("not ready, please try again"); return; }
     const toSave = recipes.filter((r) => r.selected && r.title.trim());
     if (toSave.length === 0) { setError("select at least one recipe"); return; }
     setSaving(true);
