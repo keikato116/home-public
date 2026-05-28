@@ -43,11 +43,13 @@ export const useShoppingStore = create<ShoppingState>((set, get) => ({
 
   addItem: async (householdId, label, category) => {
     const supabase = createClient();
-    const { data } = await supabase
+    const maxOrder = get().items.reduce((m, i) => Math.max(m, i.order ?? 0), 0);
+    const { data, error } = await supabase
       .from("shopping_items")
-      .insert({ household_id: householdId, label, category })
+      .insert({ household_id: householdId, label, category, order: maxOrder + 1 })
       .select()
       .single();
+    if (error) throw new Error(error.message);
     if (data) set((s) => ({ items: [...s.items, data as ShoppingItem] }));
   },
 

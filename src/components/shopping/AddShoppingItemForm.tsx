@@ -11,15 +11,26 @@ export function AddShoppingItemForm() {
   const [open, setOpen] = useState(false);
   const [label, setLabel] = useState("");
   const [category, setCategory] = useState("other");
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const { addItem } = useShoppingStore();
-  const { householdId } = useAuthStore();
+  const { householdId, loading: authLoading } = useAuthStore();
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!label.trim() || !householdId) return;
-    await addItem(householdId, label.trim(), category);
-    setLabel("");
-    setOpen(false);
+    if (!label.trim()) return;
+    if (!householdId) { setError("not ready, please try again"); return; }
+    setSubmitting(true);
+    setError("");
+    try {
+      await addItem(householdId, label.trim(), category);
+      setLabel("");
+      setOpen(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "failed to add item");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (!open) {
@@ -61,9 +72,10 @@ export function AddShoppingItemForm() {
           </button>
         ))}
       </div>
+      {error && <p className="text-[10px] text-red-500">{error}</p>}
       <div className="flex gap-3">
-        <button type="submit" disabled={!label.trim()} className="text-[11px] tracking-wider disabled:opacity-40">
-          add
+        <button type="submit" disabled={!label.trim() || submitting || authLoading} className="text-[11px] tracking-wider disabled:opacity-40">
+          {submitting ? "adding..." : "add"}
         </button>
         <button type="button" onClick={() => setOpen(false)} className="text-[11px] text-muted-foreground">
           cancel
