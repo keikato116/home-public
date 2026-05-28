@@ -10,7 +10,7 @@ import { useTodoStore } from "@/store/todoStore";
 import { RecipePicker } from "@/components/recipe/RecipePicker";
 import { MealPlan, CalendarEvent, Recipe } from "@/types";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, toISODate } from "@/lib/utils";
 
 function parseIngredientLines(text: string): string[] {
   return text
@@ -152,7 +152,7 @@ function EditSheet({ date, plan, onClose }: EditSheetProps) {
       );
 
       if (mealTitle && !eatingOut) {
-        await addChore(householdId, `買い出し（${mealTitle}）`, false, undefined, dateStr, null);
+        await addChore(householdId, `買い出し（${mealTitle}）`, false, undefined, toISODate(date), null);
       }
 
       onClose();
