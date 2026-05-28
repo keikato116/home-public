@@ -94,7 +94,17 @@ function EditSheet({ date, plan, onClose }: EditSheetProps) {
   const { recipes } = useRecipeStore();
   const { addItem } = useShoppingStore();
   const { addChore } = useTodoStore();
-  const [label, setLabel] = useState(plan?.label ?? "");
+
+  const existingIsEatingOut = !plan?.recipe_id && plan?.label?.startsWith("外食");
+  const [label, setLabel] = useState(
+    existingIsEatingOut ? "" : (plan?.label ?? "")
+  );
+  const [eatingOut, setEatingOut] = useState(existingIsEatingOut);
+  const [eatingOutDetail, setEatingOutDetail] = useState(
+    existingIsEatingOut && plan?.label !== "外食"
+      ? (plan?.label?.replace(/^外食（(.*)）$/, "$1") ?? "")
+      : ""
+  );
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(
     plan?.recipe_id ? (recipes.find((r) => r.id === plan.recipe_id) ?? null) : null
   );
@@ -102,7 +112,18 @@ function EditSheet({ date, plan, onClose }: EditSheetProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
 
   const dateLabel = date.toLocaleDateString("ja-JP", { month: "long", day: "numeric", weekday: "short" });
-  const isRecipeMode = selectedRecipe !== null;
+
+  const handleSelectRecipe = (r: Recipe) => {
+    setSelectedRecipe(r);
+    setEatingOut(false);
+    setPickerOpen(false);
+  };
+
+  const handleEatingOutToggle = () => {
+    setEatingOut(true);
+    setSelectedRecipe(null);
+    setLabel("");
+  };
 
   const handleSave = async () => {
     if (!householdId) return;
@@ -112,12 +133,15 @@ function EditSheet({ date, plan, onClose }: EditSheetProps) {
       let mealTitle: string | null = null;
       let ingredientLines: string[] = [];
 
-      if (isRecipeMode) {
+      if (selectedRecipe) {
         mealTitle = selectedRecipe.title;
         if (selectedRecipe.ingredients) {
           ingredientLines = parseIngredientLines(selectedRecipe.ingredients);
         }
         await setMeal(householdId, dateStr, "dinner", selectedRecipe.id, mealTitle);
+      } else if (eatingOut) {
+        mealTitle = eatingOutDetail.trim() ? `外食（${eatingOutDetail.trim()}）` : "外食";
+        await setMeal(householdId, dateStr, "dinner", null, mealTitle);
       } else {
         mealTitle = label.trim() || null;
         await setMeal(householdId, dateStr, "dinner", null, mealTitle);
@@ -127,7 +151,7 @@ function EditSheet({ date, plan, onClose }: EditSheetProps) {
         ingredientLines.map((line) => addItem(householdId, line, "other", dateStr))
       );
 
-      if (mealTitle) {
+      if (mealTitle && !eatingOut) {
         await addChore(householdId, `買い出し（${mealTitle}）`, false, undefined, dateStr, null);
       }
 
@@ -142,10 +166,12 @@ function EditSheet({ date, plan, onClose }: EditSheetProps) {
     onClose();
   };
 
+  const canSave = selectedRecipe !== null || eatingOut || label.trim().length > 0;
+
   if (pickerOpen) {
     return (
       <RecipePicker
-        onSelect={(r) => { setSelectedRecipe(r); setPickerOpen(false); }}
+        onSelect={handleSelectRecipe}
         onClose={() => setPickerOpen(false)}
       />
     );
@@ -181,8 +207,40 @@ function EditSheet({ date, plan, onClose }: EditSheetProps) {
           </button>
         )}
 
-        {/* Free text (only when no recipe selected) */}
+        {/* Eating out */}
         {!selectedRecipe && (
+          <div className="space-y-2">
+            <button
+              onClick={handleEatingOutToggle}
+              className={cn(
+                "w-full text-left rounded-lg px-3 py-2.5 text-[13px] border transition-colors",
+                eatingOut
+                  ? "border-foreground/40 text-foreground"
+                  : "border-border text-muted-foreground"
+              )}
+            >
+              eating out
+            </button>
+            {eatingOut && (
+              <>
+                <input
+                  type="text"
+                  value={eatingOutDetail}
+                  onChange={(e) => setEatingOutDetail(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") handleSave(); }}
+                  placeholder="restaurant / details... (optional)"
+                  className="w-full bg-muted/40 rounded-lg px-3 py-2 text-[13px] outline-none placeholder:text-muted-foreground"
+                />
+                <button onClick={() => setEatingOut(false)} className="text-[10px] text-muted-foreground">
+                  clear
+                </button>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Free text (only when no recipe and not eating out) */}
+        {!selectedRecipe && !eatingOut && (
           <input
             type="text"
             value={label}
@@ -196,7 +254,7 @@ function EditSheet({ date, plan, onClose }: EditSheetProps) {
         <div className="flex gap-3 items-center pt-1">
           <button
             onClick={handleSave}
-            disabled={saving || (!selectedRecipe && !label.trim())}
+            disabled={saving || !canSave}
             className="bg-foreground text-background rounded px-5 py-2 text-[12px] tracking-wider disabled:opacity-40"
           >
             {saving ? "saving..." : "save"}
