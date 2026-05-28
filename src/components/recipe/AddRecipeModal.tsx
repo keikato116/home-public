@@ -63,7 +63,7 @@ export function AddRecipeModal({ onClose }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const { add } = useRecipeStore();
-  const { householdId, user } = useAuthStore();
+  const { householdId, user, loading: authLoading } = useAuthStore();
 
   const handleFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = Array.from(e.target.files ?? []);
@@ -446,10 +446,10 @@ export function AddRecipeModal({ onClose }: Props) {
 
             <button
               type="submit"
-              disabled={saving || selectedCount === 0}
+              disabled={saving || authLoading || selectedCount === 0}
               className="w-full bg-foreground text-background rounded px-4 py-3 text-[12px] tracking-wider disabled:opacity-40"
             >
-              {saving ? "saving..." : `save ${selectedCount} recipe${selectedCount !== 1 ? "s" : ""}`}
+              {authLoading ? "loading..." : saving ? "saving..." : `save ${selectedCount} recipe${selectedCount !== 1 ? "s" : ""}`}
             </button>
           </form>
         )}
