@@ -10,7 +10,7 @@ const FIELDS = `- title: recipe name (string)
 - subcategory: for "main" use one of [meat, fish, others]; for "noodles" use one of [udon, soba, ramen]; for all other categories use null
 - servings: number of servings as integer (number or null)
 - cook_time_min: total cooking time in minutes as integer (number or null)
-- ingredients: full ingredients list, one item per line (string or null)
+- ingredients: ONLY ingredients explicitly listed in the ingredients/materials section of the recipe. Do NOT include items mentioned in instructions, steps, or notes that are not listed in the ingredients section. One item per line (string or null)
 - memo: tips, notes, or variations (string or null)`;
 
 const SCHEMA_PROMPT = `Analyze the recipe content. There may be one or multiple recipes.
