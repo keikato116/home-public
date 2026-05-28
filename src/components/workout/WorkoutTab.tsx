@@ -12,7 +12,7 @@ function stravaAuthUrl() {
   return `https://www.strava.com/oauth/authorize?client_id=${STRAVA_CLIENT_ID}&redirect_uri=${redirectUri}&response_type=code&scope=activity:read_all&approval_prompt=force`;
 }
 
-const WEEKDAYS = ["M", "T", "W", "T", "F", "S", "S"];
+const WEEKDAYS = ["S", "M", "T", "W", "T", "F", "S"];
 
 function toDateKey(iso: string) {
   return iso.slice(0, 10);
@@ -55,7 +55,7 @@ function formatDuration(seconds: number): string {
 
 function getWeekRange(today: Date): { start: Date; end: Date } {
   const start = new Date(today);
-  const dow = (today.getDay() + 6) % 7;
+  const dow = today.getDay();
   start.setDate(today.getDate() - dow);
   start.setHours(0, 0, 0, 0);
   const end = new Date(start);
@@ -174,7 +174,7 @@ export function WorkoutTab() {
 
   const firstDay = new Date(viewYear, viewMonth, 1);
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
-  const startOffset = (firstDay.getDay() + 6) % 7;
+  const startOffset = firstDay.getDay();
   const cells: (number | null)[] = [
     ...Array(startOffset).fill(null),
     ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
