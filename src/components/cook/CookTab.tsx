@@ -4,12 +4,28 @@ import { useEffect, useState } from "react";
 import { useMealPlanStore } from "@/store/mealPlanStore";
 import { useRecipeStore } from "@/store/recipeStore";
 import { useAuthStore } from "@/store/authStore";
-import { MealPlan } from "@/types";
+import { useCalendarStore } from "@/store/calendarStore";
+import { MealPlan, CalendarEvent } from "@/types";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const DOW = ["S", "M", "T", "W", "T", "F", "S"];
 const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+
+function toJSTMinOfDay(dt: string): number {
+  const d = new Date(dt);
+  return (d.getUTCHours() * 60 + d.getUTCMinutes() + 9 * 60) % 1440;
+}
+
+function hasEveningEvent(events: CalendarEvent[]): boolean {
+  return events.some((ev) => {
+    if (!ev.start.dateTime) return false;
+    const startMin = toJSTMinOfDay(ev.start.dateTime);
+    const endMin = ev.end.dateTime ? toJSTMinOfDay(ev.end.dateTime) : startMin + 60;
+    const spansMidnight = endMin <= startMin;
+    return startMin >= 18 * 60 || endMin > 18 * 60 || spansMidnight;
+  });
+}
 
 function toDateStr(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
@@ -23,15 +39,19 @@ interface DayPickerProps {
   date: Date;
   plan: MealPlan | undefined;
   isToday: boolean;
+  freeEvening: boolean;
   onSelect: () => void;
 }
 
-function DayCell({ date, plan, isToday, onSelect }: DayPickerProps) {
+function DayCell({ date, plan, isToday, freeEvening, onSelect }: DayPickerProps) {
   const label = plan?.label ?? "";
   return (
     <button
       onClick={onSelect}
-      className="flex flex-col items-start p-0.5 border-r border-b border-border/20 overflow-hidden min-w-0 text-left"
+      className={cn(
+        "flex flex-col items-start p-0.5 border-r border-b border-border/20 overflow-hidden min-w-0 text-left",
+        freeEvening && !plan && "bg-blue-500/5"
+      )}
     >
       <span className={cn(
         "text-[9px] leading-none mb-0.5 w-4 h-4 flex items-center justify-center rounded-full flex-shrink-0",
@@ -39,6 +59,9 @@ function DayCell({ date, plan, isToday, onSelect }: DayPickerProps) {
       )}>
         {date.getDate()}
       </span>
+      {freeEvening && !plan && (
+        <span className="w-1 h-1 rounded-full bg-blue-400/60 mt-0.5" />
+      )}
       {label && (
         <span className="text-[8px] leading-tight text-foreground truncate w-full">{label}</span>
       )}
@@ -178,6 +201,7 @@ export function CookTab() {
   const { householdId } = useAuthStore();
   const { plans, loading, load } = useMealPlanStore();
   const { load: loadRecipes, recipes } = useRecipeStore();
+  const { eventsByDate } = useCalendarStore();
 
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
@@ -211,6 +235,9 @@ export function CookTab() {
   const planByDate = Object.fromEntries(
     plans.filter((p) => p.meal_type === "dinner").map((p) => [p.date, p])
   );
+
+  const eventsMap = eventsByDate();
+  const todayStr = toDateStr(today);
 
   const editPlan = editDate ? planByDate[toDateStr(editDate)] : undefined;
 
@@ -252,6 +279,7 @@ export function CookTab() {
               date={d}
               plan={planByDate[toDateStr(d)]}
               isToday={isSameDay(d, today)}
+              freeEvening={toDateStr(d) >= todayStr && !hasEveningEvent(eventsMap[toDateStr(d)] ?? [])}
               onSelect={() => setEditDate(d)}
             />
           );
