@@ -7,10 +7,10 @@ import { Settings } from "lucide-react";
 const TABS = [
   { id: "home", label: "home" },
   { id: "calendar", label: "calendar" },
+  { id: "cook", label: "cook" },
   { id: "workout", label: "workout" },
-  { id: "diary", label: "diary" },
+  { id: "recipe", label: "recipes" },
   { id: "shopping", label: "shopping" },
-  { id: "recipe", label: "recipe" },
 ];
 
 export function BottomTabBar() {

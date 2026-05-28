@@ -9,7 +9,7 @@ import { HomeTab } from "@/components/home/HomeTab";
 import { ShoppingTab } from "@/components/shopping/ShoppingTab";
 import { CalendarTab } from "@/components/calendar/CalendarTab";
 import { RecipeTab } from "@/components/recipe/RecipeTab";
-import { DiaryTab } from "@/components/diary/DiaryTab";
+import { CookTab } from "@/components/cook/CookTab";
 import { WorkoutTab } from "@/components/workout/WorkoutTab";
 import { SettingsPage } from "@/components/settings/SettingsPage";
 
@@ -23,11 +23,11 @@ function MainApp() {
         style={{ paddingBottom: "calc(52px + env(safe-area-inset-bottom))" }}
       >
         {activeTab === "home" && <HomeTab />}
-        {activeTab === "shopping" && <ShoppingTab />}
         {activeTab === "calendar" && <CalendarTab />}
-        {activeTab === "diary" && <DiaryTab />}
-        {activeTab === "recipe" && <RecipeTab />}
+        {activeTab === "cook" && <CookTab />}
         {activeTab === "workout" && <WorkoutTab />}
+        {activeTab === "recipe" && <RecipeTab />}
+        {activeTab === "shopping" && <ShoppingTab />}
       </main>
 
       <BottomTabBar />
