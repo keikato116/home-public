@@ -19,6 +19,10 @@ function formatDateHeader(dateStr: string) {
   const d = new Date(dateStr + "T00:00:00");
   return d.toLocaleDateString("ja-JP", { month: "numeric", day: "numeric", weekday: "short" });
 }
+function formatDateShort(dateStr: string) {
+  const d = new Date(dateStr + "T00:00:00");
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
 function fmtYen(n: number) {
   return `¥${Math.round(Math.abs(n)).toLocaleString()}`;
 }
@@ -143,14 +147,20 @@ function ReceiptSheet({ defaultDate, onSave, onClose }: ReceiptSheetProps) {
         />
 
         {/* Date + card in one row */}
-        <div className="flex gap-2 items-center">
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            style={inputStyle}
-            className="bg-muted/40 rounded-xl px-3 py-2.5 outline-none text-foreground"
-          />
+        <div className="flex gap-2 items-stretch">
+          {/* Date — hidden native input behind a styled button */}
+          <div className="relative flex-shrink-0">
+            <div className="bg-muted/40 rounded-xl px-4 py-3 text-[16px] pointer-events-none select-none whitespace-nowrap">
+              {date ? formatDateShort(date) : "date"}
+            </div>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+            />
+          </div>
+          {/* Card selector */}
           <div className="flex gap-2 flex-1">
             {(["mine", "family"] as const).map((v) => (
               <button key={v} onClick={() => setCard(v)}
