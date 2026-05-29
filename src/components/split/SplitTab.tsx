@@ -386,16 +386,16 @@ export function SplitTab() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-background">
+    <div className="flex flex-col h-full bg-background overflow-x-hidden">
       {/* Month navigation */}
-      <div className="px-5 pt-12 pb-3 flex items-center justify-between">
+      <div className="px-6 pt-12 pb-3 flex items-center justify-between">
         <button onClick={() => goMonth(-1)} className="text-muted-foreground p-1"><ChevronLeft size={16} /></button>
         <p className="text-[12px] tracking-[0.2em]">{MONTH_NAMES[viewMonth].toUpperCase()} {viewYear}</p>
         <button onClick={() => goMonth(1)} className="text-muted-foreground p-1"><ChevronRight size={16} /></button>
       </div>
 
       {/* Summary card */}
-      <div className="mx-5 mb-3 bg-muted/40 rounded-2xl px-5 py-4 space-y-3">
+      <div className="mx-6 mb-3 bg-muted/40 rounded-2xl px-5 py-4 space-y-3">
         <div>
           <p className="text-[9px] tracking-[0.3em] text-muted-foreground uppercase mb-1">
             {netPositive ? "girlfriend owes" : "you owe"}
@@ -441,7 +441,7 @@ export function SplitTab() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-5 pb-6">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden px-6 pb-6">
         {/* Subscriptions section */}
         <div className="mb-4">
           <div className="flex items-center justify-between mb-2">
@@ -455,7 +455,7 @@ export function SplitTab() {
           </div>
 
           {addingSub && (
-            <div className="flex items-center gap-2 mb-2 pb-2 border-b border-border/30">
+            <div className="mb-2 pb-2 border-b border-border/30 space-y-2">
               <input
                 type="text"
                 value={subName}
@@ -464,32 +464,34 @@ export function SplitTab() {
                 placeholder="name..."
                 autoFocus
                 style={inputStyle}
-                className="flex-1 bg-transparent border-b border-border py-1 outline-none placeholder:text-muted-foreground"
+                className="w-full bg-transparent border-b border-border py-1 outline-none placeholder:text-muted-foreground"
               />
-              <div className="flex items-center border-b border-border">
-                <span className="text-muted-foreground text-[14px]">¥</span>
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  value={subAmount}
-                  onChange={(e) => setSubAmount(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") handleAddSubscription(); }}
-                  placeholder="0"
-                  style={inputStyle}
-                  className="w-20 bg-transparent py-1 outline-none placeholder:text-muted-foreground"
-                />
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1 border-b border-border flex-1">
+                  <span className="text-muted-foreground">¥</span>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    value={subAmount}
+                    onChange={(e) => setSubAmount(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") handleAddSubscription(); }}
+                    placeholder="0"
+                    style={inputStyle}
+                    className="w-full bg-transparent py-1 outline-none placeholder:text-muted-foreground"
+                  />
+                </div>
+                <button
+                  onClick={() => setSubCard(subCard === "mine" ? "family" : "mine")}
+                  className={cn(
+                    "text-[10px] tracking-wide px-3 py-1.5 rounded-lg border flex-shrink-0 transition-colors",
+                    subCard === "mine" ? "border-border text-muted-foreground" : "border-blue-400/50 text-blue-500"
+                  )}>
+                  {subCard === "mine" ? "my card" : "family"}
+                </button>
+                <button onClick={handleAddSubscription} className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0">
+                  <Plus size={15} />
+                </button>
               </div>
-              <button
-                onClick={() => setSubCard(subCard === "mine" ? "family" : "mine")}
-                className={cn(
-                  "text-[9px] tracking-wide px-2 py-1 rounded border flex-shrink-0 transition-colors",
-                  subCard === "mine" ? "border-border text-muted-foreground" : "border-blue-400/50 text-blue-500"
-                )}>
-                {subCard === "mine" ? "my" : "family"}
-              </button>
-              <button onClick={handleAddSubscription} className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0">
-                <Plus size={14} />
-              </button>
             </div>
           )}
 
