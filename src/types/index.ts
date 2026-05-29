@@ -118,13 +118,26 @@ export interface WeatherData {
   rain1h: number | null;
 }
 
-export interface SplitEntry {
+export interface SplitItem {
+  name: string;
+  price: number;
+}
+
+export interface SplitSession {
   id: string;
   household_id: string;
   date: string;
-  description: string;
-  amount: number;
-  paid_by: "mine" | "family";
-  split_type: "shared" | "hers";
+  store: string;
+  card: "mine" | "family";
+  items: SplitItem[];
+  shared_amount: number;
   created_at: string;
+}
+
+export interface FamilyCardTotal {
+  id: string;
+  household_id: string;
+  year: number;
+  month: number;
+  total: number;
 }

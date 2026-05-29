@@ -2,51 +2,81 @@
 
 import { create } from "zustand";
 import { createClient } from "@/lib/supabase/client";
-import { SplitEntry } from "@/types";
+import { SplitSession, FamilyCardTotal, SplitItem } from "@/types";
 
 interface SplitState {
-  entries: SplitEntry[];
+  sessions: SplitSession[];
+  familyTotal: FamilyCardTotal | null;
   loading: boolean;
   load: (householdId: string, year: number, month: number) => Promise<void>;
-  addEntry: (householdId: string, data: Omit<SplitEntry, "id" | "household_id" | "created_at">) => Promise<void>;
-  deleteEntry: (id: string) => Promise<void>;
+  addSession: (
+    householdId: string,
+    data: { date: string; store: string; card: "mine" | "family"; items: SplitItem[]; shared_amount: number }
+  ) => Promise<void>;
+  deleteSession: (id: string) => Promise<void>;
+  setFamilyTotal: (householdId: string, year: number, month: number, total: number) => Promise<void>;
 }
 
 export const useSplitStore = create<SplitState>((set) => ({
-  entries: [],
+  sessions: [],
+  familyTotal: null,
   loading: false,
 
   load: async (householdId, year, month) => {
     set({ loading: true });
     const supabase = createClient();
     const from = `${year}-${String(month + 1).padStart(2, "0")}-01`;
-    const lastDay = new Date(year, month + 1, 0).getDate();
-    const to = `${year}-${String(month + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
-    const { data } = await supabase
-      .from("split_entries")
-      .select("*")
-      .eq("household_id", householdId)
-      .gte("date", from)
-      .lte("date", to)
-      .order("date", { ascending: false })
-      .order("created_at", { ascending: false });
-    set({ entries: (data ?? []) as SplitEntry[], loading: false });
+    const to = `${year}-${String(month + 1).padStart(2, "0")}-${String(new Date(year, month + 1, 0).getDate()).padStart(2, "0")}`;
+
+    const [sessRes, totRes] = await Promise.all([
+      supabase
+        .from("split_sessions")
+        .select("*")
+        .eq("household_id", householdId)
+        .gte("date", from)
+        .lte("date", to)
+        .order("date", { ascending: false })
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("family_card_totals")
+        .select("*")
+        .eq("household_id", householdId)
+        .eq("year", year)
+        .eq("month", month + 1)
+        .maybeSingle(),
+    ]);
+
+    set({
+      sessions: (sessRes.data ?? []) as SplitSession[],
+      familyTotal: (totRes.data as FamilyCardTotal | null) ?? null,
+      loading: false,
+    });
   },
 
-  addEntry: async (householdId, data) => {
+  addSession: async (householdId, data) => {
     const supabase = createClient();
     const { data: row, error } = await supabase
-      .from("split_entries")
+      .from("split_sessions")
       .insert({ household_id: householdId, ...data })
       .select()
       .single();
     if (error) throw new Error(error.message);
-    if (row) set((s) => ({ entries: [row as SplitEntry, ...s.entries] }));
+    if (row) set((s) => ({ sessions: [row as SplitSession, ...s.sessions] }));
   },
 
-  deleteEntry: async (id) => {
-    set((s) => ({ entries: s.entries.filter((e) => e.id !== id) }));
+  deleteSession: async (id) => {
+    set((s) => ({ sessions: s.sessions.filter((s) => s.id !== id) }));
     const supabase = createClient();
-    await supabase.from("split_entries").delete().eq("id", id);
+    await supabase.from("split_sessions").delete().eq("id", id);
+  },
+
+  setFamilyTotal: async (householdId, year, month, total) => {
+    const supabase = createClient();
+    const { data: row } = await supabase
+      .from("family_card_totals")
+      .upsert({ household_id: householdId, year, month: month + 1, total }, { onConflict: "household_id,year,month" })
+      .select()
+      .single();
+    if (row) set({ familyTotal: row as FamilyCardTotal });
   },
 }));
