@@ -168,8 +168,8 @@ function MonthGrid({ selectedDate, today, eventsMap, currentUserId, onSelect }: 
                   const color = eventColor(e);
                   return (
                     <div key={e.id + "my"}
-                      className="w-full text-[6.5px] leading-none truncate rounded-[2px] px-0.5 py-px"
-                      style={{ backgroundColor: color + "38", color }}>
+                      className="w-full text-[6.5px] leading-none truncate rounded-[2px] px-0.5 py-px text-foreground"
+                      style={{ backgroundColor: color + "35", borderLeft: `2px solid ${color}` }}>
                       {e.summary}
                     </div>
                   );

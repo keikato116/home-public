@@ -58,9 +58,9 @@ export function ScheduleTimeline({ events, isToday, userId, memberNameMap }: Pro
       <div
         key={ev.id}
         className="absolute inset-x-0.5 rounded px-1.5 py-1 overflow-hidden flex flex-col justify-start"
-        style={{ top, height, backgroundColor: hex + "28", borderLeft: `2px solid ${hex}88` }}
+        style={{ top, height, backgroundColor: hex + "22", borderLeft: `2px solid ${hex}` }}
       >
-        <p className="text-[9px] leading-tight font-medium truncate w-full" style={{ color: hex }}>{ev.summary}</p>
+        <p className="text-[9px] leading-tight font-medium truncate w-full text-foreground">{ev.summary}</p>
       </div>
     );
   });
