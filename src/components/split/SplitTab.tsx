@@ -11,6 +11,7 @@ const MONTH_NAMES = [
   "January","February","March","April","May","June",
   "July","August","September","October","November","December",
 ];
+const MON_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
 function toDateStr(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
@@ -25,6 +26,37 @@ function formatDateShort(dateStr: string) {
 }
 function fmtYen(n: number) {
   return `¥${Math.round(Math.abs(n)).toLocaleString()}`;
+}
+
+// Returns the billing period for a given (viewYear, viewMonth, closingDay)
+// closingDay=0 means calendar month; 1-28 means "period ends on closingDay of viewMonth"
+function getBillingPeriod(viewYear: number, viewMonth: number, closingDay: number) {
+  if (closingDay === 0) {
+    const days = new Date(viewYear, viewMonth + 1, 0).getDate();
+    return {
+      from: `${viewYear}-${String(viewMonth+1).padStart(2,"0")}-01`,
+      to:   `${viewYear}-${String(viewMonth+1).padStart(2,"0")}-${String(days).padStart(2,"0")}`,
+      rangeLabel: null as string | null,
+    };
+  }
+  const end   = new Date(viewYear, viewMonth, closingDay);
+  const start = new Date(viewYear, viewMonth - 1, closingDay + 1);
+  return {
+    from: toDateStr(start),
+    to:   toDateStr(end),
+    rangeLabel: `${MON_SHORT[start.getMonth()]} ${start.getDate()} – ${MON_SHORT[end.getMonth()]} ${end.getDate()}`,
+  };
+}
+
+// Returns the period (year, month) that contains today given a closingDay
+function getCurrentPeriod(closingDay: number) {
+  const today = new Date();
+  const d = today.getDate();
+  const m = today.getMonth();
+  const y = today.getFullYear();
+  if (closingDay === 0 || d <= closingDay) return { year: y, month: m };
+  const next = new Date(y, m + 1, 1);
+  return { year: next.getFullYear(), month: next.getMonth() };
 }
 
 // iOS prevents zoom when font-size >= 16px
@@ -319,9 +351,17 @@ export function SplitTab() {
     addSubscription, deleteSubscription,
   } = useSplitStore();
 
-  const today = new Date();
-  const [viewYear, setViewYear] = useState(today.getFullYear());
-  const [viewMonth, setViewMonth] = useState(today.getMonth());
+  // Closing day: 0 = calendar month, 1-28 = billing cycle closes on that day
+  const [closingDay, setClosingDay] = useState<number>(() => {
+    if (typeof window === "undefined") return 0;
+    return parseInt(localStorage.getItem("split_closing_day") ?? "0", 10);
+  });
+  const [editingClosingDay, setEditingClosingDay] = useState(false);
+  const [closingDayInput, setClosingDayInput] = useState("");
+
+  const initPeriod = getCurrentPeriod(closingDay);
+  const [viewYear, setViewYear] = useState(initPeriod.year);
+  const [viewMonth, setViewMonth] = useState(initPeriod.month);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editingFamily, setEditingFamily] = useState(false);
   const [familyInput, setFamilyInput] = useState("");
@@ -332,10 +372,13 @@ export function SplitTab() {
   const [subAmount, setSubAmount] = useState("");
   const [subCard, setSubCard] = useState<"mine" | "family">("mine");
 
+  const period = getBillingPeriod(viewYear, viewMonth, closingDay);
+
   useEffect(() => {
     if (!householdId) return;
-    load(householdId, viewYear, viewMonth);
-  }, [householdId, viewYear, viewMonth, load]);
+    load(householdId, period.from, period.to, viewYear, viewMonth);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [householdId, viewYear, viewMonth, closingDay, load]);
 
   useEffect(() => {
     setFamilyInput(familyTotal ? String(familyTotal.total) : "");
@@ -345,6 +388,19 @@ export function SplitTab() {
     const d = new Date(viewYear, viewMonth + dir, 1);
     setViewYear(d.getFullYear());
     setViewMonth(d.getMonth());
+  };
+
+  const saveClosingDay = () => {
+    const n = parseInt(closingDayInput, 10);
+    const valid = !isNaN(n) && n >= 0 && n <= 28;
+    const day = valid ? n : closingDay;
+    setClosingDay(day);
+    localStorage.setItem("split_closing_day", String(day));
+    // Jump to current period under new closing day
+    const p = getCurrentPeriod(day);
+    setViewYear(p.year);
+    setViewMonth(p.month);
+    setEditingClosingDay(false);
   };
 
   // Settlement calculation (includes subscriptions)
@@ -365,7 +421,10 @@ export function SplitTab() {
   }
   const dates = Object.keys(byDate).sort((a, b) => b.localeCompare(a));
 
-  const defaultDate = toDateStr(new Date(viewYear, viewMonth, Math.min(today.getDate(), new Date(viewYear, viewMonth + 1, 0).getDate())));
+  // Default date for new receipts: today if within period, else period end
+  const today = new Date();
+  const todayStr = toDateStr(today);
+  const defaultDate = todayStr >= period.from && todayStr <= period.to ? todayStr : period.to;
 
   const handleSaveFamilyTotal = async () => {
     if (!householdId) return;
@@ -387,11 +446,46 @@ export function SplitTab() {
 
   return (
     <div className="flex flex-col h-full bg-background overflow-x-hidden">
-      {/* Month navigation */}
-      <div className="px-6 pt-12 pb-3 flex items-center justify-between">
+      {/* Period navigation */}
+      <div className="px-6 pt-12 pb-2 flex items-center justify-between">
         <button onClick={() => goMonth(-1)} className="text-muted-foreground p-1"><ChevronLeft size={16} /></button>
-        <p className="text-[12px] tracking-[0.2em]">{MONTH_NAMES[viewMonth].toUpperCase()} {viewYear}</p>
+        <div className="text-center">
+          <p className="text-[12px] tracking-[0.2em]">{MONTH_NAMES[viewMonth].toUpperCase()} {viewYear}</p>
+          {period.rangeLabel && (
+            <p className="text-[10px] text-muted-foreground mt-0.5">{period.rangeLabel}</p>
+          )}
+        </div>
         <button onClick={() => goMonth(1)} className="text-muted-foreground p-1"><ChevronRight size={16} /></button>
+      </div>
+
+      {/* Closing day setting */}
+      <div className="px-6 pb-3 flex items-center justify-end gap-1.5">
+        <p className="text-[9px] text-muted-foreground/60 tracking-wider">closing day:</p>
+        {editingClosingDay ? (
+          <div className="flex items-center gap-1">
+            <input
+              autoFocus
+              type="number"
+              inputMode="numeric"
+              value={closingDayInput}
+              onChange={(e) => setClosingDayInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") saveClosingDay(); if (e.key === "Escape") setEditingClosingDay(false); }}
+              onBlur={saveClosingDay}
+              placeholder={String(closingDay || "−")}
+              style={inputStyle}
+              className="w-10 bg-transparent text-[9px] text-center outline-none border-b border-border text-muted-foreground"
+            />
+            <p className="text-[9px] text-muted-foreground/60">日</p>
+          </div>
+        ) : (
+          <button
+            onClick={() => { setClosingDayInput(closingDay > 0 ? String(closingDay) : ""); setEditingClosingDay(true); }}
+            className="flex items-center gap-1 text-muted-foreground/60 hover:text-muted-foreground transition-colors"
+          >
+            <span className="text-[9px]">{closingDay > 0 ? `${closingDay}日` : "未設定"}</span>
+            <Pencil size={8} />
+          </button>
+        )}
       </div>
 
       {/* Summary card */}

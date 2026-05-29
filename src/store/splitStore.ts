@@ -9,7 +9,7 @@ interface SplitState {
   familyTotal: FamilyCardTotal | null;
   subscriptions: SplitSubscription[];
   loading: boolean;
-  load: (householdId: string, year: number, month: number) => Promise<void>;
+  load: (householdId: string, from: string, to: string, periodYear: number, periodMonth: number) => Promise<void>;
   addSession: (
     householdId: string,
     data: { date: string; store: string; card: "mine" | "family"; items: SplitItem[]; shared_amount: number }
@@ -26,11 +26,9 @@ export const useSplitStore = create<SplitState>((set) => ({
   subscriptions: [],
   loading: false,
 
-  load: async (householdId, year, month) => {
+  load: async (householdId, from, to, periodYear, periodMonth) => {
     set({ loading: true });
     const supabase = createClient();
-    const from = `${year}-${String(month + 1).padStart(2, "0")}-01`;
-    const to = `${year}-${String(month + 1).padStart(2, "0")}-${String(new Date(year, month + 1, 0).getDate()).padStart(2, "0")}`;
 
     const [sessRes, totRes, subRes] = await Promise.all([
       supabase
@@ -45,8 +43,8 @@ export const useSplitStore = create<SplitState>((set) => ({
         .from("family_card_totals")
         .select("*")
         .eq("household_id", householdId)
-        .eq("year", year)
-        .eq("month", month + 1)
+        .eq("year", periodYear)
+        .eq("month", periodMonth + 1)
         .maybeSingle(),
       supabase
         .from("split_subscriptions")
