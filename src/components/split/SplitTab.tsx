@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useSplitStore } from "@/store/splitStore";
 import { useAuthStore } from "@/store/authStore";
 import { SplitItem, SplitSession } from "@/types";
-import { ChevronLeft, ChevronRight, Camera, Plus, X, Pencil } from "lucide-react";
+import { ChevronLeft, ChevronRight, Camera, Plus, X, Pencil, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const MONTH_NAMES = [
@@ -23,23 +23,23 @@ function fmtYen(n: number) {
   return `¥${Math.round(Math.abs(n)).toLocaleString()}`;
 }
 
+// iOS prevents zoom when font-size >= 16px
+const inputStyle = { fontSize: "16px" };
+
 // ─── Receipt / Item Entry Sheet ───────────────────────────────────────────────
 
 interface ReceiptSheetProps {
   defaultDate: string;
-  initialStore?: string;
-  initialDate?: string;
-  initialItems?: SplitItem[];
   onSave: (data: { date: string; store: string; card: "mine" | "family"; items: SplitItem[]; shared_amount: number }) => Promise<void>;
   onClose: () => void;
 }
 
-function ReceiptSheet({ defaultDate, initialStore = "", initialDate, initialItems, onSave, onClose }: ReceiptSheetProps) {
-  const [store, setStore] = useState(initialStore);
-  const [date, setDate] = useState(initialDate ?? defaultDate);
+function ReceiptSheet({ defaultDate, onSave, onClose }: ReceiptSheetProps) {
+  const [store, setStore] = useState("");
+  const [date, setDate] = useState(defaultDate);
   const [card, setCard] = useState<"mine" | "family">("mine");
-  const [items, setItems] = useState<SplitItem[]>(initialItems ?? []);
-  const [checked, setChecked] = useState<boolean[]>((initialItems ?? []).map(() => true));
+  const [items, setItems] = useState<SplitItem[]>([]);
+  const [checked, setChecked] = useState<boolean[]>([]);
   const [newName, setNewName] = useState("");
   const [newPrice, setNewPrice] = useState("");
   const [scanning, setScanning] = useState(false);
@@ -47,10 +47,7 @@ function ReceiptSheet({ defaultDate, initialStore = "", initialDate, initialItem
   const [error, setError] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const toggleCheck = (i: number) => {
-    setChecked((prev) => prev.map((v, idx) => idx === i ? !v : v));
-  };
-
+  const toggleCheck = (i: number) => setChecked((prev) => prev.map((v, idx) => idx === i ? !v : v));
   const removeItem = (i: number) => {
     setItems((prev) => prev.filter((_, idx) => idx !== i));
     setChecked((prev) => prev.filter((_, idx) => idx !== i));
@@ -118,8 +115,8 @@ function ReceiptSheet({ defaultDate, initialStore = "", initialDate, initialItem
   return (
     <div className="fixed inset-0 z-50 bg-background flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 pt-10 pb-4 border-b border-border/30">
-        <button onClick={onClose} className="text-muted-foreground">
+      <div className="flex items-center justify-between px-6 pt-12 pb-4 border-b border-border/30">
+        <button onClick={onClose} className="text-muted-foreground p-1">
           <X size={16} />
         </button>
         <p className="text-[11px] tracking-widest text-muted-foreground uppercase">add receipt</p>
@@ -134,33 +131,34 @@ function ReceiptSheet({ defaultDate, initialStore = "", initialDate, initialItem
       </div>
       <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleScan} />
 
-      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
-        {/* Store + date + card */}
-        <div className="space-y-3">
-          <div className="flex gap-3">
-            <input
-              type="text"
-              value={store}
-              onChange={(e) => setStore(e.target.value)}
-              placeholder="store name..."
-              className="flex-1 bg-muted/40 rounded-lg px-3 py-2.5 text-[13px] outline-none placeholder:text-muted-foreground"
-            />
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="bg-muted/40 rounded-lg px-3 py-2.5 text-[12px] outline-none"
-            />
-          </div>
-          {/* Card selector */}
-          <div className="flex gap-2">
+      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+        {/* Store */}
+        <input
+          type="text"
+          value={store}
+          onChange={(e) => setStore(e.target.value)}
+          placeholder="store name..."
+          style={inputStyle}
+          className="w-full bg-muted/40 rounded-xl px-4 py-3 outline-none placeholder:text-muted-foreground"
+        />
+
+        {/* Date + card in one row */}
+        <div className="flex gap-2 items-center">
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            style={inputStyle}
+            className="bg-muted/40 rounded-xl px-3 py-2.5 outline-none text-foreground"
+          />
+          <div className="flex gap-2 flex-1">
             {(["mine", "family"] as const).map((v) => (
               <button key={v} onClick={() => setCard(v)}
                 className={cn(
-                  "flex-1 text-[11px] tracking-wider rounded border py-2 transition-colors",
+                  "flex-1 text-[12px] tracking-wide rounded-xl border py-2.5 transition-colors",
                   card === v ? "bg-foreground text-background border-foreground" : "border-border text-muted-foreground"
                 )}>
-                {v === "mine" ? "my card" : "family card"}
+                {v === "mine" ? "my card" : "family"}
               </button>
             ))}
           </div>
@@ -171,34 +169,41 @@ function ReceiptSheet({ defaultDate, initialStore = "", initialDate, initialItem
           <p className="text-[9px] tracking-widest text-muted-foreground uppercase mb-2">
             items — uncheck personal purchases
           </p>
-          <div className="space-y-1">
+          <div className="space-y-0.5">
             {items.map((item, i) => (
-              <div key={i} className="flex items-center gap-3 py-1.5 border-b border-border/20">
+              <div key={i} className="flex items-center gap-3 py-2 border-b border-border/20">
                 <input
                   type="checkbox"
                   checked={checked[i]}
                   onChange={() => toggleCheck(i)}
                   className="w-4 h-4 accent-foreground flex-shrink-0 cursor-pointer"
                 />
-                <span className={cn("flex-1 text-[13px]", !checked[i] && "text-muted-foreground line-through")}>{item.name}</span>
-                <span className={cn("text-[13px] flex-shrink-0", !checked[i] && "text-muted-foreground")}>¥{item.price.toLocaleString()}</span>
-                <button onClick={() => removeItem(i)} className="text-muted-foreground/40 hover:text-muted-foreground text-[14px]">×</button>
+                <span className={cn("flex-1 text-[14px]", !checked[i] && "text-muted-foreground line-through")}>
+                  {item.name}
+                </span>
+                <span className={cn("text-[14px] flex-shrink-0 tabular-nums", !checked[i] && "text-muted-foreground")}>
+                  ¥{item.price.toLocaleString()}
+                </span>
+                <button onClick={() => removeItem(i)} className="text-muted-foreground/40 hover:text-muted-foreground">
+                  <X size={13} />
+                </button>
               </div>
             ))}
           </div>
 
           {/* Add item row */}
-          <div className="flex items-center gap-2 mt-3">
+          <div className="flex items-center gap-2 mt-3 pt-1">
             <input
               type="text"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") addItem(); }}
               placeholder="item name..."
-              className="flex-1 bg-transparent border-b border-border text-[12px] py-1 outline-none placeholder:text-muted-foreground"
+              style={inputStyle}
+              className="flex-1 bg-transparent border-b border-border py-2 outline-none placeholder:text-muted-foreground"
             />
             <div className="flex items-center gap-1 border-b border-border">
-              <span className="text-[12px] text-muted-foreground">¥</span>
+              <span className="text-muted-foreground">¥</span>
               <input
                 type="number"
                 inputMode="numeric"
@@ -206,39 +211,40 @@ function ReceiptSheet({ defaultDate, initialStore = "", initialDate, initialItem
                 onChange={(e) => setNewPrice(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") addItem(); }}
                 placeholder="0"
-                className="w-16 bg-transparent text-[12px] py-1 outline-none placeholder:text-muted-foreground"
+                style={inputStyle}
+                className="w-20 bg-transparent py-2 outline-none placeholder:text-muted-foreground"
               />
             </div>
-            <button onClick={addItem} className="text-muted-foreground hover:text-foreground transition-colors">
-              <Plus size={14} />
+            <button onClick={addItem} className="text-muted-foreground hover:text-foreground transition-colors p-1">
+              <Plus size={15} />
             </button>
           </div>
         </div>
 
-        {error && <p className="text-[10px] text-red-500">{error}</p>}
+        {error && <p className="text-[11px] text-red-500">{error}</p>}
       </div>
 
-      {/* Footer summary + save */}
+      {/* Footer */}
       <div
-        className="px-6 py-4 border-t border-border/30 space-y-3 bg-background"
+        className="px-5 py-4 border-t border-border/30 space-y-3 bg-background"
         style={{ paddingBottom: "calc(1rem + env(safe-area-inset-bottom))" }}
       >
         <div className="flex items-center justify-between">
           <div>
             <p className="text-[9px] tracking-widest text-muted-foreground uppercase">shared total</p>
-            <p className="text-[20px] font-light">{fmtYen(checkedTotal)}</p>
+            <p className="text-[22px] font-light tabular-nums">{fmtYen(checkedTotal)}</p>
           </div>
           <div className="text-right">
             <p className="text-[9px] tracking-widest text-muted-foreground uppercase">
               {card === "mine" ? "girlfriend owes" : "you owe (credit)"}
             </p>
-            <p className="text-[20px] font-light">{fmtYen(gfOwed)}</p>
+            <p className="text-[22px] font-light tabular-nums">{fmtYen(gfOwed)}</p>
           </div>
         </div>
         <button
           onClick={handleSave}
           disabled={saving || checkedTotal === 0}
-          className="w-full bg-foreground text-background rounded-lg py-3 text-[12px] tracking-wider disabled:opacity-40"
+          className="w-full bg-foreground text-background rounded-xl py-3.5 text-[13px] tracking-wider disabled:opacity-40"
         >
           {saving ? "saving..." : "save"}
         </button>
@@ -256,7 +262,7 @@ function SessionRow({ session, onDelete }: { session: SplitSession; onDelete: ()
 
   return (
     <div className="border-b border-border/20">
-      <div className="flex items-center gap-3 py-2.5">
+      <div className="flex items-center gap-3 py-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <p className="text-[13px] tracking-wide truncate">{session.store}</p>
@@ -264,25 +270,27 @@ function SessionRow({ session, onDelete }: { session: SplitSession; onDelete: ()
               "text-[9px] tracking-wider px-1.5 py-0.5 rounded border flex-shrink-0",
               session.card === "mine" ? "border-border text-muted-foreground" : "border-blue-400/50 text-blue-500"
             )}>
-              {session.card === "mine" ? "my card" : "family"}
+              {session.card === "mine" ? "my" : "family"}
             </span>
           </div>
-          <button onClick={() => setOpen(!open)} className="text-[10px] text-muted-foreground mt-0.5">
+          <button onClick={() => setOpen(!open)} className="text-[10px] text-muted-foreground mt-0.5 text-left">
             {session.items.length} items · shared {fmtYen(session.shared_amount)}
           </button>
         </div>
         <div className="text-right flex-shrink-0">
           <p className="text-[9px] text-muted-foreground tracking-wider">{isCredit ? "your credit" : "gf owes"}</p>
-          <p className={cn("text-[14px]", isCredit && "text-blue-500")}>{fmtYen(gfOwed)}</p>
+          <p className={cn("text-[15px] tabular-nums", isCredit && "text-blue-500")}>{fmtYen(gfOwed)}</p>
         </div>
-        <button onClick={onDelete} className="text-muted-foreground/40 hover:text-muted-foreground text-[16px] leading-none flex-shrink-0">×</button>
+        <button onClick={onDelete} className="text-muted-foreground/40 hover:text-muted-foreground flex-shrink-0">
+          <X size={14} />
+        </button>
       </div>
       {open && (
-        <div className="pb-2 pl-1 space-y-0.5">
+        <div className="pb-3 pl-2 space-y-0.5">
           {session.items.map((item, i) => (
             <div key={i} className="flex justify-between text-[11px] text-muted-foreground py-0.5">
               <span>{item.name}</span>
-              <span>¥{item.price.toLocaleString()}</span>
+              <span className="tabular-nums">¥{item.price.toLocaleString()}</span>
             </div>
           ))}
         </div>
@@ -295,7 +303,11 @@ function SessionRow({ session, onDelete }: { session: SplitSession; onDelete: ()
 
 export function SplitTab() {
   const { householdId } = useAuthStore();
-  const { sessions, familyTotal, loading, load, addSession, deleteSession, setFamilyTotal } = useSplitStore();
+  const {
+    sessions, familyTotal, subscriptions, loading,
+    load, addSession, deleteSession, setFamilyTotal,
+    addSubscription, deleteSubscription,
+  } = useSplitStore();
 
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
@@ -303,6 +315,12 @@ export function SplitTab() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editingFamily, setEditingFamily] = useState(false);
   const [familyInput, setFamilyInput] = useState("");
+
+  // Subscription add form
+  const [addingSub, setAddingSub] = useState(false);
+  const [subName, setSubName] = useState("");
+  const [subAmount, setSubAmount] = useState("");
+  const [subCard, setSubCard] = useState<"mine" | "family">("mine");
 
   useEffect(() => {
     if (!householdId) return;
@@ -319,16 +337,17 @@ export function SplitTab() {
     setViewMonth(d.getMonth());
   };
 
-  // Settlement calculation
+  // Settlement calculation (includes subscriptions)
   const mineShared = sessions.filter(s => s.card === "mine").reduce((sum, s) => sum + s.shared_amount, 0);
   const familyShared = sessions.filter(s => s.card === "family").reduce((sum, s) => sum + s.shared_amount, 0);
+  const subsMine = subscriptions.filter(s => s.card === "mine").reduce((sum, s) => sum + s.amount, 0);
+  const subsFamily = subscriptions.filter(s => s.card === "family").reduce((sum, s) => sum + s.amount, 0);
+  const totalMineShared = mineShared + subsMine;
+  const totalFamilyShared = familyShared + subsFamily;
   const familyCardTotal = familyTotal?.total ?? 0;
-
-  // girlfriend owes = (my card shared / 2) + family card total - (family card shared / 2)
-  const gfOwesRaw = mineShared / 2 + familyCardTotal - familyShared / 2;
+  const gfOwesRaw = totalMineShared / 2 + familyCardTotal - totalFamilyShared / 2;
   const netPositive = gfOwesRaw >= 0;
 
-  // Group sessions by date
   const byDate: Record<string, SplitSession[]> = {};
   for (const s of sessions) {
     if (!byDate[s.date]) byDate[s.date] = [];
@@ -346,10 +365,20 @@ export function SplitTab() {
     setEditingFamily(false);
   };
 
+  const handleAddSubscription = async () => {
+    const amount = parseInt(subAmount, 10);
+    if (!subName.trim() || !amount || amount <= 0 || !householdId) return;
+    await addSubscription(householdId, { name: subName.trim(), amount, card: subCard });
+    setSubName("");
+    setSubAmount("");
+    setSubCard("mine");
+    setAddingSub(false);
+  };
+
   return (
     <div className="flex flex-col h-full bg-background">
       {/* Month navigation */}
-      <div className="px-5 pt-10 pb-3 flex items-center justify-between">
+      <div className="px-5 pt-12 pb-3 flex items-center justify-between">
         <button onClick={() => goMonth(-1)} className="text-muted-foreground p-1"><ChevronLeft size={16} /></button>
         <p className="text-[12px] tracking-[0.2em]">{MONTH_NAMES[viewMonth].toUpperCase()} {viewYear}</p>
         <button onClick={() => goMonth(1)} className="text-muted-foreground p-1"><ChevronRight size={16} /></button>
@@ -361,22 +390,21 @@ export function SplitTab() {
           <p className="text-[9px] tracking-[0.3em] text-muted-foreground uppercase mb-1">
             {netPositive ? "girlfriend owes" : "you owe"}
           </p>
-          <p className={cn("text-[36px] font-light tracking-tight", !netPositive && "text-blue-500")}>
+          <p className={cn("text-[38px] font-light tracking-tight tabular-nums", !netPositive && "text-blue-500")}>
             {fmtYen(gfOwesRaw)}
           </p>
         </div>
 
-        {/* Breakdown */}
-        <div className="grid grid-cols-3 gap-2 text-center pt-1 border-t border-border/20">
+        <div className="grid grid-cols-3 gap-2 text-center pt-2 border-t border-border/20">
           <div>
             <p className="text-[8px] text-muted-foreground tracking-wider mb-0.5">my card splits</p>
-            <p className="text-[11px]">{fmtYen(mineShared / 2)}</p>
+            <p className="text-[12px] tabular-nums">{fmtYen(totalMineShared / 2)}</p>
           </div>
           <div>
             <p className="text-[8px] text-muted-foreground tracking-wider mb-0.5">family card bill</p>
             {editingFamily ? (
               <div className="flex items-center justify-center gap-1">
-                <span className="text-[10px]">¥</span>
+                <span className="text-[11px]">¥</span>
                 <input
                   autoFocus
                   type="number"
@@ -385,28 +413,100 @@ export function SplitTab() {
                   onChange={(e) => setFamilyInput(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") handleSaveFamilyTotal(); if (e.key === "Escape") setEditingFamily(false); }}
                   onBlur={handleSaveFamilyTotal}
-                  className="w-16 bg-transparent text-[11px] text-center outline-none border-b border-border"
+                  style={inputStyle}
+                  className="w-20 bg-transparent text-center outline-none border-b border-border"
                 />
               </div>
             ) : (
               <button onClick={() => setEditingFamily(true)} className="flex items-center gap-1 mx-auto">
-                <span className="text-[11px]">{familyCardTotal > 0 ? fmtYen(familyCardTotal) : "−"}</span>
+                <span className="text-[12px] tabular-nums">{familyCardTotal > 0 ? fmtYen(familyCardTotal) : "−"}</span>
                 <Pencil size={9} className="text-muted-foreground" />
               </button>
             )}
           </div>
           <div>
             <p className="text-[8px] text-muted-foreground tracking-wider mb-0.5">family splits (−)</p>
-            <p className="text-[11px] text-blue-500">−{fmtYen(familyShared / 2)}</p>
+            <p className="text-[12px] text-blue-500 tabular-nums">−{fmtYen(totalFamilyShared / 2)}</p>
           </div>
         </div>
       </div>
 
-      {/* Session list */}
       <div className="flex-1 overflow-y-auto px-5 pb-6">
+        {/* Subscriptions section */}
+        <div className="mb-4">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-1.5">
+              <RefreshCw size={10} className="text-muted-foreground" />
+              <p className="text-[9px] tracking-widest text-muted-foreground uppercase">subscriptions</p>
+            </div>
+            <button onClick={() => setAddingSub(!addingSub)} className="text-muted-foreground hover:text-foreground transition-colors">
+              <Plus size={13} />
+            </button>
+          </div>
+
+          {addingSub && (
+            <div className="flex items-center gap-2 mb-2 pb-2 border-b border-border/30">
+              <input
+                type="text"
+                value={subName}
+                onChange={(e) => setSubName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") handleAddSubscription(); }}
+                placeholder="name..."
+                autoFocus
+                style={inputStyle}
+                className="flex-1 bg-transparent border-b border-border py-1 outline-none placeholder:text-muted-foreground"
+              />
+              <div className="flex items-center border-b border-border">
+                <span className="text-muted-foreground text-[14px]">¥</span>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  value={subAmount}
+                  onChange={(e) => setSubAmount(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") handleAddSubscription(); }}
+                  placeholder="0"
+                  style={inputStyle}
+                  className="w-20 bg-transparent py-1 outline-none placeholder:text-muted-foreground"
+                />
+              </div>
+              <button
+                onClick={() => setSubCard(subCard === "mine" ? "family" : "mine")}
+                className={cn(
+                  "text-[9px] tracking-wide px-2 py-1 rounded border flex-shrink-0 transition-colors",
+                  subCard === "mine" ? "border-border text-muted-foreground" : "border-blue-400/50 text-blue-500"
+                )}>
+                {subCard === "mine" ? "my" : "family"}
+              </button>
+              <button onClick={handleAddSubscription} className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0">
+                <Plus size={14} />
+              </button>
+            </div>
+          )}
+
+          {subscriptions.length === 0 && !addingSub && (
+            <p className="text-[10px] text-muted-foreground/60">no subscriptions</p>
+          )}
+          {subscriptions.map((sub) => (
+            <div key={sub.id} className="flex items-center gap-2 py-1.5 border-b border-border/10">
+              <span className="flex-1 text-[12px]">{sub.name}</span>
+              <span className="text-[12px] tabular-nums text-muted-foreground">¥{sub.amount.toLocaleString()}</span>
+              <span className={cn(
+                "text-[9px] tracking-wide px-1.5 py-0.5 rounded border flex-shrink-0",
+                sub.card === "mine" ? "border-border text-muted-foreground" : "border-blue-400/50 text-blue-500"
+              )}>
+                {sub.card === "mine" ? "my" : "family"}
+              </span>
+              <button onClick={() => deleteSubscription(sub.id)} className="text-muted-foreground/40 hover:text-muted-foreground flex-shrink-0">
+                <X size={12} />
+              </button>
+            </div>
+          ))}
+        </div>
+
+        {/* Session list */}
         {loading && <p className="text-[10px] text-muted-foreground text-center py-4">loading...</p>}
         {!loading && sessions.length === 0 && (
-          <p className="text-[11px] text-muted-foreground text-center py-8">no receipts this month</p>
+          <p className="text-[11px] text-muted-foreground text-center py-4">no receipts this month</p>
         )}
         {dates.map((date) => (
           <div key={date} className="mb-4">

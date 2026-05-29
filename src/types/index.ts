@@ -141,3 +141,13 @@ export interface FamilyCardTotal {
   month: number;
   total: number;
 }
+
+export interface SplitSubscription {
+  id: string;
+  household_id: string;
+  name: string;
+  amount: number;
+  card: "mine" | "family";
+  active: boolean;
+  created_at: string;
+}

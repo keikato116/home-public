@@ -2,11 +2,12 @@
 
 import { create } from "zustand";
 import { createClient } from "@/lib/supabase/client";
-import { SplitSession, FamilyCardTotal, SplitItem } from "@/types";
+import { SplitSession, FamilyCardTotal, SplitItem, SplitSubscription } from "@/types";
 
 interface SplitState {
   sessions: SplitSession[];
   familyTotal: FamilyCardTotal | null;
+  subscriptions: SplitSubscription[];
   loading: boolean;
   load: (householdId: string, year: number, month: number) => Promise<void>;
   addSession: (
@@ -15,11 +16,14 @@ interface SplitState {
   ) => Promise<void>;
   deleteSession: (id: string) => Promise<void>;
   setFamilyTotal: (householdId: string, year: number, month: number, total: number) => Promise<void>;
+  addSubscription: (householdId: string, data: { name: string; amount: number; card: "mine" | "family" }) => Promise<void>;
+  deleteSubscription: (id: string) => Promise<void>;
 }
 
 export const useSplitStore = create<SplitState>((set) => ({
   sessions: [],
   familyTotal: null,
+  subscriptions: [],
   loading: false,
 
   load: async (householdId, year, month) => {
@@ -28,7 +32,7 @@ export const useSplitStore = create<SplitState>((set) => ({
     const from = `${year}-${String(month + 1).padStart(2, "0")}-01`;
     const to = `${year}-${String(month + 1).padStart(2, "0")}-${String(new Date(year, month + 1, 0).getDate()).padStart(2, "0")}`;
 
-    const [sessRes, totRes] = await Promise.all([
+    const [sessRes, totRes, subRes] = await Promise.all([
       supabase
         .from("split_sessions")
         .select("*")
@@ -44,11 +48,18 @@ export const useSplitStore = create<SplitState>((set) => ({
         .eq("year", year)
         .eq("month", month + 1)
         .maybeSingle(),
+      supabase
+        .from("split_subscriptions")
+        .select("*")
+        .eq("household_id", householdId)
+        .eq("active", true)
+        .order("created_at", { ascending: true }),
     ]);
 
     set({
       sessions: (sessRes.data ?? []) as SplitSession[],
       familyTotal: (totRes.data as FamilyCardTotal | null) ?? null,
+      subscriptions: (subRes.data ?? []) as SplitSubscription[],
       loading: false,
     });
   },
@@ -78,5 +89,22 @@ export const useSplitStore = create<SplitState>((set) => ({
       .select()
       .single();
     if (row) set({ familyTotal: row as FamilyCardTotal });
+  },
+
+  addSubscription: async (householdId, data) => {
+    const supabase = createClient();
+    const { data: row, error } = await supabase
+      .from("split_subscriptions")
+      .insert({ household_id: householdId, ...data, active: true })
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    if (row) set((s) => ({ subscriptions: [...s.subscriptions, row as SplitSubscription] }));
+  },
+
+  deleteSubscription: async (id) => {
+    set((s) => ({ subscriptions: s.subscriptions.filter((s) => s.id !== id) }));
+    const supabase = createClient();
+    await supabase.from("split_subscriptions").delete().eq("id", id);
   },
 }));
