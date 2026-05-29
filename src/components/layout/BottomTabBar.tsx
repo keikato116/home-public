@@ -10,6 +10,7 @@ const TABS = [
   { id: "cook", label: "cook" },
   { id: "workout", label: "workout" },
   { id: "shopping", label: "shopping" },
+  { id: "split", label: "split" },
   { id: "recipe", label: "recipes" },
 ];
 

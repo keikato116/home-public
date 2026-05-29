@@ -11,6 +11,7 @@ import { CalendarTab } from "@/components/calendar/CalendarTab";
 import { RecipeTab } from "@/components/recipe/RecipeTab";
 import { CookTab } from "@/components/cook/CookTab";
 import { WorkoutTab } from "@/components/workout/WorkoutTab";
+import { SplitTab } from "@/components/split/SplitTab";
 import { SettingsPage } from "@/components/settings/SettingsPage";
 
 function MainApp() {
@@ -28,6 +29,7 @@ function MainApp() {
         {activeTab === "workout" && <WorkoutTab />}
         {activeTab === "recipe" && <RecipeTab />}
         {activeTab === "shopping" && <ShoppingTab />}
+        {activeTab === "split" && <SplitTab />}
       </main>
 
       <BottomTabBar />

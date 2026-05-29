@@ -117,3 +117,14 @@ export interface WeatherData {
   description: string;
   rain1h: number | null;
 }
+
+export interface SplitEntry {
+  id: string;
+  household_id: string;
+  date: string;
+  description: string;
+  amount: number;
+  paid_by: "mine" | "family";
+  split_type: "shared" | "hers";
+  created_at: string;
+}
