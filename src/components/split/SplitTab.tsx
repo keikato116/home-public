@@ -74,53 +74,14 @@ function ReceiptSheet({ defaultDate, onSave, onClose }: ReceiptSheetProps) {
   const [store, setStore] = useState("");
   const [date, setDate] = useState(defaultDate);
   const [card, setCard] = useState<"mine" | "family">("mine");
-  const [items, setItems] = useState<SplitItem[]>([]);
-  const [checked, setChecked] = useState<boolean[]>([]);
-  const [newName, setNewName] = useState("");
-  const [newPrice, setNewPrice] = useState("");
+  const [amount, setAmount] = useState("");
   const [scanning, setScanning] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const toggleCheck = (i: number) => setChecked((prev) => prev.map((v, idx) => idx === i ? !v : v));
-  const removeItem = (i: number) => {
-    setItems((prev) => prev.filter((_, idx) => idx !== i));
-    setChecked((prev) => prev.filter((_, idx) => idx !== i));
-  };
-
-  const addItem = () => {
-    const price = parseInt(newPrice, 10);
-    if (!newName.trim() || !price || price <= 0) return;
-    setItems((prev) => [...prev, { name: newName.trim(), price }]);
-    setChecked((prev) => [...prev, true]);
-    setNewName("");
-    setNewPrice("");
-  };
-
-  const addItemAndSave = async () => {
-    const price = parseInt(newPrice, 10);
-    const hasNew = newName.trim() && price > 0;
-    const finalItems = hasNew ? [...items, { name: newName.trim(), price }] : items;
-    const finalChecked = hasNew ? [...checked, true] : checked;
-    const total = finalItems.reduce((sum, item, i) => sum + (finalChecked[i] ? item.price : 0), 0);
-    if (finalItems.length === 0 || total === 0) { addItem(); return; }
-    setSaving(true);
-    setError("");
-    try {
-      const timeout = new Promise<never>((_, rej) =>
-        setTimeout(() => rej(new Error("timeout — check Supabase tables")), 10000)
-      );
-      await Promise.race([
-        onSave({ date, store: store || "−", card, items: finalItems, shared_amount: total }),
-        timeout,
-      ]);
-      onClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "save failed");
-      setSaving(false);
-    }
-  };
+  const n = parseInt(amount, 10) || 0;
+  const gfOwed = Math.round(n / 2);
 
   const handleScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -143,10 +104,7 @@ function ReceiptSheet({ defaultDate, onSave, onClose }: ReceiptSheetProps) {
       const parsed = await resp.json();
       if (parsed.store) setStore(parsed.store);
       if (parsed.date) setDate(parsed.date);
-      if (parsed.items?.length) {
-        setItems(parsed.items);
-        setChecked(parsed.items.map(() => true));
-      }
+      if (parsed.total) setAmount(String(parsed.total));
     } catch {
       setError("scan failed — enter manually");
     } finally {
@@ -155,11 +113,8 @@ function ReceiptSheet({ defaultDate, onSave, onClose }: ReceiptSheetProps) {
     }
   };
 
-  const checkedTotal = items.reduce((sum, item, i) => sum + (checked[i] ? item.price : 0), 0);
-  const gfOwed = Math.round(checkedTotal / 2);
-
   const handleSave = async () => {
-    if (items.length === 0 || checkedTotal === 0) return;
+    if (n <= 0) return;
     setSaving(true);
     setError("");
     try {
@@ -167,7 +122,7 @@ function ReceiptSheet({ defaultDate, onSave, onClose }: ReceiptSheetProps) {
         setTimeout(() => rej(new Error("timeout — check Supabase tables")), 10000)
       );
       await Promise.race([
-        onSave({ date, store: store || "−", card, items, shared_amount: checkedTotal }),
+        onSave({ date, store: store || "−", card, items: [], shared_amount: n }),
         timeout,
       ]);
       onClose();
@@ -197,20 +152,21 @@ function ReceiptSheet({ defaultDate, onSave, onClose }: ReceiptSheetProps) {
       </div>
       <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleScan} />
 
-      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
-        {/* Store */}
+      <div className="flex-1 px-5 py-6 space-y-4">
+        {/* Store name */}
         <input
+          autoFocus
           type="text"
           value={store}
           onChange={(e) => setStore(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") handleSave(); }}
           placeholder="store name..."
           style={inputStyle}
           className="w-full bg-muted/40 rounded-xl px-4 py-3 outline-none placeholder:text-muted-foreground"
         />
 
-        {/* Date + card in one row */}
+        {/* Date + card */}
         <div className="flex gap-2 items-stretch">
-          {/* Date — hidden native input behind a styled button */}
           <div className="relative flex-shrink-0">
             <div className="bg-muted/40 rounded-xl px-4 py-3 text-[16px] pointer-events-none select-none whitespace-nowrap">
               {date ? formatDateShort(date) : "date"}
@@ -222,7 +178,6 @@ function ReceiptSheet({ defaultDate, onSave, onClose }: ReceiptSheetProps) {
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
             />
           </div>
-          {/* Card selector */}
           <div className="flex gap-2 flex-1">
             {(["mine", "family"] as const).map((v) => (
               <button key={v} onClick={() => setCard(v)}
@@ -236,65 +191,19 @@ function ReceiptSheet({ defaultDate, onSave, onClose }: ReceiptSheetProps) {
           </div>
         </div>
 
-        {/* Item checklist */}
-        <div>
-          <p className="text-[9px] tracking-widest text-muted-foreground uppercase mb-2">
-            items — uncheck personal purchases
-          </p>
-          <div className="space-y-0.5">
-            {items.map((item, i) => (
-              <div key={i} className="flex items-center gap-3 py-2 border-b border-border/20">
-                <input
-                  type="checkbox"
-                  checked={checked[i]}
-                  onChange={() => toggleCheck(i)}
-                  className="w-4 h-4 accent-foreground flex-shrink-0 cursor-pointer"
-                />
-                <span className={cn("flex-1 text-[14px]", !checked[i] && "text-muted-foreground line-through")}>
-                  {item.name}
-                </span>
-                <span className={cn("text-[14px] flex-shrink-0 tabular-nums", !checked[i] && "text-muted-foreground")}>
-                  ¥{item.price.toLocaleString()}
-                </span>
-                <button onClick={() => removeItem(i)} className="text-muted-foreground/40 hover:text-muted-foreground">
-                  <X size={13} />
-                </button>
-              </div>
-            ))}
-          </div>
-
-          {/* Add item row */}
-          <div className="flex items-center gap-2 mt-3 pt-1">
-            <input
-              type="text"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") addItemAndSave(); }}
-              placeholder="item name..."
-              style={inputStyle}
-              className="flex-1 bg-transparent border-b border-border py-2 outline-none placeholder:text-muted-foreground"
-            />
-            <div className="flex items-center gap-1 border-b border-border">
-              <span className="text-muted-foreground">¥</span>
-              <input
-                type="number"
-                inputMode="numeric"
-                value={newPrice}
-                onChange={(e) => setNewPrice(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") addItemAndSave(); }}
-                placeholder="0"
-                style={inputStyle}
-                className="w-20 bg-transparent py-2 outline-none placeholder:text-muted-foreground"
-              />
-            </div>
-            <button
-              onClick={addItemAndSave}
-              disabled={saving}
-              className="text-muted-foreground hover:text-foreground transition-colors p-1 disabled:opacity-40"
-            >
-              {saving ? <span className="text-[10px]">...</span> : <Plus size={15} />}
-            </button>
-          </div>
+        {/* Amount */}
+        <div className="flex items-center gap-3 bg-muted/40 rounded-xl px-4 py-3">
+          <span className="text-muted-foreground text-[16px]">¥</span>
+          <input
+            type="number"
+            inputMode="numeric"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") handleSave(); }}
+            placeholder="0"
+            style={inputStyle}
+            className="flex-1 bg-transparent outline-none placeholder:text-muted-foreground"
+          />
         </div>
 
         {error && <p className="text-[11px] text-red-500">{error}</p>}
@@ -308,7 +217,7 @@ function ReceiptSheet({ defaultDate, onSave, onClose }: ReceiptSheetProps) {
         <div className="flex items-center justify-between">
           <div>
             <p className="text-[9px] tracking-widest text-muted-foreground uppercase">shared total</p>
-            <p className="text-[22px] font-light tabular-nums">{fmtYen(checkedTotal)}</p>
+            <p className="text-[22px] font-light tabular-nums">{fmtYen(n)}</p>
           </div>
           <div className="text-right">
             <p className="text-[9px] tracking-widest text-muted-foreground uppercase">
@@ -319,7 +228,7 @@ function ReceiptSheet({ defaultDate, onSave, onClose }: ReceiptSheetProps) {
         </div>
         <button
           onClick={handleSave}
-          disabled={saving || checkedTotal === 0}
+          disabled={saving || n <= 0}
           className="w-full bg-foreground text-background rounded-xl py-3.5 text-[13px] tracking-wider disabled:opacity-40"
         >
           {saving ? "saving..." : "save"}
@@ -336,7 +245,6 @@ function SessionRow({ session, onDelete, onUpdateStore }: {
   onDelete: () => void;
   onUpdateStore: (store: string) => void;
 }) {
-  const [open, setOpen] = useState(false);
   const [editingStore, setEditingStore] = useState(false);
   const [storeInput, setStoreInput] = useState(session.store === "−" ? "" : session.store);
   const gfOwed = Math.round(session.shared_amount / 2);
@@ -349,61 +257,47 @@ function SessionRow({ session, onDelete, onUpdateStore }: {
   };
 
   return (
-    <div className="border-b border-border/20">
-      <div className="flex items-center gap-3 py-3">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            {editingStore ? (
-              <input
-                autoFocus
-                type="text"
-                value={storeInput}
-                onChange={(e) => setStoreInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") saveStore(); if (e.key === "Escape") setEditingStore(false); }}
-                onBlur={saveStore}
-                placeholder="store name..."
-                style={{ fontSize: "16px" }}
-                className="flex-1 bg-transparent border-b border-border outline-none text-[13px] min-w-0"
-              />
-            ) : (
-              <button onClick={() => setEditingStore(true)} className="text-left min-w-0">
-                <p className={cn(
-                  "text-[13px] tracking-wide truncate",
-                  (!session.store || session.store === "−") && "text-muted-foreground/50"
-                )}>
-                  {(!session.store || session.store === "−") ? "tap to add name" : session.store}
-                </p>
-              </button>
-            )}
-            <span className={cn(
-              "text-[9px] tracking-wider px-1.5 py-0.5 rounded border flex-shrink-0",
-              session.card === "mine" ? "border-border text-muted-foreground" : "border-blue-400/50 text-blue-500"
-            )}>
-              {session.card === "mine" ? "my" : "family"}
-            </span>
-          </div>
-          <button onClick={() => setOpen(!open)} className="text-[10px] text-muted-foreground mt-0.5 text-left">
-            {session.items.length} items · shared {fmtYen(session.shared_amount)}
-          </button>
+    <div className="flex items-center gap-3 py-3 border-b border-border/20">
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          {editingStore ? (
+            <input
+              autoFocus
+              type="text"
+              value={storeInput}
+              onChange={(e) => setStoreInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") saveStore(); if (e.key === "Escape") setEditingStore(false); }}
+              onBlur={saveStore}
+              placeholder="store name..."
+              style={{ fontSize: "16px" }}
+              className="flex-1 bg-transparent border-b border-border outline-none text-[13px] min-w-0"
+            />
+          ) : (
+            <button onClick={() => setEditingStore(true)} className="text-left min-w-0 flex-1">
+              <p className={cn(
+                "text-[13px] tracking-wide truncate",
+                (!session.store || session.store === "−") && "text-muted-foreground/50"
+              )}>
+                {(!session.store || session.store === "−") ? "tap to add name" : session.store}
+              </p>
+            </button>
+          )}
+          <span className={cn(
+            "text-[9px] tracking-wider px-1.5 py-0.5 rounded border flex-shrink-0",
+            session.card === "mine" ? "border-border text-muted-foreground" : "border-blue-400/50 text-blue-500"
+          )}>
+            {session.card === "mine" ? "my" : "family"}
+          </span>
         </div>
-        <div className="text-right flex-shrink-0">
-          <p className="text-[9px] text-muted-foreground tracking-wider">{isCredit ? "your credit" : "gf owes"}</p>
-          <p className={cn("text-[15px] tabular-nums", isCredit && "text-blue-500")}>{fmtYen(gfOwed)}</p>
-        </div>
-        <button onClick={onDelete} className="text-muted-foreground/40 hover:text-muted-foreground flex-shrink-0">
-          <X size={14} />
-        </button>
+        <p className="text-[10px] text-muted-foreground mt-0.5">shared {fmtYen(session.shared_amount)}</p>
       </div>
-      {open && (
-        <div className="pb-3 pl-2 space-y-0.5">
-          {session.items.map((item, i) => (
-            <div key={i} className="flex justify-between text-[11px] text-muted-foreground py-0.5">
-              <span>{item.name}</span>
-              <span className="tabular-nums">¥{item.price.toLocaleString()}</span>
-            </div>
-          ))}
-        </div>
-      )}
+      <div className="text-right flex-shrink-0">
+        <p className="text-[9px] text-muted-foreground tracking-wider">{isCredit ? "your credit" : "gf owes"}</p>
+        <p className={cn("text-[15px] tabular-nums", isCredit && "text-blue-500")}>{fmtYen(gfOwed)}</p>
+      </div>
+      <button onClick={onDelete} className="text-muted-foreground/40 hover:text-muted-foreground flex-shrink-0">
+        <X size={14} />
+      </button>
     </div>
   );
 }

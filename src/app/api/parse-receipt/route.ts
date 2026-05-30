@@ -10,7 +10,7 @@ export async function POST(request: Request) {
   try {
     const response = await client.messages.create({
       model: "claude-haiku-4-5-20251001",
-      max_tokens: 1024,
+      max_tokens: 256,
       messages: [{
         role: "user",
         content: [
@@ -27,19 +27,10 @@ export async function POST(request: Request) {
             text: `This is a Japanese receipt. Extract:
 1. Store/vendor name (short name, e.g. "セブンイレブン")
 2. Purchase date as YYYY-MM-DD (use ${new Date().toISOString().split("T")[0]} if not visible)
-3. Each purchased item with its price in JPY
+3. Total amount paid in JPY (integer, the final total)
 
 Return ONLY valid JSON, no markdown:
-{
-  "store": "店名",
-  "date": "2026-05-28",
-  "items": [
-    {"name": "商品名", "price": 148},
-    {"name": "商品名2", "price": 108}
-  ]
-}
-
-Include every line item. Use the individual item price (not subtotal). If you can only see the total and no individual items, return one item with the total amount and name "合計".`,
+{"store": "店名", "date": "2026-05-28", "total": 1580}`,
           },
         ],
       }],
