@@ -139,7 +139,13 @@ function ReceiptSheet({ defaultDate, onSave, onClose }: ReceiptSheetProps) {
     setSaving(true);
     setError("");
     try {
-      await onSave({ date, store: store || "−", card, items, shared_amount: checkedTotal });
+      const timeout = new Promise<never>((_, rej) =>
+        setTimeout(() => rej(new Error("timeout — check Supabase tables")), 10000)
+      );
+      await Promise.race([
+        onSave({ date, store: store || "−", card, items, shared_amount: checkedTotal }),
+        timeout,
+      ]);
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "save failed");
