@@ -192,7 +192,10 @@ export function ShoppingTab() {
 
   const displayItems = dates.length === 0 ? undatedItems : tabItems;
 
-  // Group by store; within each group auto-added (category "other") first
+  // Split: auto-added (top, flat) vs manual (bottom, grouped by store)
+  const autoItems = displayItems.filter((i) => !isManual(i));
+  const manualItems = displayItems.filter((i) => isManual(i));
+
   const byStore: Record<Store, ShoppingItem[]> = {
     grocery: [],
     pharmacy: [],
@@ -200,11 +203,8 @@ export function ShoppingTab() {
     muji: [],
     amazon: [],
   };
-  for (const item of displayItems) {
+  for (const item of manualItems) {
     byStore[getStore(item)].push(item);
-  }
-  for (const store of STORES) {
-    byStore[store].sort((a, b) => (isManual(a) ? 1 : 0) - (isManual(b) ? 1 : 0));
   }
 
   const hasTabs = dates.length > 0;
@@ -235,7 +235,15 @@ export function ShoppingTab() {
         {isEmpty && (
           <p className="text-[11px] text-muted-foreground py-3">nothing here</p>
         )}
-        {!isEmpty && STORES.map((store) => (
+        {/* Auto-added items: flat list, no store header */}
+        {autoItems.map((item) => (
+          <ItemRow key={item.id} item={item} onDelete={() => deleteItem(item.id)} />
+        ))}
+        {/* Manual items: grouped by store */}
+        {autoItems.length > 0 && manualItems.length > 0 && (
+          <div className="border-t border-border/20 mt-4 mb-1" />
+        )}
+        {STORES.map((store) => (
           <StoreSection
             key={store}
             store={store}
