@@ -134,7 +134,7 @@ function ReceiptSheet({ defaultDate, onSave, onClose }: ReceiptSheetProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-background flex flex-col">
+    <div className="fixed inset-x-0 top-0 z-50 bg-background flex flex-col" style={{ height: "100dvh" }}>
       <div className="flex items-center justify-between px-6 pt-12 pb-4 border-b border-border/30">
         <button onClick={onClose} className="text-muted-foreground p-1">
           <X size={16} />
