@@ -155,13 +155,13 @@ function DayCell({ date, dinnerPlan, lunchPlan, isToday, freeEvening, freeLunch,
       </div>
       {/* Lunch (weekends/holidays) */}
       {showLunch && (
-        <button onClick={onSelectLunch} className="text-left px-0.5 min-w-0 flex items-center gap-0.5">
+        <button onClick={onSelectLunch} className="text-left px-0.5 py-0.5 min-w-0 flex items-center gap-0.5 border-b border-border/10">
           {freeLunch && <span className="w-1 h-1 rounded-full bg-blue-400/60 flex-shrink-0" />}
           <span className={cn(
             "text-[7px] leading-tight truncate block",
-            lunchPlan?.label ? "text-foreground" : "text-muted-foreground/30"
+            lunchPlan?.label ? "text-foreground" : "text-muted-foreground/20"
           )}>
-            {lunchPlan?.label ?? ""}
+            {lunchPlan?.label ?? "·"}
           </span>
         </button>
       )}

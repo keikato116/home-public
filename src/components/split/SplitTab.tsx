@@ -134,25 +134,25 @@ function ReceiptSheet({ defaultDate, onSave, onClose }: ReceiptSheetProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-background flex flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between px-6 pt-12 pb-4 border-b border-border/30">
-        <button onClick={onClose} className="text-muted-foreground p-1">
-          <X size={16} />
-        </button>
-        <p className="text-[11px] tracking-widest text-muted-foreground uppercase">add receipt</p>
-        <button
-          onClick={() => fileRef.current?.click()}
-          disabled={scanning}
-          className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
-        >
-          <Camera size={13} />
-          {scanning ? "scanning..." : "scan"}
-        </button>
-      </div>
-      <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleScan} />
+    <div className="fixed inset-0 z-50 flex flex-col justify-end bg-black/30" onClick={onClose}>
+      <div
+        className="bg-background rounded-t-2xl px-5 pt-5 space-y-3"
+        style={{ paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom))" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between pb-1">
+          <p className="text-[11px] tracking-widest text-muted-foreground uppercase">add receipt</p>
+          <button
+            onClick={() => fileRef.current?.click()}
+            disabled={scanning}
+            className="flex items-center gap-1.5 text-[11px] text-muted-foreground disabled:opacity-40"
+          >
+            <Camera size={13} />
+            {scanning ? "scanning..." : "scan"}
+          </button>
+        </div>
+        <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleScan} />
 
-      <div className="flex-1 px-5 py-6 space-y-4">
         {/* Store name */}
         <input
           autoFocus
@@ -207,25 +207,7 @@ function ReceiptSheet({ defaultDate, onSave, onClose }: ReceiptSheetProps) {
         </div>
 
         {error && <p className="text-[11px] text-red-500">{error}</p>}
-      </div>
 
-      {/* Footer */}
-      <div
-        className="px-5 py-4 border-t border-border/30 space-y-3 bg-background"
-        style={{ paddingBottom: "calc(1rem + env(safe-area-inset-bottom))" }}
-      >
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-[9px] tracking-widest text-muted-foreground uppercase">shared total</p>
-            <p className="text-[22px] font-light tabular-nums">{fmtYen(n)}</p>
-          </div>
-          <div className="text-right">
-            <p className="text-[9px] tracking-widest text-muted-foreground uppercase">
-              {card === "mine" ? "girlfriend owes" : "you owe (credit)"}
-            </p>
-            <p className="text-[22px] font-light tabular-nums">{fmtYen(gfOwed)}</p>
-          </div>
-        </div>
         <button
           onClick={handleSave}
           disabled={saving || n <= 0}
@@ -289,7 +271,6 @@ function SessionRow({ session, onDelete, onUpdateStore }: {
             {session.card === "mine" ? "my" : "family"}
           </span>
         </div>
-        <p className="text-[10px] text-muted-foreground mt-0.5">shared {fmtYen(session.shared_amount)}</p>
       </div>
       <div className="text-right flex-shrink-0">
         <p className="text-[9px] text-muted-foreground tracking-wider">{isCredit ? "your credit" : "gf owes"}</p>
