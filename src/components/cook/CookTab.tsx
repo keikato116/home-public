@@ -48,47 +48,71 @@ function isSameDay(a: Date, b: Date) {
   return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
 }
 
-interface DayPickerProps {
-  date: Date;
-  plan: MealPlan | undefined;
-  isToday: boolean;
-  freeEvening: boolean;
-  onSelect: () => void;
+function isWeekendOrHoliday(date: Date, events: CalendarEvent[]): boolean {
+  const dow = date.getDay();
+  if (dow === 0 || dow === 6) return true;
+  return events.some(ev => ev.start.date && !ev.start.dateTime);
 }
 
-function DayCell({ date, plan, isToday, freeEvening, onSelect }: DayPickerProps) {
-  const label = plan?.label ?? "";
+interface DayPickerProps {
+  date: Date;
+  dinnerPlan: MealPlan | undefined;
+  lunchPlan: MealPlan | undefined;
+  isToday: boolean;
+  freeEvening: boolean;
+  showLunch: boolean;
+  onSelectDinner: () => void;
+  onSelectLunch: () => void;
+}
+
+function DayCell({ date, dinnerPlan, lunchPlan, isToday, freeEvening, showLunch, onSelectDinner, onSelectLunch }: DayPickerProps) {
   return (
-    <button
-      onClick={onSelect}
-      className={cn(
-        "flex flex-col items-start p-0.5 border-r border-b border-border/20 overflow-hidden min-w-0 text-left",
-        freeEvening && "bg-blue-500/5"
+    <div className={cn(
+      "flex flex-col border-r border-b border-border/20 overflow-hidden min-w-0",
+      freeEvening && "bg-blue-500/5"
+    )}>
+      {/* Date number */}
+      <div className="flex items-center gap-0.5 px-0.5 pt-0.5">
+        <span className={cn(
+          "text-[9px] leading-none w-4 h-4 flex items-center justify-center rounded-full flex-shrink-0",
+          isToday ? "bg-foreground text-background" : "text-muted-foreground"
+        )}>
+          {date.getDate()}
+        </span>
+        {freeEvening && <span className="w-1 h-1 rounded-full bg-blue-400/60" />}
+      </div>
+      {/* Lunch (weekends/holidays) */}
+      {showLunch && (
+        <button onClick={onSelectLunch} className="text-left px-0.5 pb-0.5 min-w-0">
+          <span className={cn(
+            "text-[7px] leading-tight truncate w-full block",
+            lunchPlan?.label ? "text-foreground" : "text-muted-foreground/30"
+          )}>
+            {lunchPlan?.label ?? "·"}
+          </span>
+        </button>
       )}
-    >
-      <span className={cn(
-        "text-[9px] leading-none mb-0.5 w-4 h-4 flex items-center justify-center rounded-full flex-shrink-0",
-        isToday ? "bg-foreground text-background" : "text-muted-foreground"
-      )}>
-        {date.getDate()}
-      </span>
-      {freeEvening && (
-        <span className="w-1 h-1 rounded-full bg-blue-400/60 mt-0.5" />
-      )}
-      {label && (
-        <span className="text-[8px] leading-tight text-foreground truncate w-full">{label}</span>
-      )}
-    </button>
+      {/* Dinner */}
+      <button onClick={onSelectDinner} className="flex-1 text-left px-0.5 pb-0.5 min-w-0">
+        <span className={cn(
+          "text-[8px] leading-tight truncate w-full block",
+          dinnerPlan?.label ? "text-foreground" : ""
+        )}>
+          {dinnerPlan?.label ?? ""}
+        </span>
+      </button>
+    </div>
   );
 }
 
 interface EditSheetProps {
   date: Date;
+  mealType: "dinner" | "lunch";
   plan: MealPlan | undefined;
   onClose: () => void;
 }
 
-function EditSheet({ date, plan, onClose }: EditSheetProps) {
+function EditSheet({ date, mealType, plan, onClose }: EditSheetProps) {
   const { householdId } = useAuthStore();
   const { setMeal, deleteMeal } = useMealPlanStore();
   const { recipes } = useRecipeStore();
@@ -138,13 +162,13 @@ function EditSheet({ date, plan, onClose }: EditSheetProps) {
         if (selectedRecipe.ingredients) {
           ingredientLines = parseIngredientLines(selectedRecipe.ingredients);
         }
-        await setMeal(householdId, dateStr, "dinner", selectedRecipe.id, mealTitle);
+        await setMeal(householdId, dateStr, mealType, selectedRecipe.id, mealTitle);
       } else if (eatingOut) {
         mealTitle = eatingOutDetail.trim() ? `外食（${eatingOutDetail.trim()}）` : "外食";
-        await setMeal(householdId, dateStr, "dinner", null, mealTitle);
+        await setMeal(householdId, dateStr, mealType, null, mealTitle);
       } else {
         mealTitle = label.trim() || null;
-        await setMeal(householdId, dateStr, "dinner", null, mealTitle);
+        await setMeal(householdId, dateStr, mealType, null, mealTitle);
       }
 
       await Promise.allSettled(
@@ -185,7 +209,7 @@ function EditSheet({ date, plan, onClose }: EditSheetProps) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
-          <p className="text-[11px] tracking-widest text-muted-foreground uppercase">{dateLabel} · dinner</p>
+          <p className="text-[11px] tracking-widest text-muted-foreground uppercase">{dateLabel} · {mealType}</p>
           <button onClick={onClose}><X size={14} className="text-muted-foreground" /></button>
         </div>
 
@@ -280,6 +304,7 @@ export function CookTab() {
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth());
   const [editDate, setEditDate] = useState<Date | null>(null);
+  const [editMealType, setEditMealType] = useState<"dinner" | "lunch">("dinner");
 
   useEffect(() => {
     if (!householdId) return;
@@ -305,14 +330,19 @@ export function CookTab() {
   ];
   const rows = Math.ceil(cells.length / 7);
 
-  const planByDate = Object.fromEntries(
+  const dinnerByDate = Object.fromEntries(
     plans.filter((p) => p.meal_type === "dinner").map((p) => [p.date, p])
+  );
+  const lunchByDate = Object.fromEntries(
+    plans.filter((p) => p.meal_type === "lunch").map((p) => [p.date, p])
   );
 
   const eventsMap = eventsByDate();
   const todayStr = toDateStr(today);
 
-  const editPlan = editDate ? planByDate[toDateStr(editDate)] : undefined;
+  const editPlan = editDate
+    ? (editMealType === "lunch" ? lunchByDate : dinnerByDate)[toDateStr(editDate)]
+    : undefined;
 
   return (
     <div className="flex flex-col h-full bg-background">
@@ -345,14 +375,20 @@ export function CookTab() {
       >
         {cells.map((d, i) => {
           if (!d) return <div key={i} className="border-r border-b border-border/20" />;
+          const ds = toDateStr(d);
+          const dayEvents = eventsMap[ds] ?? [];
+          const showLunch = isWeekendOrHoliday(d, dayEvents);
           return (
             <DayCell
               key={i}
               date={d}
-              plan={planByDate[toDateStr(d)]}
+              dinnerPlan={dinnerByDate[ds]}
+              lunchPlan={lunchByDate[ds]}
               isToday={isSameDay(d, today)}
-              freeEvening={toDateStr(d) >= todayStr && !hasEveningEvent(eventsMap[toDateStr(d)] ?? [])}
-              onSelect={() => setEditDate(d)}
+              freeEvening={ds >= todayStr && !hasEveningEvent(dayEvents)}
+              showLunch={showLunch}
+              onSelectDinner={() => { setEditMealType("dinner"); setEditDate(d); }}
+              onSelectLunch={() => { setEditMealType("lunch"); setEditDate(d); }}
             />
           );
         })}
@@ -365,6 +401,7 @@ export function CookTab() {
       {editDate && (
         <EditSheet
           date={editDate}
+          mealType={editMealType}
           plan={editPlan}
           onClose={() => setEditDate(null)}
         />
