@@ -71,7 +71,6 @@ interface ReceiptSheetProps {
 }
 
 function ReceiptSheet({ defaultDate, onSave, onClose }: ReceiptSheetProps) {
-  const [store, setStore] = useState("");
   const [date, setDate] = useState(defaultDate);
   const [card, setCard] = useState<"mine" | "family">("mine");
   const [amount, setAmount] = useState("");
@@ -81,6 +80,7 @@ function ReceiptSheet({ defaultDate, onSave, onClose }: ReceiptSheetProps) {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const n = parseInt(amount, 10) || 0;
+  const herOwed = Math.round(n / 2);
 
   const handleScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -101,7 +101,6 @@ function ReceiptSheet({ defaultDate, onSave, onClose }: ReceiptSheetProps) {
       });
       if (!resp.ok) throw new Error();
       const parsed = await resp.json();
-      if (parsed.store) setStore(parsed.store);
       if (parsed.date) setDate(parsed.date);
       if (parsed.total) setAmount(String(parsed.total));
     } catch {
@@ -121,7 +120,7 @@ function ReceiptSheet({ defaultDate, onSave, onClose }: ReceiptSheetProps) {
         setTimeout(() => rej(new Error("timeout — check Supabase tables")), 10000)
       );
       await Promise.race([
-        onSave({ date, store: store || "−", card, items: [], shared_amount: n }),
+        onSave({ date, store: "−", card, items: [], shared_amount: n }),
         timeout,
       ]);
       onClose();
@@ -150,18 +149,6 @@ function ReceiptSheet({ defaultDate, onSave, onClose }: ReceiptSheetProps) {
       </div>
       <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleScan} />
       <div className="flex-1 px-5 py-6 space-y-4">
-
-        {/* Store name */}
-        <input
-          autoFocus
-          type="text"
-          value={store}
-          onChange={(e) => setStore(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") handleSave(); }}
-          placeholder="store name..."
-          style={inputStyle}
-          className="w-full bg-muted/40 rounded-xl px-4 py-3 outline-none placeholder:text-muted-foreground"
-        />
 
         {/* Date + card */}
         <div className="flex gap-2 items-stretch">
@@ -193,6 +180,7 @@ function ReceiptSheet({ defaultDate, onSave, onClose }: ReceiptSheetProps) {
         <div className="flex items-center gap-3 bg-muted/40 rounded-xl px-4 py-3">
           <span className="text-muted-foreground text-[16px]">¥</span>
           <input
+            autoFocus
             type="number"
             inputMode="numeric"
             value={amount}
@@ -208,9 +196,21 @@ function ReceiptSheet({ defaultDate, onSave, onClose }: ReceiptSheetProps) {
       </div>
 
       <div
-        className="px-5 py-4 bg-background border-t border-border/30"
+        className="px-5 py-4 bg-background border-t border-border/30 space-y-3"
         style={{ paddingBottom: "calc(1rem + env(safe-area-inset-bottom))" }}
       >
+        <div className="flex items-end justify-between">
+          <div>
+            <p className="text-[9px] tracking-widest text-muted-foreground uppercase">shared total</p>
+            <p className="text-[28px] font-light tabular-nums">{fmtYen(n)}</p>
+          </div>
+          <div className="text-right">
+            <p className="text-[9px] tracking-widest text-muted-foreground uppercase">
+              {card === "mine" ? "her owes" : "him owes"}
+            </p>
+            <p className="text-[28px] font-light tabular-nums">{fmtYen(herOwed)}</p>
+          </div>
+        </div>
         <button
           onClick={handleSave}
           disabled={saving || n <= 0}
