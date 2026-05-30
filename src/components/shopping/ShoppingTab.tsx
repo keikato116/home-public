@@ -192,7 +192,7 @@ export function ShoppingTab() {
 
   const displayItems = dates.length === 0 ? undatedItems : tabItems;
 
-  // Group by store
+  // Group by store; within each group auto-added (category "other") first
   const byStore: Record<Store, ShoppingItem[]> = {
     grocery: [],
     pharmacy: [],
@@ -202,6 +202,9 @@ export function ShoppingTab() {
   };
   for (const item of displayItems) {
     byStore[getStore(item)].push(item);
+  }
+  for (const store of STORES) {
+    byStore[store].sort((a, b) => (isManual(a) ? 1 : 0) - (isManual(b) ? 1 : 0));
   }
 
   const hasTabs = dates.length > 0;
