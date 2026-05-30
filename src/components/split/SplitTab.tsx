@@ -64,52 +64,52 @@ const inputStyle = { fontSize: "16px" };
 
 const RATIO_KEY = "__ratio__";
 
-function RatioCustomInput({ herRatio, onChange }: { herRatio: number; onChange: (r: number) => void }) {
-  const [editing, setEditing] = useState(false);
-  const [val, setVal] = useState("");
-  const presets = [0.5, 0.4, 0.6];
-  const isPreset = presets.includes(herRatio);
-
-  const commit = () => {
-    const pct = parseInt(val, 10);
-    if (!isNaN(pct) && pct >= 0 && pct <= 100) onChange(pct / 100);
-    setEditing(false);
-  };
-
-  if (editing) return (
-    <div className="flex items-center gap-1 border-b border-border">
-      <input
-        autoFocus
-        type="number"
-        inputMode="numeric"
-        value={val}
-        onChange={(e) => setVal(e.target.value)}
-        onKeyDown={(e) => { if (e.key === "Enter") commit(); if (e.key === "Escape") setEditing(false); }}
-        onBlur={commit}
-        placeholder="her%"
-        style={{ fontSize: "16px" }}
-        className="w-12 bg-transparent text-[10px] text-center outline-none text-muted-foreground"
-      />
-    </div>
-  );
-
-  return (
-    <button
-      type="button"
-      onClick={() => { setVal(String(Math.round(herRatio * 100))); setEditing(true); }}
-      className={cn(
-        "text-[10px] tracking-wider px-2.5 py-1 rounded-lg border transition-colors",
-        !isPreset ? "bg-foreground text-background border-foreground" : "border-border text-muted-foreground"
-      )}
-    >
-      {!isPreset ? `${Math.round((1-herRatio)*100)}:${Math.round(herRatio*100)}` : "custom"}
-    </button>
-  );
-}
-
 function getSessionRatio(session: SplitSession, fallback: number): number {
   const ri = session.items.find((i) => i.name === RATIO_KEY);
   return ri !== undefined ? ri.price : fallback;
+}
+
+function RatioInput({ card, herRatio, onChange }: { card: "mine" | "family"; herRatio: number; onChange: (r: number) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState("");
+
+  const payerPct = card === "mine" ? Math.round((1 - herRatio) * 100) : Math.round(herRatio * 100);
+  const payer = card === "mine" ? "him" : "her";
+
+  const commit = () => {
+    const pct = parseInt(val, 10);
+    if (!isNaN(pct) && pct >= 0 && pct <= 100) {
+      onChange(card === "mine" ? (100 - pct) / 100 : pct / 100);
+    }
+    setEditing(false);
+  };
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className="text-[9px] text-muted-foreground tracking-wider">{payer}</span>
+      {editing ? (
+        <input
+          autoFocus
+          type="number"
+          inputMode="numeric"
+          value={val}
+          onChange={(e) => setVal(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") commit(); if (e.key === "Escape") setEditing(false); }}
+          onBlur={commit}
+          style={{ fontSize: "16px" }}
+          className="w-12 bg-transparent border-b border-border text-[13px] text-center outline-none"
+        />
+      ) : (
+        <button
+          type="button"
+          onClick={() => { setVal(String(payerPct)); setEditing(true); }}
+          className="text-[13px] tabular-nums border-b border-border/40 text-foreground"
+        >
+          {payerPct}%
+        </button>
+      )}
+    </div>
+  );
 }
 
 // ─── Receipt / Item Entry Sheet ───────────────────────────────────────────────
@@ -298,27 +298,8 @@ function ReceiptSheet({ defaultDate, defaultHerRatio, onSave, onClose }: Receipt
         className="px-5 py-4 bg-background border-t border-border/30 space-y-3"
         style={{ paddingBottom: "calc(1rem + env(safe-area-inset-bottom))" }}
       >
-        {/* Ratio selector */}
-        <div className="flex items-center gap-2">
-          {([0.5, 0.4, 0.6] as number[]).map((r) => {
-            const himPct = Math.round((1 - r) * 100);
-            const herPct = Math.round(r * 100);
-            return (
-              <button
-                key={r}
-                type="button"
-                onClick={() => setHerRatio(r)}
-                className={cn(
-                  "text-[10px] tracking-wider px-2.5 py-1 rounded-lg border transition-colors",
-                  herRatio === r ? "bg-foreground text-background border-foreground" : "border-border text-muted-foreground"
-                )}
-              >
-                {himPct}:{herPct}
-              </button>
-            );
-          })}
-          <RatioCustomInput herRatio={herRatio} onChange={setHerRatio} />
-        </div>
+        {/* Ratio: payer's share */}
+        <RatioInput card={card} herRatio={herRatio} onChange={setHerRatio} />
 
         <div className="flex items-end justify-between">
           <div>
