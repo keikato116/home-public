@@ -1,7 +1,7 @@
 "use client";
 
 import { create } from "zustand";
-import { User } from "@supabase/supabase-js";
+import { User, AuthChangeEvent, Session } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 
 interface AuthState {
@@ -276,7 +276,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       });
     });
 
-    supabase.auth.onAuthStateChange(async (event, session) => {
+    supabase.auth.onAuthStateChange(async (event: AuthChangeEvent, session: Session | null) => {
       if (event === "SIGNED_IN" && session) {
         if (session.provider_token) {
           storeAccessToken(session.provider_token);
