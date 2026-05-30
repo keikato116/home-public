@@ -7,6 +7,20 @@ import { ShoppingItem } from "@/types";
 import { Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+const STORES = ["スーパー", "薬局", "100均", "無印", "Amazon"] as const;
+type Store = typeof STORES[number];
+
+// "other" = auto-added from meal plan → shown under スーパー, no checkbox
+// store name = manually added → shown under that store, with checkbox
+function getStore(item: ShoppingItem): Store {
+  if ((STORES as readonly string[]).includes(item.category)) return item.category as Store;
+  return "スーパー";
+}
+
+function isManual(item: ShoppingItem): boolean {
+  return (STORES as readonly string[]).includes(item.category);
+}
+
 function todayStr() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -18,10 +32,10 @@ function formatTabDate(dateStr: string) {
 }
 
 function ItemRow({ item, onDelete }: { item: ShoppingItem; onDelete: () => void }) {
-  const isManual = item.category === "list";
+  const manual = isManual(item);
   return (
-    <div className="flex items-center gap-3 py-3 border-b border-border/10 group">
-      {isManual && (
+    <div className="flex items-center gap-3 py-2.5 border-b border-border/10 group">
+      {manual && (
         <input
           type="checkbox"
           onChange={onDelete}
@@ -29,7 +43,7 @@ function ItemRow({ item, onDelete }: { item: ShoppingItem; onDelete: () => void 
         />
       )}
       <span className="text-[13px] tracking-wide flex-1">{item.label}</span>
-      {!isManual && (
+      {!manual && (
         <button
           onClick={onDelete}
           className="text-[16px] leading-none text-muted-foreground/30 opacity-0 group-hover:opacity-100 active:opacity-100 transition-opacity hover:text-muted-foreground px-1"
@@ -41,15 +55,36 @@ function ItemRow({ item, onDelete }: { item: ShoppingItem; onDelete: () => void 
   );
 }
 
+function StoreSection({
+  store,
+  items,
+  onDelete,
+}: {
+  store: Store;
+  items: ShoppingItem[];
+  onDelete: (id: string) => void;
+}) {
+  if (items.length === 0) return null;
+  return (
+    <div className="mb-5">
+      <p className="text-[10px] tracking-widest text-muted-foreground mb-1">{store}</p>
+      {items.map((item) => (
+        <ItemRow key={item.id} item={item} onDelete={() => onDelete(item.id)} />
+      ))}
+    </div>
+  );
+}
+
 function AddItemForm({
   defaultDate,
   onAdd,
 }: {
   defaultDate: string | null;
-  onAdd: (label: string, date: string | null) => Promise<void>;
+  onAdd: (label: string, store: Store, date: string | null) => Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
   const [label, setLabel] = useState("");
+  const [store, setStore] = useState<Store>("スーパー");
   const [submitting, setSubmitting] = useState(false);
 
   const submit = async (e: React.FormEvent) => {
@@ -57,7 +92,7 @@ function AddItemForm({
     if (!label.trim()) return;
     setSubmitting(true);
     try {
-      await onAdd(label.trim(), defaultDate);
+      await onAdd(label.trim(), store, defaultDate);
       setLabel("");
       setOpen(false);
     } finally {
@@ -69,7 +104,7 @@ function AddItemForm({
     return (
       <button
         onClick={() => setOpen(true)}
-        className="flex items-center gap-2 text-[11px] text-muted-foreground hover:text-foreground transition-colors py-3"
+        className="flex items-center gap-2 text-[11px] text-muted-foreground hover:text-foreground transition-colors py-3 mt-2"
       >
         <Plus size={12} />
         <span className="tracking-wider">add item</span>
@@ -77,7 +112,7 @@ function AddItemForm({
     );
 
   return (
-    <form onSubmit={submit} className="py-3">
+    <form onSubmit={submit} className="py-3 mt-2">
       <input
         autoFocus
         type="text"
@@ -89,6 +124,23 @@ function AddItemForm({
           if (e.key === "Escape") setOpen(false);
         }}
       />
+      <div className="flex gap-2 mt-3 flex-wrap">
+        {STORES.map((s) => (
+          <button
+            key={s}
+            type="button"
+            onClick={() => setStore(s)}
+            className={cn(
+              "text-[10px] tracking-wider px-2 py-1 rounded border transition-colors",
+              store === s
+                ? "bg-foreground text-background border-foreground"
+                : "border-border text-muted-foreground"
+            )}
+          >
+            {s}
+          </button>
+        ))}
+      </div>
       <div className="flex gap-3 mt-3">
         <button
           type="submit"
@@ -130,21 +182,30 @@ export function ShoppingTab() {
 
   const undatedItems = visibleItems.filter((i) => !i.date);
 
-  // Active tab: use stored value if still valid, else first date
   const firstDate = dates[0] ?? null;
   const effectiveTab = activeTab && dates.includes(activeTab) ? activeTab : firstDate;
 
-  // Items to display for active tab
-  // First tab also includes undated items
   const tabItems =
     effectiveTab === firstDate
       ? [...undatedItems, ...visibleItems.filter((i) => i.date === effectiveTab)]
       : visibleItems.filter((i) => i.date === effectiveTab);
 
-  // If no dated items at all, just show undated
   const displayItems = dates.length === 0 ? undatedItems : tabItems;
 
+  // Group by store
+  const byStore: Record<Store, ShoppingItem[]> = {
+    スーパー: [],
+    薬局: [],
+    "100均": [],
+    無印: [],
+    Amazon: [],
+  };
+  for (const item of displayItems) {
+    byStore[getStore(item)].push(item);
+  }
+
   const hasTabs = dates.length > 0;
+  const isEmpty = displayItems.length === 0;
 
   return (
     <div className="flex flex-col h-full bg-background">
@@ -168,17 +229,22 @@ export function ShoppingTab() {
       )}
 
       <div className={cn("flex-1 overflow-y-auto px-7 pb-8", hasTabs ? "pt-6" : "pt-16")}>
-        {displayItems.length === 0 && (
+        {isEmpty && (
           <p className="text-[11px] text-muted-foreground py-3">nothing here</p>
         )}
-        {displayItems.map((item) => (
-          <ItemRow key={item.id} item={item} onDelete={() => deleteItem(item.id)} />
+        {!isEmpty && STORES.map((store) => (
+          <StoreSection
+            key={store}
+            store={store}
+            items={byStore[store]}
+            onDelete={(id) => deleteItem(id)}
+          />
         ))}
         <AddItemForm
           defaultDate={effectiveTab}
-          onAdd={async (label, date) => {
+          onAdd={async (label, store, date) => {
             if (!householdId) return;
-            await addItem(householdId, label, "list", date ?? undefined);
+            await addItem(householdId, label, store, date ?? undefined);
           }}
         />
       </div>
