@@ -125,9 +125,12 @@ interface DayPickerProps {
   onSelectLunch: () => void;
 }
 
+const FREE_BG = "rgb(59 130 246 / 0.08)";
+
 function DayCell({ date, dinnerPlan, lunchPlan, isToday, freeEvening, freeLunch, showLunch, onSelectDinner, onSelectLunch }: DayPickerProps) {
+  const bothFree = showLunch && freeLunch && freeEvening;
   return (
-    <div className={cn("flex flex-col border-r border-b border-border/20 overflow-hidden min-w-0", freeEvening && "bg-blue-500/5")}>
+    <div className="flex flex-col border-r border-b border-border/20 overflow-hidden min-w-0" style={bothFree ? { backgroundColor: FREE_BG } : undefined}>
       {/* Date number */}
       <div className="flex items-center px-0.5 pt-0.5">
         <span className={cn(
@@ -139,7 +142,7 @@ function DayCell({ date, dinnerPlan, lunchPlan, isToday, freeEvening, freeLunch,
       </div>
       {/* Lunch (weekends/holidays) */}
       {showLunch && (
-        <button onClick={onSelectLunch} className="flex-1 text-left px-0.5 min-w-0 border-b border-border/10" style={freeLunch ? { backgroundColor: "rgb(59 130 246 / 0.08)" } : undefined}>
+        <button onClick={onSelectLunch} className="flex-1 text-left px-0.5 min-w-0 border-b border-border/10" style={!bothFree && freeLunch ? { backgroundColor: FREE_BG } : undefined}>
           <span className={cn(
             "text-[7px] leading-tight truncate block",
             lunchPlan?.label ? "text-foreground" : ""
@@ -149,7 +152,7 @@ function DayCell({ date, dinnerPlan, lunchPlan, isToday, freeEvening, freeLunch,
         </button>
       )}
       {/* Dinner */}
-      <button onClick={onSelectDinner} className="flex-1 text-left px-0.5 pb-0.5 min-w-0">
+      <button onClick={onSelectDinner} className="flex-1 text-left px-0.5 pb-0.5 min-w-0" style={!bothFree && freeEvening ? { backgroundColor: FREE_BG } : undefined}>
         <span className={cn(
           "text-[8px] leading-tight truncate w-full block",
           dinnerPlan?.label ? "text-foreground" : ""
