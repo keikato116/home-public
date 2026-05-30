@@ -28,13 +28,14 @@ function toJSTMinOfDay(dt: string): number {
   return (d.getUTCHours() * 60 + d.getUTCMinutes() + 9 * 60) % 1440;
 }
 
-function hasEveningEvent(events: CalendarEvent[]): boolean {
+function hasEventInWindow(events: CalendarEvent[], startHour: number, endHour: number): boolean {
   return events.some((ev) => {
     if (!ev.start.dateTime || ev.start.date) return false;
     const startMin = toJSTMinOfDay(ev.start.dateTime);
     const endMin = ev.end.dateTime ? toJSTMinOfDay(ev.end.dateTime) : startMin + 60;
     const spansMidnight = endMin < startMin;
-    return startMin >= 18 * 60 || endMin > 18 * 60 || spansMidnight;
+    if (spansMidnight) return startMin < endHour * 60;
+    return startMin < endHour * 60 && endMin > startHour * 60;
   });
 }
 
@@ -118,12 +119,13 @@ interface DayPickerProps {
   lunchPlan: MealPlan | undefined;
   isToday: boolean;
   freeEvening: boolean;
+  freeLunch: boolean;
   showLunch: boolean;
   onSelectDinner: () => void;
   onSelectLunch: () => void;
 }
 
-function DayCell({ date, dinnerPlan, lunchPlan, isToday, freeEvening, showLunch, onSelectDinner, onSelectLunch }: DayPickerProps) {
+function DayCell({ date, dinnerPlan, lunchPlan, isToday, freeEvening, freeLunch, showLunch, onSelectDinner, onSelectLunch }: DayPickerProps) {
   return (
     <div className={cn("flex flex-col border-r border-b border-border/20 overflow-hidden min-w-0", freeEvening && "bg-blue-500/5")}>
       {/* Date number */}
@@ -137,7 +139,7 @@ function DayCell({ date, dinnerPlan, lunchPlan, isToday, freeEvening, showLunch,
       </div>
       {/* Lunch (weekends/holidays) */}
       {showLunch && (
-        <button onClick={onSelectLunch} className="flex-1 text-left px-0.5 min-w-0 border-b border-border/10">
+        <button onClick={onSelectLunch} className="flex-1 text-left px-0.5 min-w-0 border-b border-border/10" style={freeLunch ? { backgroundColor: "rgb(59 130 246 / 0.08)" } : undefined}>
           <span className={cn(
             "text-[7px] leading-tight truncate block",
             lunchPlan?.label ? "text-foreground" : ""
@@ -439,7 +441,8 @@ export function CookTab() {
               dinnerPlan={dinnerByDate[ds]}
               lunchPlan={lunchByDate[ds]}
               isToday={isSameDay(d, today)}
-              freeEvening={isFuture && !hasEveningEvent(dayEvents)}
+              freeEvening={isFuture && !hasEventInWindow(dayEvents, 18, 21)}
+              freeLunch={showLunch && isFuture && !hasEventInWindow(dayEvents, 11, 13)}
               showLunch={showLunch}
               onSelectDinner={() => { setEditMealType("dinner"); setEditDate(d); }}
               onSelectLunch={() => { setEditMealType("lunch"); setEditDate(d); }}
