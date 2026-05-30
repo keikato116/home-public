@@ -121,7 +121,7 @@ export const useTodoStore = create<TodoState>((set, get) => ({
         .eq("household_id", householdId)
         .in("definition_id", periodicEntries.map((e) => e.id))
         .gte("completed_on", minDate);
-      const completedSince = new Set(pastComps?.map((c) => c.definition_id) ?? []);
+      const completedSince = new Set(pastComps?.map((c: { definition_id: string }) => c.definition_id) ?? []);
       for (const { id } of periodicEntries) {
         if (!completedSince.has(id)) overdueIds.add(id);
       }
@@ -248,7 +248,7 @@ export const useTodoStore = create<TodoState>((set, get) => ({
         schema: "public",
         table: "routine_definitions",
         filter: `household_id=eq.${householdId}`,
-      }, (payload) => {
+      }, (payload: { eventType: string; new: unknown; old: unknown }) => {
         const { eventType, new: newRow, old: oldRow } = payload;
         set((s) => {
           if (eventType === "INSERT") {
@@ -276,7 +276,7 @@ export const useTodoStore = create<TodoState>((set, get) => ({
         schema: "public",
         table: "shared_todos",
         filter: `household_id=eq.${householdId}`,
-      }, (payload) => {
+      }, (payload: { eventType: string; new: unknown; old: unknown }) => {
         const { eventType, new: newRow, old: oldRow } = payload;
         set((s) => {
           if (eventType === "INSERT") {
@@ -302,7 +302,7 @@ export const useTodoStore = create<TodoState>((set, get) => ({
           .select("definition_id, completed_by")
           .eq("household_id", householdId)
           .eq("completed_on", today)
-          .then(({ data }) => {
+          .then(({ data }: { data: { definition_id: string; completed_by: string | null }[] | null }) => {
             const completedIds = new Set<string>();
             const completedByMap: Record<string, string> = {};
             for (const c of data ?? []) {

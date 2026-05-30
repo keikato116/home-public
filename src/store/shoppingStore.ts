@@ -80,7 +80,7 @@ export const useShoppingStore = create<ShoppingState>((set, get) => ({
         schema: "public",
         table: "shopping_items",
         filter: `household_id=eq.${householdId}`,
-      }, (payload) => {
+      }, (payload: { eventType: string; new: unknown; old: unknown }) => {
         const { eventType, new: newRow, old: oldRow } = payload;
         set((s) => {
           if (eventType === "INSERT") return { items: [...s.items, newRow as ShoppingItem] };

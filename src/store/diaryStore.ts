@@ -61,7 +61,7 @@ export const useDiaryStore = create<DiaryState>((set) => ({
         schema: "public",
         table: "diary_entries",
         filter: `user_id=eq.${userId}`,
-      }, (payload) => {
+      }, (payload: { eventType: string; new: unknown; old: unknown }) => {
         const { eventType, new: newRow, old: oldRow } = payload;
         set((s) => {
           if (eventType === "INSERT") {
