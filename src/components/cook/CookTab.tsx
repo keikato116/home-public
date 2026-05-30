@@ -372,7 +372,7 @@ export function CookTab() {
 
   return (
     <div className="flex flex-col h-full bg-background">
-      <div className="px-5 pt-10 pb-3 flex items-center justify-between">
+      <div className="px-5 pb-3 flex items-center justify-between" style={{ paddingTop: "max(env(safe-area-inset-top), 1rem)" }}>
         <button onClick={() => goMonth(-1)} className="text-muted-foreground p-1">
           <ChevronLeft size={16} />
         </button>
