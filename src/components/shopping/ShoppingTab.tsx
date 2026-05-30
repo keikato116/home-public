@@ -7,14 +7,14 @@ import { ShoppingItem } from "@/types";
 import { Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const STORES = ["スーパー", "薬局", "100均", "無印", "Amazon"] as const;
+const STORES = ["grocery", "pharmacy", "100yen", "muji", "amazon"] as const;
 type Store = typeof STORES[number];
 
 // "other" = auto-added from meal plan → shown under スーパー, no checkbox
 // store name = manually added → shown under that store, with checkbox
 function getStore(item: ShoppingItem): Store {
   if ((STORES as readonly string[]).includes(item.category)) return item.category as Store;
-  return "スーパー";
+  return "grocery";
 }
 
 function isManual(item: ShoppingItem): boolean {
@@ -84,7 +84,7 @@ function AddItemForm({
 }) {
   const [open, setOpen] = useState(false);
   const [label, setLabel] = useState("");
-  const [store, setStore] = useState<Store>("スーパー");
+  const [store, setStore] = useState<Store>("grocery");
   const [submitting, setSubmitting] = useState(false);
 
   const submit = async (e: React.FormEvent) => {
@@ -194,11 +194,11 @@ export function ShoppingTab() {
 
   // Group by store
   const byStore: Record<Store, ShoppingItem[]> = {
-    スーパー: [],
-    薬局: [],
-    "100均": [],
-    無印: [],
-    Amazon: [],
+    grocery: [],
+    pharmacy: [],
+    "100yen": [],
+    muji: [],
+    amazon: [],
   };
   for (const item of displayItems) {
     byStore[getStore(item)].push(item);
