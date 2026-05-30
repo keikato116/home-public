@@ -62,20 +62,71 @@ function getCurrentPeriod(closingDay: number) {
 // iOS prevents zoom when font-size >= 16px
 const inputStyle = { fontSize: "16px" };
 
+const RATIO_KEY = "__ratio__";
+
+function RatioCustomInput({ herRatio, onChange }: { herRatio: number; onChange: (r: number) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState("");
+  const presets = [0.5, 0.4, 0.6];
+  const isPreset = presets.includes(herRatio);
+
+  const commit = () => {
+    const pct = parseInt(val, 10);
+    if (!isNaN(pct) && pct >= 0 && pct <= 100) onChange(pct / 100);
+    setEditing(false);
+  };
+
+  if (editing) return (
+    <div className="flex items-center gap-1 border-b border-border">
+      <input
+        autoFocus
+        type="number"
+        inputMode="numeric"
+        value={val}
+        onChange={(e) => setVal(e.target.value)}
+        onKeyDown={(e) => { if (e.key === "Enter") commit(); if (e.key === "Escape") setEditing(false); }}
+        onBlur={commit}
+        placeholder="her%"
+        style={{ fontSize: "16px" }}
+        className="w-12 bg-transparent text-[10px] text-center outline-none text-muted-foreground"
+      />
+    </div>
+  );
+
+  return (
+    <button
+      type="button"
+      onClick={() => { setVal(String(Math.round(herRatio * 100))); setEditing(true); }}
+      className={cn(
+        "text-[10px] tracking-wider px-2.5 py-1 rounded-lg border transition-colors",
+        !isPreset ? "bg-foreground text-background border-foreground" : "border-border text-muted-foreground"
+      )}
+    >
+      {!isPreset ? `${Math.round((1-herRatio)*100)}:${Math.round(herRatio*100)}` : "custom"}
+    </button>
+  );
+}
+
+function getSessionRatio(session: SplitSession, fallback: number): number {
+  const ri = session.items.find((i) => i.name === RATIO_KEY);
+  return ri !== undefined ? ri.price : fallback;
+}
+
 // ─── Receipt / Item Entry Sheet ───────────────────────────────────────────────
 
 interface ReceiptSheetProps {
   defaultDate: string;
-  herRatio: number;
+  defaultHerRatio: number;
   onSave: (data: { date: string; store: string; card: "mine" | "family"; items: SplitItem[]; shared_amount: number }) => Promise<void>;
   onClose: () => void;
 }
 
-function ReceiptSheet({ defaultDate, herRatio, onSave, onClose }: ReceiptSheetProps) {
+function ReceiptSheet({ defaultDate, defaultHerRatio, onSave, onClose }: ReceiptSheetProps) {
   const [store, setStore] = useState("");
   const [date, setDate] = useState(defaultDate);
   const [card, setCard] = useState<"mine" | "family">("mine");
   const [amount, setAmount] = useState("");
+  const [herRatio, setHerRatio] = useState(defaultHerRatio);
   const [scanning, setScanning] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -157,7 +208,7 @@ function ReceiptSheet({ defaultDate, herRatio, onSave, onClose }: ReceiptSheetPr
         setTimeout(() => rej(new Error("timeout — check Supabase tables")), 10000)
       );
       await Promise.race([
-        onSave({ date, store: store.trim() || "−", card, items: [], shared_amount: n }),
+        onSave({ date, store: store.trim() || "−", card, items: [{ name: RATIO_KEY, price: herRatio }], shared_amount: n }),
         timeout,
       ]);
       onClose();
@@ -247,6 +298,28 @@ function ReceiptSheet({ defaultDate, herRatio, onSave, onClose }: ReceiptSheetPr
         className="px-5 py-4 bg-background border-t border-border/30 space-y-3"
         style={{ paddingBottom: "calc(1rem + env(safe-area-inset-bottom))" }}
       >
+        {/* Ratio selector */}
+        <div className="flex items-center gap-2">
+          {([0.5, 0.4, 0.6] as number[]).map((r) => {
+            const himPct = Math.round((1 - r) * 100);
+            const herPct = Math.round(r * 100);
+            return (
+              <button
+                key={r}
+                type="button"
+                onClick={() => setHerRatio(r)}
+                className={cn(
+                  "text-[10px] tracking-wider px-2.5 py-1 rounded-lg border transition-colors",
+                  herRatio === r ? "bg-foreground text-background border-foreground" : "border-border text-muted-foreground"
+                )}
+              >
+                {himPct}:{herPct}
+              </button>
+            );
+          })}
+          <RatioCustomInput herRatio={herRatio} onChange={setHerRatio} />
+        </div>
+
         <div className="flex items-end justify-between">
           <div>
             <p className="text-[9px] tracking-widest text-muted-foreground uppercase">shared total</p>
@@ -415,14 +488,15 @@ export function SplitTab() {
   };
 
   // Settlement calculation (includes subscriptions)
-  const mineShared = sessions.filter(s => s.card === "mine").reduce((sum, s) => sum + s.shared_amount, 0);
-  const familyShared = sessions.filter(s => s.card === "family").reduce((sum, s) => sum + s.shared_amount, 0);
+  // Use per-session ratio; fall back to global splitRatio
+  const herFromMine = sessions.filter(s => s.card === "mine").reduce((sum, s) => sum + s.shared_amount * getSessionRatio(s, splitRatio), 0);
+  const herFromFamily = sessions.filter(s => s.card === "family").reduce((sum, s) => sum + s.shared_amount * getSessionRatio(s, splitRatio), 0);
   const subsMine = subscriptions.filter(s => s.card === "mine").reduce((sum, s) => sum + s.amount, 0);
   const subsFamily = subscriptions.filter(s => s.card === "family").reduce((sum, s) => sum + s.amount, 0);
-  const totalMineShared = mineShared + subsMine;
-  const totalFamilyShared = familyShared + subsFamily;
+  const totalMineShared = sessions.filter(s => s.card === "mine").reduce((sum, s) => sum + s.shared_amount, 0) + subsMine;
+  const totalFamilyShared = sessions.filter(s => s.card === "family").reduce((sum, s) => sum + s.shared_amount, 0) + subsFamily;
   const familyCardTotal = familyTotal?.total ?? 0;
-  const gfOwesRaw = totalMineShared * splitRatio + familyCardTotal - totalFamilyShared * splitRatio;
+  const gfOwesRaw = herFromMine + subsMine * splitRatio + familyCardTotal - herFromFamily - subsFamily * splitRatio;
   const netPositive = gfOwesRaw >= 0;
 
   const byDate: Record<string, SplitSession[]> = {};
@@ -685,7 +759,7 @@ export function SplitTab() {
       {sheetOpen && (
         <ReceiptSheet
           defaultDate={defaultDate}
-          herRatio={splitRatio}
+          defaultHerRatio={splitRatio}
           onSave={(data) => addSession(householdId!, data)}
           onClose={() => setSheetOpen(false)}
         />
