@@ -268,8 +268,12 @@ export const useAuthStore = create<AuthState>((set) => ({
 
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState !== "visible") return;
-      // Proactively refresh on foreground; dedupe handles concurrent calls
+      // Refresh Google token and Supabase JWT on foreground
       ensureValidAccessToken().catch(() => {});
+      void supabase.auth.getSession().then((res: { data: { session: unknown } }) => {
+        if (res.data.session) return;
+        supabase.auth.refreshSession().catch(() => {});
+      });
     });
 
     supabase.auth.onAuthStateChange(async (event, session) => {
