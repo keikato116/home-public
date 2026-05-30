@@ -71,6 +71,7 @@ interface ReceiptSheetProps {
 }
 
 function ReceiptSheet({ defaultDate, onSave, onClose }: ReceiptSheetProps) {
+  const [store, setStore] = useState("");
   const [date, setDate] = useState(defaultDate);
   const [card, setCard] = useState<"mine" | "family">("mine");
   const [amount, setAmount] = useState("");
@@ -101,6 +102,7 @@ function ReceiptSheet({ defaultDate, onSave, onClose }: ReceiptSheetProps) {
       });
       if (!resp.ok) throw new Error();
       const parsed = await resp.json();
+      if (parsed.store) setStore(parsed.store);
       if (parsed.date) setDate(parsed.date);
       if (parsed.total) setAmount(String(parsed.total));
     } catch {
@@ -120,7 +122,7 @@ function ReceiptSheet({ defaultDate, onSave, onClose }: ReceiptSheetProps) {
         setTimeout(() => rej(new Error("timeout — check Supabase tables")), 10000)
       );
       await Promise.race([
-        onSave({ date, store: "−", card, items: [], shared_amount: n }),
+        onSave({ date, store: store.trim() || "−", card, items: [], shared_amount: n }),
         timeout,
       ]);
       onClose();
@@ -176,20 +178,31 @@ function ReceiptSheet({ defaultDate, onSave, onClose }: ReceiptSheetProps) {
           </div>
         </div>
 
-        {/* Amount */}
-        <div className="flex items-center gap-3 bg-muted/40 rounded-xl px-4 py-3">
-          <span className="text-muted-foreground text-[16px]">¥</span>
+        {/* Memo + Amount */}
+        <div className="flex items-end gap-4">
           <input
             autoFocus
-            type="number"
-            inputMode="numeric"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
+            type="text"
+            value={store === "−" ? "" : store}
+            onChange={(e) => setStore(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") handleSave(); }}
-            placeholder="0"
+            placeholder="memo..."
             style={inputStyle}
-            className="flex-1 bg-transparent outline-none placeholder:text-muted-foreground"
+            className="flex-1 bg-transparent border-b border-border py-2 outline-none placeholder:text-muted-foreground/50"
           />
+          <div className="flex items-end gap-1 border-b border-border py-2 flex-shrink-0">
+            <span className="text-muted-foreground pb-0.5">¥</span>
+            <input
+              type="number"
+              inputMode="numeric"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") handleSave(); }}
+              placeholder="0"
+              style={inputStyle}
+              className="w-28 bg-transparent outline-none placeholder:text-muted-foreground/50 text-right"
+            />
+          </div>
         </div>
 
         {error && <p className="text-[11px] text-red-500">{error}</p>}
