@@ -9,6 +9,7 @@ import { ScheduleTimeline } from "./ScheduleTimeline";
 import { RefreshCw, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { CalendarEvent } from "@/types";
 import { GOOGLE_COLOR_HEX } from "@/lib/calendar";
+import { getJapaneseHolidayName } from "@/lib/japaneseHolidays";
 
 type ViewMode = "day" | "week" | "month";
 
@@ -86,6 +87,8 @@ function WeekStrip({ weekDays, selectedDate, today, eventsMap, onSelect }: WeekS
       {weekDays.map((d, i) => {
         const isSelected = isSameDay(d, selectedDate);
         const isToday = isSameDay(d, today);
+        const holiday = getJapaneseHolidayName(d);
+        const isRed = d.getDay() === 0 || !!holiday;
         const dayEvents = eventsMap[toDateStr(d)] ?? [];
         return (
           <button key={i} className="flex-1 flex flex-col items-center gap-1" onClick={() => onSelect(d)}>
@@ -94,6 +97,7 @@ function WeekStrip({ weekDays, selectedDate, today, eventsMap, onSelect }: WeekS
               "w-7 h-7 rounded-full flex items-center justify-center text-[12px]",
               isSelected ? "bg-foreground text-background"
                 : isToday ? "border border-foreground text-foreground"
+                : isRed ? "text-red-500"
                 : "text-foreground",
             ].join(" ")}>
               {d.getDate()}
@@ -146,6 +150,8 @@ function MonthGrid({ selectedDate, today, eventsMap, currentUserId, onSelect }: 
           if (!d) return <div key={i} className="border-r border-b border-border/20" />;
           const isSelected = isSameDay(d, selectedDate);
           const isToday = isSameDay(d, today);
+          const holiday = getJapaneseHolidayName(d);
+          const isRed = d.getDay() === 0 || !!holiday;
           const dayEvents = eventsMap[toDateStr(d)] ?? [];
           const myEvents = dayEvents.filter(e => e.ownerId === currentUserId);
           const partnerEvents = dayEvents.filter(e => e.ownerId !== currentUserId);
@@ -159,10 +165,14 @@ function MonthGrid({ selectedDate, today, eventsMap, currentUserId, onSelect }: 
                 "w-[18px] h-[18px] rounded-full flex items-center justify-center text-[10px] mb-0.5 flex-shrink-0",
                 isSelected ? "bg-foreground text-background"
                   : isToday ? "border border-foreground text-foreground"
+                  : isRed ? "text-red-500"
                   : "text-foreground",
               ].join(" ")}>
                 {d.getDate()}
               </span>
+              {holiday && (
+                <span className="text-[5.5px] leading-none text-red-400 truncate w-full mb-px">{holiday}</span>
+              )}
               <div className="w-full space-y-px overflow-hidden">
                 {myEvents.slice(0, 3).map(e => {
                   const color = eventColor(e);
@@ -210,10 +220,13 @@ function WeekAgenda({ weekDays, eventsMap, currentUserId, today, onDelete }: Wee
             <div className="flex items-center gap-2 mb-1">
               <span className={[
                 "text-[10px] tracking-widest uppercase",
-                isToday ? "text-foreground" : "text-muted-foreground",
+                isToday ? "text-foreground" : day.getDay() === 0 || getJapaneseHolidayName(day) ? "text-red-500" : "text-muted-foreground",
               ].join(" ")}>
                 {day.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
               </span>
+              {getJapaneseHolidayName(day) && (
+                <span className="text-[9px] text-red-400">{getJapaneseHolidayName(day)}</span>
+              )}
               {isToday && <span className="w-1 h-1 rounded-full bg-foreground" />}
             </div>
             {events.length === 0
@@ -371,9 +384,14 @@ export function CalendarTab() {
 
           <div ref={viewMode === "day" ? timelineScrollRef : undefined} className="flex-1 overflow-y-auto px-7 py-4">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-[10px] tracking-widest text-muted-foreground uppercase">
-                {selectedDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className={["text-[10px] tracking-widest uppercase", getJapaneseHolidayName(selectedDate) || selectedDate.getDay() === 0 ? "text-red-500" : "text-muted-foreground"].join(" ")}>
+                  {selectedDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                </span>
+                {getJapaneseHolidayName(selectedDate) && (
+                  <span className="text-[9px] text-red-400">{getJapaneseHolidayName(selectedDate)}</span>
+                )}
+              </div>
               <button onClick={() => setShowAddForm(v => !v)}
                 className="text-muted-foreground hover:text-foreground transition-colors" aria-label="add event">
                 <Plus size={14} />

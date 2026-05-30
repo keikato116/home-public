@@ -10,6 +10,7 @@ import { useTodoStore } from "@/store/todoStore";
 import { RecipePicker } from "@/components/recipe/RecipePicker";
 import { MealPlan, CalendarEvent, Recipe } from "@/types";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
+import { isJapaneseHoliday } from "@/lib/japaneseHolidays";
 import { cn, toISODate } from "@/lib/utils";
 
 function parseIngredientLines(text: string): string[] {
@@ -54,67 +55,6 @@ function toDateStr(d: Date) {
 
 function isSameDay(a: Date, b: Date) {
   return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
-}
-
-function nthWeekday(year: number, month: number, weekday: number, n: number): number {
-  const first = new Date(year, month, 1).getDay();
-  const offset = (weekday - first + 7) % 7;
-  return 1 + offset + (n - 1) * 7;
-}
-
-function vernalEquinox(year: number): number {
-  return Math.floor(20.8431 + 0.242194 * (year - 1980) - Math.floor((year - 1980) / 4));
-}
-
-function autumnalEquinox(year: number): number {
-  return Math.floor(23.2488 + 0.242194 * (year - 1980) - Math.floor((year - 1980) / 4));
-}
-
-function isJapaneseHolidayBase(date: Date): boolean {
-  const y = date.getFullYear();
-  const m = date.getMonth() + 1;
-  const d = date.getDate();
-  const dow = date.getDay();
-  if (m === 1 && d === 1) return true;
-  if (m === 2 && d === 11) return true;
-  if (m === 2 && d === 23) return true;
-  if (m === 4 && d === 29) return true;
-  if (m === 5 && d === 3) return true;
-  if (m === 5 && d === 4) return true;
-  if (m === 5 && d === 5) return true;
-  if (m === 8 && d === 11) return true;
-  if (m === 11 && d === 3) return true;
-  if (m === 11 && d === 23) return true;
-  if (m === 3 && d === vernalEquinox(y)) return true;
-  if (m === 9 && d === autumnalEquinox(y)) return true;
-  if (m === 1 && dow === 1 && d === nthWeekday(y, 0, 1, 2)) return true;
-  if (m === 7 && dow === 1 && d === nthWeekday(y, 6, 1, 3)) return true;
-  if (m === 9 && dow === 1 && d === nthWeekday(y, 8, 1, 3)) return true;
-  if (m === 10 && dow === 1 && d === nthWeekday(y, 9, 1, 2)) return true;
-  return false;
-}
-
-function isJapaneseHoliday(date: Date): boolean {
-  if (isJapaneseHolidayBase(date)) return true;
-  const dow = date.getDay();
-  // 振替休日: Monday after a Sunday holiday
-  if (dow === 1) {
-    const sun = new Date(date); sun.setDate(sun.getDate() - 1);
-    if (isJapaneseHolidayBase(sun)) return true;
-  }
-  // 振替休日: cascading (Sun+Mon both holidays → Tue)
-  if (dow === 2) {
-    const sun = new Date(date); sun.setDate(sun.getDate() - 2);
-    const mon = new Date(date); mon.setDate(mon.getDate() - 1);
-    if (isJapaneseHolidayBase(sun) && isJapaneseHolidayBase(mon)) return true;
-  }
-  // 国民の休日: weekday sandwiched between two holidays
-  if (dow !== 0 && dow !== 6) {
-    const prev = new Date(date); prev.setDate(prev.getDate() - 1);
-    const next = new Date(date); next.setDate(next.getDate() + 1);
-    if (isJapaneseHolidayBase(prev) && isJapaneseHolidayBase(next)) return true;
-  }
-  return false;
 }
 
 function isWeekendOrHoliday(date: Date): boolean {
