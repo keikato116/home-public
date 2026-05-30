@@ -39,6 +39,15 @@ function hasEventInWindow(events: CalendarEvent[], startHour: number, endHour: n
   });
 }
 
+function bothHaveAllDayEvent(events: CalendarEvent[]): boolean {
+  const owners = new Set(
+    events
+      .filter(ev => ev.start.date && !ev.start.dateTime && ev.ownerId)
+      .map(ev => ev.ownerId!)
+  );
+  return owners.size >= 2;
+}
+
 function toDateStr(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 }
@@ -128,7 +137,7 @@ interface DayPickerProps {
 const FREE_BG = "rgb(59 130 246 / 0.08)";
 
 function DayCell({ date, dinnerPlan, lunchPlan, isToday, freeEvening, freeLunch, showLunch, onSelectDinner, onSelectLunch }: DayPickerProps) {
-  const bothFree = showLunch && freeLunch && freeEvening;
+  const bothFree = freeLunch && freeEvening;
   return (
     <div className="flex flex-col border-r border-b border-border/20 overflow-hidden min-w-0" style={bothFree ? { backgroundColor: FREE_BG } : undefined}>
       {/* Date number */}
@@ -435,8 +444,9 @@ export function CookTab() {
           if (!d) return <div key={i} className="border-r border-b border-border/20" />;
           const ds = toDateStr(d);
           const dayEvents = eventsMap[ds] ?? [];
-          const showLunch = isWeekendOrHoliday(d);
+          const isHolidayOrWeekend = isWeekendOrHoliday(d);
           const isFuture = ds >= todayStr;
+          const lunchFreeWindow = isFuture && !hasEventInWindow(dayEvents, 11, 13);
           return (
             <DayCell
               key={i}
@@ -445,8 +455,8 @@ export function CookTab() {
               lunchPlan={lunchByDate[ds]}
               isToday={isSameDay(d, today)}
               freeEvening={isFuture && !hasEventInWindow(dayEvents, 18, 21)}
-              freeLunch={showLunch && isFuture && !hasEventInWindow(dayEvents, 11, 13)}
-              showLunch={showLunch}
+              freeLunch={lunchFreeWindow && (isHolidayOrWeekend || bothHaveAllDayEvent(dayEvents))}
+              showLunch={true}
               onSelectDinner={() => { setEditMealType("dinner"); setEditDate(d); }}
               onSelectLunch={() => { setEditMealType("lunch"); setEditDate(d); }}
             />
