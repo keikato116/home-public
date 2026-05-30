@@ -183,7 +183,7 @@ function ReceiptSheet({ defaultDate, onSave, onClose }: ReceiptSheetProps) {
                   "flex-1 text-[12px] tracking-wide rounded-xl border py-2.5 transition-colors",
                   card === v ? "bg-foreground text-background border-foreground" : "border-border text-muted-foreground"
                 )}>
-                {v === "mine" ? "my card" : "family"}
+                {v === "mine" ? "him" : "her"}
               </button>
             ))}
           </div>
@@ -271,12 +271,12 @@ function SessionRow({ session, onDelete, onUpdateStore }: {
             "text-[9px] tracking-wider px-1.5 py-0.5 rounded border flex-shrink-0",
             session.card === "mine" ? "border-border text-muted-foreground" : "border-blue-400/50 text-blue-500"
           )}>
-            {session.card === "mine" ? "my" : "family"}
+            {session.card === "mine" ? "him" : "her"}
           </span>
         </div>
       </div>
       <div className="text-right flex-shrink-0">
-        <p className="text-[9px] text-muted-foreground tracking-wider">{isCredit ? "your credit" : "gf owes"}</p>
+        <p className="text-[9px] text-muted-foreground tracking-wider">{isCredit ? "him owes" : "her owes"}</p>
         <p className={cn("text-[15px] tabular-nums", isCredit && "text-blue-500")}>{fmtYen(gfOwed)}</p>
       </div>
       <button onClick={onDelete} className="text-muted-foreground/40 hover:text-muted-foreground flex-shrink-0">
@@ -437,7 +437,7 @@ export function SplitTab() {
       <div className="mx-6 mb-3 bg-muted/40 rounded-2xl px-5 py-4 space-y-3">
         <div>
           <p className="text-[9px] tracking-[0.3em] text-muted-foreground uppercase mb-1">
-            {netPositive ? "girlfriend owes" : "you owe"}
+            {netPositive ? "her owes" : "him owes"}
           </p>
           <p className={cn("text-[38px] font-light tracking-tight tabular-nums", !netPositive && "text-blue-500")}>
             {fmtYen(gfOwesRaw)}
@@ -446,11 +446,11 @@ export function SplitTab() {
 
         <div className="grid grid-cols-3 gap-2 text-center pt-2 border-t border-border/20">
           <div>
-            <p className="text-[8px] text-muted-foreground tracking-wider mb-0.5">my card splits</p>
+            <p className="text-[8px] text-muted-foreground tracking-wider mb-0.5">him splits</p>
             <p className="text-[12px] tabular-nums">{fmtYen(totalMineShared / 2)}</p>
           </div>
           <div>
-            <p className="text-[8px] text-muted-foreground tracking-wider mb-0.5">family card bill</p>
+            <p className="text-[8px] text-muted-foreground tracking-wider mb-0.5">her card bill</p>
             {editingFamily ? (
               <div className="flex items-center justify-center gap-1">
                 <span className="text-[11px]">¥</span>
@@ -474,7 +474,7 @@ export function SplitTab() {
             )}
           </div>
           <div>
-            <p className="text-[8px] text-muted-foreground tracking-wider mb-0.5">family splits (−)</p>
+            <p className="text-[8px] text-muted-foreground tracking-wider mb-0.5">her splits (−)</p>
             <p className="text-[12px] text-blue-500 tabular-nums">−{fmtYen(totalFamilyShared / 2)}</p>
           </div>
         </div>
@@ -555,7 +555,7 @@ export function SplitTab() {
                     "text-[10px] tracking-wide px-3 py-1.5 rounded-lg border flex-shrink-0 transition-colors",
                     subCard === "mine" ? "border-border text-muted-foreground" : "border-blue-400/50 text-blue-500"
                   )}>
-                  {subCard === "mine" ? "my card" : "family"}
+                  {subCard === "mine" ? "him" : "her"}
                 </button>
                 <button onClick={handleAddSubscription} className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0">
                   <Plus size={15} />
@@ -575,7 +575,7 @@ export function SplitTab() {
                 "text-[9px] tracking-wide px-1.5 py-0.5 rounded border flex-shrink-0",
                 sub.card === "mine" ? "border-border/60 text-muted-foreground/60" : "border-blue-400/30 text-blue-400"
               )}>
-                {sub.card === "mine" ? "my" : "family"}
+                {sub.card === "mine" ? "him" : "her"}
               </span>
               <button onClick={() => deleteSubscription(sub.id)} className="text-muted-foreground/30 hover:text-muted-foreground flex-shrink-0">
                 <X size={12} />
