@@ -133,24 +133,23 @@ function ReceiptSheet({ defaultDate, onSave, onClose }: ReceiptSheetProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col justify-end bg-black/30" onClick={onClose}>
-      <div
-        className="bg-background rounded-t-2xl px-5 pt-5 space-y-3"
-        style={{ paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom))" }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between pb-1">
-          <p className="text-[11px] tracking-widest text-muted-foreground uppercase">add receipt</p>
-          <button
-            onClick={() => fileRef.current?.click()}
-            disabled={scanning}
-            className="flex items-center gap-1.5 text-[11px] text-muted-foreground disabled:opacity-40"
-          >
-            <Camera size={13} />
-            {scanning ? "scanning..." : "scan"}
-          </button>
-        </div>
-        <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleScan} />
+    <div className="fixed inset-0 z-50 bg-background flex flex-col">
+      <div className="flex items-center justify-between px-6 pt-12 pb-4 border-b border-border/30">
+        <button onClick={onClose} className="text-muted-foreground p-1">
+          <X size={16} />
+        </button>
+        <p className="text-[11px] tracking-widest text-muted-foreground uppercase">add receipt</p>
+        <button
+          onClick={() => fileRef.current?.click()}
+          disabled={scanning}
+          className="flex items-center gap-1.5 text-[11px] text-muted-foreground disabled:opacity-40"
+        >
+          <Camera size={13} />
+          {scanning ? "scanning..." : "scan"}
+        </button>
+      </div>
+      <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleScan} />
+      <div className="flex-1 px-5 py-6 space-y-4">
 
         {/* Store name */}
         <input
@@ -206,7 +205,12 @@ function ReceiptSheet({ defaultDate, onSave, onClose }: ReceiptSheetProps) {
         </div>
 
         {error && <p className="text-[11px] text-red-500">{error}</p>}
+      </div>
 
+      <div
+        className="px-5 py-4 bg-background border-t border-border/30"
+        style={{ paddingBottom: "calc(1rem + env(safe-area-inset-bottom))" }}
+      >
         <button
           onClick={handleSave}
           disabled={saving || n <= 0}

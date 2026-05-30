@@ -4,11 +4,10 @@ import { useEffect, useState } from "react";
 import { useMealPlanStore } from "@/store/mealPlanStore";
 import { useRecipeStore } from "@/store/recipeStore";
 import { useAuthStore } from "@/store/authStore";
-import { useCalendarStore } from "@/store/calendarStore";
 import { useShoppingStore } from "@/store/shoppingStore";
 import { useTodoStore } from "@/store/todoStore";
 import { RecipePicker } from "@/components/recipe/RecipePicker";
-import { MealPlan, CalendarEvent, Recipe } from "@/types";
+import { MealPlan, Recipe } from "@/types";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn, toISODate } from "@/lib/utils";
 
@@ -22,34 +21,6 @@ function parseIngredientLines(text: string): string[] {
 const DOW = ["S", "M", "T", "W", "T", "F", "S"];
 const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 
-function toJSTMinOfDay(dt: string): number {
-  const d = new Date(dt);
-  return (d.getUTCHours() * 60 + d.getUTCMinutes() + 9 * 60) % 1440;
-}
-
-function hasEveningEvent(events: CalendarEvent[]): boolean {
-  return events.some((ev) => {
-    // Exclude all-day events: they have start.date only, no start.dateTime
-    if (!ev.start.dateTime || ev.start.date) return false;
-    const startMin = toJSTMinOfDay(ev.start.dateTime);
-    const endMin = ev.end.dateTime ? toJSTMinOfDay(ev.end.dateTime) : startMin + 60;
-    // Overlaps 18:00+ window: starts at/after 18:00, or ends after 18:00
-    // spansMidnight: endMin wrapped around (e.g. event 23:00–01:00)
-    const spansMidnight = endMin < startMin;
-    return startMin >= 18 * 60 || endMin > 18 * 60 || spansMidnight;
-  });
-}
-
-function hasLunchTimeEvent(events: CalendarEvent[]): boolean {
-  return events.some((ev) => {
-    if (!ev.start.dateTime || ev.start.date) return false;
-    const startMin = toJSTMinOfDay(ev.start.dateTime);
-    const endMin = ev.end.dateTime ? toJSTMinOfDay(ev.end.dateTime) : startMin + 60;
-    const spansMidnight = endMin < startMin;
-    if (spansMidnight) return false;
-    return startMin < 13 * 60 && endMin > 11 * 60;
-  });
-}
 
 function toDateStr(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
@@ -130,38 +101,31 @@ interface DayPickerProps {
   dinnerPlan: MealPlan | undefined;
   lunchPlan: MealPlan | undefined;
   isToday: boolean;
-  freeEvening: boolean;
-  freeLunch: boolean;
   showLunch: boolean;
   onSelectDinner: () => void;
   onSelectLunch: () => void;
 }
 
-function DayCell({ date, dinnerPlan, lunchPlan, isToday, freeEvening, freeLunch, showLunch, onSelectDinner, onSelectLunch }: DayPickerProps) {
+function DayCell({ date, dinnerPlan, lunchPlan, isToday, showLunch, onSelectDinner, onSelectLunch }: DayPickerProps) {
   return (
-    <div className={cn(
-      "flex flex-col border-r border-b border-border/20 overflow-hidden min-w-0",
-      freeEvening && "bg-blue-500/5"
-    )}>
+    <div className="flex flex-col border-r border-b border-border/20 overflow-hidden min-w-0">
       {/* Date number */}
-      <div className="flex items-center gap-0.5 px-0.5 pt-0.5">
+      <div className="flex items-center px-0.5 pt-0.5">
         <span className={cn(
           "text-[9px] leading-none w-4 h-4 flex items-center justify-center rounded-full flex-shrink-0",
           isToday ? "bg-foreground text-background" : "text-muted-foreground"
         )}>
           {date.getDate()}
         </span>
-        {freeEvening && <span className="w-1 h-1 rounded-full bg-blue-400/60" />}
       </div>
       {/* Lunch (weekends/holidays) */}
       {showLunch && (
-        <button onClick={onSelectLunch} className="text-left px-0.5 py-0.5 min-w-0 flex items-center gap-0.5 border-b border-border/10">
-          {freeLunch && <span className="w-1 h-1 rounded-full bg-blue-400/60 flex-shrink-0" />}
+        <button onClick={onSelectLunch} className="flex-1 text-left px-0.5 min-w-0 border-b border-border/10">
           <span className={cn(
             "text-[7px] leading-tight truncate block",
-            lunchPlan?.label ? "text-foreground" : "text-muted-foreground/20"
+            lunchPlan?.label ? "text-foreground" : ""
           )}>
-            {lunchPlan?.label ?? "·"}
+            {lunchPlan?.label ?? ""}
           </span>
         </button>
       )}
@@ -371,8 +335,6 @@ export function CookTab() {
   const { householdId } = useAuthStore();
   const { plans, loading, load } = useMealPlanStore();
   const { load: loadRecipes } = useRecipeStore();
-  const { eventsByDate } = useCalendarStore();
-
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth());
@@ -410,9 +372,6 @@ export function CookTab() {
     plans.filter((p) => p.meal_type === "lunch").map((p) => [p.date, p])
   );
 
-  const eventsMap = eventsByDate();
-  const todayStr = toDateStr(today);
-
   const editPlan = editDate
     ? (editMealType === "lunch" ? lunchByDate : dinnerByDate)[toDateStr(editDate)]
     : undefined;
@@ -449,9 +408,7 @@ export function CookTab() {
         {cells.map((d, i) => {
           if (!d) return <div key={i} className="border-r border-b border-border/20" />;
           const ds = toDateStr(d);
-          const dayEvents = eventsMap[ds] ?? [];
           const showLunch = isWeekendOrHoliday(d);
-          const isFuture = ds >= todayStr;
           return (
             <DayCell
               key={i}
@@ -459,8 +416,6 @@ export function CookTab() {
               dinnerPlan={dinnerByDate[ds]}
               lunchPlan={lunchByDate[ds]}
               isToday={isSameDay(d, today)}
-              freeEvening={isFuture && !hasEveningEvent(dayEvents)}
-              freeLunch={showLunch && isFuture && !hasLunchTimeEvent(dayEvents)}
               showLunch={showLunch}
               onSelectDinner={() => { setEditMealType("dinner"); setEditDate(d); }}
               onSelectLunch={() => { setEditMealType("lunch"); setEditDate(d); }}
