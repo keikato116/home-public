@@ -76,6 +76,12 @@ interface DayPickerProps {
 
 const FREE_BG = "rgb(59 130 246 / 0.08)";
 
+function displayLabel(label: string | null | undefined): string {
+  if (!label) return "";
+  const match = label.match(/^外食（(.+)）$/);
+  return match ? match[1] : label;
+}
+
 function DayCell({ date, dinnerPlan, lunchPlan, isToday, freeEvening, freeLunch, showLunch, onSelectDinner, onSelectLunch }: DayPickerProps) {
   const bothFree = freeLunch && freeEvening;
   return (
@@ -96,7 +102,7 @@ function DayCell({ date, dinnerPlan, lunchPlan, isToday, freeEvening, freeLunch,
             "text-[7px] leading-tight truncate block",
             lunchPlan?.label ? "text-foreground" : ""
           )}>
-            {lunchPlan?.label ?? ""}
+            {displayLabel(lunchPlan?.label)}
           </span>
         </button>
       )}
@@ -106,7 +112,7 @@ function DayCell({ date, dinnerPlan, lunchPlan, isToday, freeEvening, freeLunch,
           "text-[8px] leading-tight truncate w-full block",
           dinnerPlan?.label ? "text-foreground" : ""
         )}>
-          {dinnerPlan?.label ?? ""}
+          {displayLabel(dinnerPlan?.label)}
         </span>
       </button>
     </div>

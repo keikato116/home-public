@@ -18,15 +18,25 @@ function formatTabDate(dateStr: string) {
 }
 
 function ItemRow({ item, onDelete }: { item: ShoppingItem; onDelete: () => void }) {
+  const isManual = item.category === "list";
   return (
     <div className="flex items-center gap-3 py-3 border-b border-border/10 group">
+      {isManual && (
+        <input
+          type="checkbox"
+          onChange={onDelete}
+          className="w-3.5 h-3.5 accent-foreground cursor-pointer flex-shrink-0"
+        />
+      )}
       <span className="text-[13px] tracking-wide flex-1">{item.label}</span>
-      <button
-        onClick={onDelete}
-        className="text-[16px] leading-none text-muted-foreground/30 opacity-0 group-hover:opacity-100 active:opacity-100 transition-opacity hover:text-muted-foreground px-1"
-      >
-        ×
-      </button>
+      {!isManual && (
+        <button
+          onClick={onDelete}
+          className="text-[16px] leading-none text-muted-foreground/30 opacity-0 group-hover:opacity-100 active:opacity-100 transition-opacity hover:text-muted-foreground px-1"
+        >
+          ×
+        </button>
+      )}
     </div>
   );
 }
@@ -168,7 +178,7 @@ export function ShoppingTab() {
           defaultDate={effectiveTab}
           onAdd={async (label, date) => {
             if (!householdId) return;
-            await addItem(householdId, label, "other", date ?? undefined);
+            await addItem(householdId, label, "list", date ?? undefined);
           }}
         />
       </div>
