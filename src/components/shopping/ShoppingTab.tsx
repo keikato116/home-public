@@ -1,30 +1,29 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useShoppingStore } from "@/store/shoppingStore";
 import { useAuthStore } from "@/store/authStore";
 import { ShoppingItem } from "@/types";
-import { useShoppingStore as _useShoppingStore } from "@/store/shoppingStore";
+import { Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const FOOD_CATS = new Set(["produce", "meat & fish", "dairy", "pantry", "drinks"]);
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
-function ItemRow({ item }: { item: ShoppingItem }) {
-  const { toggleItem, deleteItem } = _useShoppingStore();
+function formatTabDate(dateStr: string) {
+  const d = new Date(dateStr + "T00:00:00");
+  return d.toLocaleDateString("ja-JP", { month: "numeric", day: "numeric", weekday: "short" });
+}
+
+function ItemRow({ item, onDelete }: { item: ShoppingItem; onDelete: () => void }) {
   return (
-    <div className="flex items-center gap-3 py-2.5 border-b border-border group">
-      <input
-        type="checkbox"
-        checked={item.done}
-        onChange={() => toggleItem(item.id, !item.done)}
-        className="w-3.5 h-3.5 accent-foreground cursor-pointer"
-      />
-      <span className={cn("text-[12px] tracking-wide flex-1", item.done && "line-through text-muted-foreground")}>
-        {item.label}
-      </span>
+    <div className="flex items-center gap-3 py-3 border-b border-border/10 group">
+      <span className="text-[13px] tracking-wide flex-1">{item.label}</span>
       <button
-        onClick={() => deleteItem(item.id)}
-        className="text-[14px] text-muted-foreground/50 opacity-0 group-hover:opacity-100 active:opacity-100 transition-opacity hover:text-muted-foreground"
+        onClick={onDelete}
+        className="text-[16px] leading-none text-muted-foreground/30 opacity-0 group-hover:opacity-100 active:opacity-100 transition-opacity hover:text-muted-foreground px-1"
       >
         ×
       </button>
@@ -32,9 +31,79 @@ function ItemRow({ item }: { item: ShoppingItem }) {
   );
 }
 
+function AddItemForm({
+  defaultDate,
+  onAdd,
+}: {
+  defaultDate: string | null;
+  onAdd: (label: string, date: string | null) => Promise<void>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [label, setLabel] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!label.trim()) return;
+    setSubmitting(true);
+    try {
+      await onAdd(label.trim(), defaultDate);
+      setLabel("");
+      setOpen(false);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (!open)
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        className="flex items-center gap-2 text-[11px] text-muted-foreground hover:text-foreground transition-colors py-3"
+      >
+        <Plus size={12} />
+        <span className="tracking-wider">add item</span>
+      </button>
+    );
+
+  return (
+    <form onSubmit={submit} className="py-3">
+      <input
+        autoFocus
+        type="text"
+        value={label}
+        onChange={(e) => setLabel(e.target.value)}
+        placeholder="item name..."
+        className="w-full bg-transparent border-b border-border pb-1 text-[12px] focus:outline-none focus:border-foreground/40 placeholder:text-muted-foreground"
+        onKeyDown={(e) => {
+          if (e.key === "Escape") setOpen(false);
+        }}
+      />
+      <div className="flex gap-3 mt-3">
+        <button
+          type="submit"
+          disabled={!label.trim() || submitting}
+          className="text-[11px] tracking-wider disabled:opacity-40"
+        >
+          {submitting ? "adding..." : "add"}
+        </button>
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          className="text-[11px] text-muted-foreground"
+        >
+          cancel
+        </button>
+      </div>
+    </form>
+  );
+}
+
 export function ShoppingTab() {
   const { householdId } = useAuthStore();
-  const { load, subscribeRealtime, items, clearDone } = useShoppingStore();
+  const { load, subscribeRealtime, items, deleteItem, addItem } = useShoppingStore();
+  const today = todayStr();
+  const [activeTab, setActiveTab] = useState<string | null>(null);
 
   useEffect(() => {
     if (!householdId) return;
@@ -43,158 +112,66 @@ export function ShoppingTab() {
     return unsub;
   }, [householdId, load, subscribeRealtime]);
 
-  const hasDone = items.some((i) => i.done);
+  // Only today and future
+  const visibleItems = items.filter((i) => !i.date || i.date >= today);
 
-  // Split food vs household
-  const foodItems = items.filter((i) => FOOD_CATS.has(i.category));
-  const otherItems = items.filter((i) => !FOOD_CATS.has(i.category));
+  // Sorted distinct future dates
+  const dates = Array.from(new Set(visibleItems.filter((i) => i.date).map((i) => i.date!))).sort();
 
-  // Food: group by date (sorted ascending), null-date last
-  const foodByDate: Record<string, ShoppingItem[]> = {};
-  for (const item of foodItems) {
-    const key = item.date ?? "__nodate__";
-    if (!foodByDate[key]) foodByDate[key] = [];
-    foodByDate[key].push(item);
-  }
-  const dateSections: [string | null, ShoppingItem[]][] = [
-    ...Object.keys(foodByDate)
-      .filter((k) => k !== "__nodate__")
-      .sort()
-      .map((k) => [k, foodByDate[k]] as [string, ShoppingItem[]]),
-    ...(foodByDate["__nodate__"] ? [[null, foodByDate["__nodate__"]] as [null, ShoppingItem[]]] : []),
-  ];
+  const undatedItems = visibleItems.filter((i) => !i.date);
 
-  // Household: group by category
-  const householdByCategory: Record<string, ShoppingItem[]> = {};
-  for (const item of otherItems) {
-    if (!householdByCategory[item.category]) householdByCategory[item.category] = [];
-    householdByCategory[item.category].push(item);
-  }
+  // Active tab: use stored value if still valid, else first date
+  const firstDate = dates[0] ?? null;
+  const effectiveTab = activeTab && dates.includes(activeTab) ? activeTab : firstDate;
 
-  function formatDate(dateStr: string) {
-    const d = new Date(dateStr + "T00:00:00");
-    return d.toLocaleDateString("ja-JP", { month: "numeric", day: "numeric", weekday: "short" });
-  }
+  // Items to display for active tab
+  // First tab also includes undated items
+  const tabItems =
+    effectiveTab === firstDate
+      ? [...undatedItems, ...visibleItems.filter((i) => i.date === effectiveTab)]
+      : visibleItems.filter((i) => i.date === effectiveTab);
+
+  // If no dated items at all, just show undated
+  const displayItems = dates.length === 0 ? undatedItems : tabItems;
+
+  const hasTabs = dates.length > 0;
 
   return (
-    <div className="flex flex-col h-full px-7 py-8">
-      <div className="flex items-center justify-between mb-8">
-        <div />
-        {hasDone && (
-          <button
-            onClick={() => householdId && clearDone(householdId)}
-            className="text-[10px] tracking-wider text-muted-foreground hover:text-foreground transition-colors"
-          >
-            clear done
-          </button>
+    <div className="flex flex-col h-full bg-background">
+      {hasTabs && (
+        <div className="flex border-b border-border/20 overflow-x-auto px-5 pt-10 flex-shrink-0">
+          {dates.map((date) => (
+            <button
+              key={date}
+              onClick={() => setActiveTab(date)}
+              className={cn(
+                "text-[10px] tracking-wider px-3 py-2 whitespace-nowrap border-b-2 -mb-px transition-colors",
+                effectiveTab === date
+                  ? "border-foreground text-foreground"
+                  : "border-transparent text-muted-foreground"
+              )}
+            >
+              {formatTabDate(date)}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className={cn("flex-1 overflow-y-auto px-7 pb-8", hasTabs ? "pt-6" : "pt-16")}>
+        {displayItems.length === 0 && (
+          <p className="text-[11px] text-muted-foreground py-3">nothing here</p>
         )}
-      </div>
-
-      <div className="flex-1 space-y-6 overflow-y-auto">
-        {/* Food items grouped by date */}
-        {dateSections.map(([date, sectionItems]) => (
-          <div key={date ?? "no-date"}>
-            <p className="text-[10px] tracking-widest text-muted-foreground uppercase mb-2">
-              {date ? formatDate(date) : "food"}
-            </p>
-            {(sectionItems as ShoppingItem[]).map((item) => (
-              <ItemRow key={item.id} item={item} />
-            ))}
-          </div>
+        {displayItems.map((item) => (
+          <ItemRow key={item.id} item={item} onDelete={() => deleteItem(item.id)} />
         ))}
-
-        {/* Household items grouped by category */}
-        {Object.entries(householdByCategory).map(([cat, catItems]) => (
-          <div key={cat}>
-            <p className="text-[10px] tracking-widest text-muted-foreground uppercase mb-2">{cat}</p>
-            {catItems.map((item) => (
-              <ItemRow key={item.id} item={item} />
-            ))}
-          </div>
-        ))}
-
-        <AddShoppingItemInline />
+        <AddItemForm
+          defaultDate={effectiveTab}
+          onAdd={async (label, date) => {
+            if (!householdId) return;
+            await addItem(householdId, label, "other", date ?? undefined);
+          }}
+        />
       </div>
     </div>
-  );
-}
-
-const ADD_CATEGORIES = ["produce", "meat & fish", "dairy", "pantry", "drinks", "household", "other"];
-
-function AddShoppingItemInline() {
-  const { addItem } = useShoppingStore();
-  const { householdId, loading: authLoading } = useAuthStore();
-
-  return (
-    <AddForm
-      onSubmit={async (label, category) => {
-        if (!householdId) return;
-        await addItem(householdId, label, category);
-      }}
-      authLoading={authLoading}
-    />
-  );
-}
-
-import { useState } from "react";
-import { Plus } from "lucide-react";
-
-function AddForm({ onSubmit, authLoading }: { onSubmit: (label: string, category: string) => Promise<void>; authLoading: boolean }) {
-  const [open, setOpen] = useState(false);
-  const [label, setLabel] = useState("");
-  const [category, setCategory] = useState("other");
-  const [error, setError] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!label.trim()) return;
-    setSubmitting(true);
-    setError("");
-    try {
-      await onSubmit(label.trim(), category);
-      setLabel("");
-      setOpen(false);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "failed");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  if (!open) return (
-    <button onClick={() => setOpen(true)} className="flex items-center gap-2 text-[11px] text-muted-foreground hover:text-foreground transition-colors py-2">
-      <Plus size={12} />
-      <span className="tracking-wider">add item</span>
-    </button>
-  );
-
-  return (
-    <form onSubmit={submit} className="space-y-3 py-2">
-      <input
-        autoFocus
-        type="text"
-        value={label}
-        onChange={(e) => setLabel(e.target.value)}
-        placeholder="item name..."
-        className="w-full bg-transparent border-b border-border pb-1 text-[12px] focus:outline-none focus:border-foreground/40 placeholder:text-muted-foreground"
-        onKeyDown={(e) => e.key === "Escape" && setOpen(false)}
-      />
-      <div className="flex items-center gap-2 flex-wrap">
-        {ADD_CATEGORIES.map((cat) => (
-          <button key={cat} type="button" onClick={() => setCategory(cat)}
-            className={`text-[10px] tracking-wider px-2 py-1 rounded border transition-colors ${category === cat ? "bg-foreground text-background border-foreground" : "border-border text-muted-foreground hover:border-foreground/30"}`}>
-            {cat}
-          </button>
-        ))}
-      </div>
-      {error && <p className="text-[10px] text-red-500">{error}</p>}
-      <div className="flex gap-3">
-        <button type="submit" disabled={!label.trim() || submitting || authLoading} className="text-[11px] tracking-wider disabled:opacity-40">
-          {submitting ? "adding..." : "add"}
-        </button>
-        <button type="button" onClick={() => setOpen(false)} className="text-[11px] text-muted-foreground">cancel</button>
-      </div>
-    </form>
   );
 }
