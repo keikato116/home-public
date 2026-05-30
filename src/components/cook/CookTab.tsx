@@ -4,10 +4,11 @@ import { useEffect, useState } from "react";
 import { useMealPlanStore } from "@/store/mealPlanStore";
 import { useRecipeStore } from "@/store/recipeStore";
 import { useAuthStore } from "@/store/authStore";
+import { useCalendarStore } from "@/store/calendarStore";
 import { useShoppingStore } from "@/store/shoppingStore";
 import { useTodoStore } from "@/store/todoStore";
 import { RecipePicker } from "@/components/recipe/RecipePicker";
-import { MealPlan, Recipe } from "@/types";
+import { MealPlan, CalendarEvent, Recipe } from "@/types";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn, toISODate } from "@/lib/utils";
 
@@ -21,6 +22,21 @@ function parseIngredientLines(text: string): string[] {
 const DOW = ["S", "M", "T", "W", "T", "F", "S"];
 const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 
+
+function toJSTMinOfDay(dt: string): number {
+  const d = new Date(dt);
+  return (d.getUTCHours() * 60 + d.getUTCMinutes() + 9 * 60) % 1440;
+}
+
+function hasEveningEvent(events: CalendarEvent[]): boolean {
+  return events.some((ev) => {
+    if (!ev.start.dateTime || ev.start.date) return false;
+    const startMin = toJSTMinOfDay(ev.start.dateTime);
+    const endMin = ev.end.dateTime ? toJSTMinOfDay(ev.end.dateTime) : startMin + 60;
+    const spansMidnight = endMin < startMin;
+    return startMin >= 18 * 60 || endMin > 18 * 60 || spansMidnight;
+  });
+}
 
 function toDateStr(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
@@ -101,14 +117,15 @@ interface DayPickerProps {
   dinnerPlan: MealPlan | undefined;
   lunchPlan: MealPlan | undefined;
   isToday: boolean;
+  freeEvening: boolean;
   showLunch: boolean;
   onSelectDinner: () => void;
   onSelectLunch: () => void;
 }
 
-function DayCell({ date, dinnerPlan, lunchPlan, isToday, showLunch, onSelectDinner, onSelectLunch }: DayPickerProps) {
+function DayCell({ date, dinnerPlan, lunchPlan, isToday, freeEvening, showLunch, onSelectDinner, onSelectLunch }: DayPickerProps) {
   return (
-    <div className="flex flex-col border-r border-b border-border/20 overflow-hidden min-w-0">
+    <div className={cn("flex flex-col border-r border-b border-border/20 overflow-hidden min-w-0", freeEvening && "bg-blue-500/5")}>
       {/* Date number */}
       <div className="flex items-center px-0.5 pt-0.5">
         <span className={cn(
@@ -335,6 +352,7 @@ export function CookTab() {
   const { householdId } = useAuthStore();
   const { plans, loading, load } = useMealPlanStore();
   const { load: loadRecipes } = useRecipeStore();
+  const { eventsByDate } = useCalendarStore();
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth());
@@ -372,6 +390,9 @@ export function CookTab() {
     plans.filter((p) => p.meal_type === "lunch").map((p) => [p.date, p])
   );
 
+  const eventsMap = eventsByDate();
+  const todayStr = toDateStr(today);
+
   const editPlan = editDate
     ? (editMealType === "lunch" ? lunchByDate : dinnerByDate)[toDateStr(editDate)]
     : undefined;
@@ -408,7 +429,9 @@ export function CookTab() {
         {cells.map((d, i) => {
           if (!d) return <div key={i} className="border-r border-b border-border/20" />;
           const ds = toDateStr(d);
+          const dayEvents = eventsMap[ds] ?? [];
           const showLunch = isWeekendOrHoliday(d);
+          const isFuture = ds >= todayStr;
           return (
             <DayCell
               key={i}
@@ -416,6 +439,7 @@ export function CookTab() {
               dinnerPlan={dinnerByDate[ds]}
               lunchPlan={lunchByDate[ds]}
               isToday={isSameDay(d, today)}
+              freeEvening={isFuture && !hasEveningEvent(dayEvents)}
               showLunch={showLunch}
               onSelectDinner={() => { setEditMealType("dinner"); setEditDate(d); }}
               onSelectLunch={() => { setEditMealType("lunch"); setEditDate(d); }}
