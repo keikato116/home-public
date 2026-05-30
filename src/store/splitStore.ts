@@ -15,6 +15,7 @@ interface SplitState {
     data: { date: string; store: string; card: "mine" | "family"; items: SplitItem[]; shared_amount: number }
   ) => Promise<void>;
   deleteSession: (id: string) => Promise<void>;
+  updateSessionStore: (id: string, store: string) => Promise<void>;
   setFamilyTotal: (householdId: string, year: number, month: number, total: number) => Promise<void>;
   addSubscription: (householdId: string, data: { name: string; amount: number; card: "mine" | "family" }) => Promise<void>;
   deleteSubscription: (id: string) => Promise<void>;
@@ -77,6 +78,12 @@ export const useSplitStore = create<SplitState>((set) => ({
     set((s) => ({ sessions: s.sessions.filter((s) => s.id !== id) }));
     const supabase = createClient();
     await supabase.from("split_sessions").delete().eq("id", id);
+  },
+
+  updateSessionStore: async (id, store) => {
+    set((s) => ({ sessions: s.sessions.map((s) => s.id === id ? { ...s, store } : s) }));
+    const supabase = createClient();
+    await supabase.from("split_sessions").update({ store }).eq("id", id);
   },
 
   setFamilyTotal: async (householdId, year, month, total) => {
