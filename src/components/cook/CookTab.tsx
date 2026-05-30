@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMealPlanStore } from "@/store/mealPlanStore";
 import { useRecipeStore } from "@/store/recipeStore";
 import { useAuthStore } from "@/store/authStore";
@@ -357,6 +357,19 @@ export function CookTab() {
     ? (editMealType === "lunch" ? lunchByDate : dinnerByDate)[toDateStr(editDate)]
     : undefined;
 
+  const touchStartX = useRef<number | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    touchStartX.current = null;
+    if (Math.abs(dx) > 50) goMonth(dx < 0 ? 1 : -1);
+  };
+
   return (
     <div className="flex flex-col h-full bg-background">
       <div className="px-5 pt-10 pb-3 flex items-center justify-between">
@@ -385,6 +398,8 @@ export function CookTab() {
       <div
         className="flex-1 min-h-0 grid grid-cols-7 border-l border-t border-border/20 px-1"
         style={{ gridTemplateRows: `repeat(${rows}, 1fr)` }}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
       >
         {cells.map((d, i) => {
           if (!d) return <div key={i} className="border-r border-b border-border/20" />;
