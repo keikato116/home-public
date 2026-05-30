@@ -98,6 +98,30 @@ function ReceiptSheet({ defaultDate, onSave, onClose }: ReceiptSheetProps) {
     setNewPrice("");
   };
 
+  const addItemAndSave = async () => {
+    const price = parseInt(newPrice, 10);
+    const hasNew = newName.trim() && price > 0;
+    const finalItems = hasNew ? [...items, { name: newName.trim(), price }] : items;
+    const finalChecked = hasNew ? [...checked, true] : checked;
+    const total = finalItems.reduce((sum, item, i) => sum + (finalChecked[i] ? item.price : 0), 0);
+    if (finalItems.length === 0 || total === 0) { addItem(); return; }
+    setSaving(true);
+    setError("");
+    try {
+      const timeout = new Promise<never>((_, rej) =>
+        setTimeout(() => rej(new Error("timeout — check Supabase tables")), 10000)
+      );
+      await Promise.race([
+        onSave({ date, store: store || "−", card, items: finalItems, shared_amount: total }),
+        timeout,
+      ]);
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "save failed");
+      setSaving(false);
+    }
+  };
+
   const handleScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -245,7 +269,7 @@ function ReceiptSheet({ defaultDate, onSave, onClose }: ReceiptSheetProps) {
               type="text"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") addItem(); }}
+              onKeyDown={(e) => { if (e.key === "Enter") addItemAndSave(); }}
               placeholder="item name..."
               style={inputStyle}
               className="flex-1 bg-transparent border-b border-border py-2 outline-none placeholder:text-muted-foreground"
@@ -257,14 +281,18 @@ function ReceiptSheet({ defaultDate, onSave, onClose }: ReceiptSheetProps) {
                 inputMode="numeric"
                 value={newPrice}
                 onChange={(e) => setNewPrice(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") addItem(); }}
+                onKeyDown={(e) => { if (e.key === "Enter") addItemAndSave(); }}
                 placeholder="0"
                 style={inputStyle}
                 className="w-20 bg-transparent py-2 outline-none placeholder:text-muted-foreground"
               />
             </div>
-            <button onClick={addItem} className="text-muted-foreground hover:text-foreground transition-colors p-1">
-              <Plus size={15} />
+            <button
+              onClick={addItemAndSave}
+              disabled={saving}
+              className="text-muted-foreground hover:text-foreground transition-colors p-1 disabled:opacity-40"
+            >
+              {saving ? <span className="text-[10px]">...</span> : <Plus size={15} />}
             </button>
           </div>
         </div>
