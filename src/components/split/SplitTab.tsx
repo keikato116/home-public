@@ -66,11 +66,12 @@ const inputStyle = { fontSize: "16px" };
 
 interface ReceiptSheetProps {
   defaultDate: string;
+  herRatio: number;
   onSave: (data: { date: string; store: string; card: "mine" | "family"; items: SplitItem[]; shared_amount: number }) => Promise<void>;
   onClose: () => void;
 }
 
-function ReceiptSheet({ defaultDate, onSave, onClose }: ReceiptSheetProps) {
+function ReceiptSheet({ defaultDate, herRatio, onSave, onClose }: ReceiptSheetProps) {
   const [store, setStore] = useState("");
   const [date, setDate] = useState(defaultDate);
   const [card, setCard] = useState<"mine" | "family">("mine");
@@ -115,7 +116,7 @@ function ReceiptSheet({ defaultDate, onSave, onClose }: ReceiptSheetProps) {
   }, []);
 
   const n = parseInt(amount, 10) || 0;
-  const herOwed = Math.round(n / 2);
+  const herOwed = Math.round(n * herRatio);
 
   const handleScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -272,14 +273,15 @@ function ReceiptSheet({ defaultDate, onSave, onClose }: ReceiptSheetProps) {
 
 // ─── Session Row ──────────────────────────────────────────────────────────────
 
-function SessionRow({ session, onDelete, onUpdateStore }: {
+function SessionRow({ session, herRatio, onDelete, onUpdateStore }: {
   session: SplitSession;
+  herRatio: number;
   onDelete: () => void;
   onUpdateStore: (store: string) => void;
 }) {
   const [editingStore, setEditingStore] = useState(false);
   const [storeInput, setStoreInput] = useState(session.store === "−" ? "" : session.store);
-  const gfOwed = Math.round(session.shared_amount / 2);
+  const gfOwed = Math.round(session.shared_amount * herRatio);
   const isCredit = session.card === "family";
 
   const saveStore = () => {
@@ -351,6 +353,23 @@ export function SplitTab() {
   const [editingClosingDay, setEditingClosingDay] = useState(false);
   const [closingDayInput, setClosingDayInput] = useState("");
 
+  // Split ratio: her's share (0.0–1.0), default 0.5
+  const [splitRatio, setSplitRatio] = useState<number>(() => {
+    if (typeof window === "undefined") return 0.5;
+    return parseFloat(localStorage.getItem("split_ratio") ?? "0.5");
+  });
+  const [editingRatio, setEditingRatio] = useState(false);
+  const [ratioInput, setRatioInput] = useState("");
+
+  const saveRatio = () => {
+    const pct = parseInt(ratioInput, 10);
+    const valid = !isNaN(pct) && pct >= 0 && pct <= 100;
+    const ratio = valid ? pct / 100 : splitRatio;
+    setSplitRatio(ratio);
+    localStorage.setItem("split_ratio", String(ratio));
+    setEditingRatio(false);
+  };
+
   const initPeriod = getCurrentPeriod(closingDay);
   const [viewYear, setViewYear] = useState(initPeriod.year);
   const [viewMonth, setViewMonth] = useState(initPeriod.month);
@@ -403,7 +422,7 @@ export function SplitTab() {
   const totalMineShared = mineShared + subsMine;
   const totalFamilyShared = familyShared + subsFamily;
   const familyCardTotal = familyTotal?.total ?? 0;
-  const gfOwesRaw = totalMineShared / 2 + familyCardTotal - totalFamilyShared / 2;
+  const gfOwesRaw = totalMineShared * splitRatio + familyCardTotal - totalFamilyShared * splitRatio;
   const netPositive = gfOwesRaw >= 0;
 
   const byDate: Record<string, SplitSession[]> = {};
@@ -450,34 +469,64 @@ export function SplitTab() {
         <button onClick={() => goMonth(1)} className="text-muted-foreground p-1"><ChevronRight size={16} /></button>
       </div>
 
-      {/* Closing day setting */}
-      <div className="px-6 pb-3 flex items-center justify-end gap-1.5">
-        <p className="text-[9px] text-muted-foreground/60 tracking-wider">closing day:</p>
-        {editingClosingDay ? (
-          <div className="flex items-center gap-1">
+      {/* Closing day + ratio settings */}
+      <div className="px-6 pb-3 flex items-center justify-end gap-4">
+        {/* Split ratio */}
+        <div className="flex items-center gap-1.5">
+          <p className="text-[9px] text-muted-foreground/60 tracking-wider">her %:</p>
+          {editingRatio ? (
             <input
               autoFocus
               type="number"
               inputMode="numeric"
-              value={closingDayInput}
-              onChange={(e) => setClosingDayInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") saveClosingDay(); if (e.key === "Escape") setEditingClosingDay(false); }}
-              onBlur={saveClosingDay}
-              placeholder={String(closingDay || "−")}
+              value={ratioInput}
+              onChange={(e) => setRatioInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") saveRatio(); if (e.key === "Escape") setEditingRatio(false); }}
+              onBlur={saveRatio}
+              placeholder={String(Math.round(splitRatio * 100))}
               style={inputStyle}
               className="w-10 bg-transparent text-[9px] text-center outline-none border-b border-border text-muted-foreground"
             />
-            <p className="text-[9px] text-muted-foreground/60">日</p>
-          </div>
-        ) : (
-          <button
-            onClick={() => { setClosingDayInput(closingDay > 0 ? String(closingDay) : ""); setEditingClosingDay(true); }}
-            className="flex items-center gap-1 text-muted-foreground/60 hover:text-muted-foreground transition-colors"
-          >
-            <span className="text-[9px]">{closingDay > 0 ? `${closingDay}日` : "未設定"}</span>
-            <Pencil size={8} />
-          </button>
-        )}
+          ) : (
+            <button
+              onClick={() => { setRatioInput(String(Math.round(splitRatio * 100))); setEditingRatio(true); }}
+              className="flex items-center gap-1 text-muted-foreground/60 hover:text-muted-foreground transition-colors"
+            >
+              <span className="text-[9px]">{Math.round((1 - splitRatio) * 100)}:{Math.round(splitRatio * 100)}</span>
+              <Pencil size={8} />
+            </button>
+          )}
+        </div>
+
+        {/* Closing day */}
+        <div className="flex items-center gap-1.5">
+          <p className="text-[9px] text-muted-foreground/60 tracking-wider">closing day:</p>
+          {editingClosingDay ? (
+            <div className="flex items-center gap-1">
+              <input
+                autoFocus
+                type="number"
+                inputMode="numeric"
+                value={closingDayInput}
+                onChange={(e) => setClosingDayInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") saveClosingDay(); if (e.key === "Escape") setEditingClosingDay(false); }}
+                onBlur={saveClosingDay}
+                placeholder={String(closingDay || "−")}
+                style={inputStyle}
+                className="w-10 bg-transparent text-[9px] text-center outline-none border-b border-border text-muted-foreground"
+              />
+              <p className="text-[9px] text-muted-foreground/60">日</p>
+            </div>
+          ) : (
+            <button
+              onClick={() => { setClosingDayInput(closingDay > 0 ? String(closingDay) : ""); setEditingClosingDay(true); }}
+              className="flex items-center gap-1 text-muted-foreground/60 hover:text-muted-foreground transition-colors"
+            >
+              <span className="text-[9px]">{closingDay > 0 ? `${closingDay}日` : "未設定"}</span>
+              <Pencil size={8} />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Summary card */}
@@ -494,7 +543,7 @@ export function SplitTab() {
         <div className="grid grid-cols-3 gap-2 text-center pt-2 border-t border-border/20">
           <div>
             <p className="text-[8px] text-muted-foreground tracking-wider mb-0.5">him splits</p>
-            <p className="text-[12px] tabular-nums">{fmtYen(totalMineShared / 2)}</p>
+            <p className="text-[12px] tabular-nums">{fmtYen(totalMineShared * splitRatio)}</p>
           </div>
           <div>
             <p className="text-[8px] text-muted-foreground tracking-wider mb-0.5">her card bill</p>
@@ -522,7 +571,7 @@ export function SplitTab() {
           </div>
           <div>
             <p className="text-[8px] text-muted-foreground tracking-wider mb-0.5">her splits (−)</p>
-            <p className="text-[12px] text-blue-500 tabular-nums">−{fmtYen(totalFamilyShared / 2)}</p>
+            <p className="text-[12px] text-blue-500 tabular-nums">−{fmtYen(totalFamilyShared * splitRatio)}</p>
           </div>
         </div>
       </div>
@@ -542,6 +591,7 @@ export function SplitTab() {
               <SessionRow
                 key={session.id}
                 session={session}
+                herRatio={splitRatio}
                 onDelete={() => deleteSession(session.id)}
                 onUpdateStore={(store) => updateSessionStore(session.id, store)}
               />
@@ -635,6 +685,7 @@ export function SplitTab() {
       {sheetOpen && (
         <ReceiptSheet
           defaultDate={defaultDate}
+          herRatio={splitRatio}
           onSave={(data) => addSession(householdId!, data)}
           onClose={() => setSheetOpen(false)}
         />
