@@ -542,14 +542,43 @@ export function SplitTab() {
       </div>
 
       <div className="flex-1 overflow-y-auto overflow-x-hidden px-6 pb-6">
-        {/* Subscriptions section */}
-        <div className="mb-4">
+        {/* Session list */}
+        {loading && <p className="text-[10px] text-muted-foreground text-center py-4">loading...</p>}
+        {!loading && sessions.length === 0 && (
+          <p className="text-[11px] text-muted-foreground text-center py-8">no receipts this month</p>
+        )}
+        {dates.map((date) => (
+          <div key={date} className="mb-4">
+            <p className="text-[9px] tracking-widest text-muted-foreground uppercase mb-1">
+              {formatDateHeader(date)}
+            </p>
+            {byDate[date].map((session) => (
+              <SessionRow
+                key={session.id}
+                session={session}
+                onDelete={() => deleteSession(session.id)}
+              />
+            ))}
+          </div>
+        ))}
+
+        {/* Add receipt button — prominent */}
+        <button
+          onClick={() => setSheetOpen(true)}
+          className="w-full flex items-center justify-center gap-2 mt-2 py-3.5 rounded-xl border border-border/60 text-[12px] tracking-wider text-muted-foreground hover:text-foreground hover:border-border transition-colors"
+        >
+          <Plus size={14} />
+          add receipt
+        </button>
+
+        {/* Subscriptions — settings section at bottom */}
+        <div className="mt-8 pt-5 border-t border-border/20">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-1.5">
-              <RefreshCw size={10} className="text-muted-foreground" />
-              <p className="text-[9px] tracking-widest text-muted-foreground uppercase">subscriptions</p>
+              <RefreshCw size={10} className="text-muted-foreground/60" />
+              <p className="text-[9px] tracking-widest text-muted-foreground/60 uppercase">subscriptions</p>
             </div>
-            <button onClick={() => setAddingSub(!addingSub)} className="text-muted-foreground hover:text-foreground transition-colors">
+            <button onClick={() => setAddingSub(!addingSub)} className="text-muted-foreground/60 hover:text-foreground transition-colors">
               <Plus size={13} />
             </button>
           </div>
@@ -596,52 +625,24 @@ export function SplitTab() {
           )}
 
           {subscriptions.length === 0 && !addingSub && (
-            <p className="text-[10px] text-muted-foreground/60">no subscriptions</p>
+            <p className="text-[10px] text-muted-foreground/40">no subscriptions</p>
           )}
           {subscriptions.map((sub) => (
             <div key={sub.id} className="flex items-center gap-2 py-1.5 border-b border-border/10">
-              <span className="flex-1 text-[12px]">{sub.name}</span>
-              <span className="text-[12px] tabular-nums text-muted-foreground">¥{sub.amount.toLocaleString()}</span>
+              <span className="flex-1 text-[12px] text-muted-foreground">{sub.name}</span>
+              <span className="text-[12px] tabular-nums text-muted-foreground/60">¥{sub.amount.toLocaleString()}</span>
               <span className={cn(
                 "text-[9px] tracking-wide px-1.5 py-0.5 rounded border flex-shrink-0",
-                sub.card === "mine" ? "border-border text-muted-foreground" : "border-blue-400/50 text-blue-500"
+                sub.card === "mine" ? "border-border/60 text-muted-foreground/60" : "border-blue-400/30 text-blue-400"
               )}>
                 {sub.card === "mine" ? "my" : "family"}
               </span>
-              <button onClick={() => deleteSubscription(sub.id)} className="text-muted-foreground/40 hover:text-muted-foreground flex-shrink-0">
+              <button onClick={() => deleteSubscription(sub.id)} className="text-muted-foreground/30 hover:text-muted-foreground flex-shrink-0">
                 <X size={12} />
               </button>
             </div>
           ))}
         </div>
-
-        {/* Session list */}
-        {loading && <p className="text-[10px] text-muted-foreground text-center py-4">loading...</p>}
-        {!loading && sessions.length === 0 && (
-          <p className="text-[11px] text-muted-foreground text-center py-4">no receipts this month</p>
-        )}
-        {dates.map((date) => (
-          <div key={date} className="mb-4">
-            <p className="text-[9px] tracking-widest text-muted-foreground uppercase mb-1">
-              {formatDateHeader(date)}
-            </p>
-            {byDate[date].map((session) => (
-              <SessionRow
-                key={session.id}
-                session={session}
-                onDelete={() => deleteSession(session.id)}
-              />
-            ))}
-          </div>
-        ))}
-
-        <button
-          onClick={() => setSheetOpen(true)}
-          className="flex items-center gap-2 text-[11px] text-muted-foreground hover:text-foreground transition-colors py-2 mt-2"
-        >
-          <Plus size={12} />
-          <span className="tracking-wider">add receipt</span>
-        </button>
       </div>
 
       {sheetOpen && (
