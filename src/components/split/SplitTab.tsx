@@ -81,7 +81,6 @@ function ReceiptSheet({ defaultDate, onSave, onClose }: ReceiptSheetProps) {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const n = parseInt(amount, 10) || 0;
-  const gfOwed = Math.round(n / 2);
 
   const handleScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
