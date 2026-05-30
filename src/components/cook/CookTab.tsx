@@ -40,6 +40,17 @@ function hasEveningEvent(events: CalendarEvent[]): boolean {
   });
 }
 
+function hasLunchTimeEvent(events: CalendarEvent[]): boolean {
+  return events.some((ev) => {
+    if (!ev.start.dateTime || ev.start.date) return false;
+    const startMin = toJSTMinOfDay(ev.start.dateTime);
+    const endMin = ev.end.dateTime ? toJSTMinOfDay(ev.end.dateTime) : startMin + 60;
+    const spansMidnight = endMin < startMin;
+    if (spansMidnight) return false;
+    return startMin < 13 * 60 && endMin > 11 * 60;
+  });
+}
+
 function toDateStr(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 }
@@ -60,12 +71,13 @@ interface DayPickerProps {
   lunchPlan: MealPlan | undefined;
   isToday: boolean;
   freeEvening: boolean;
+  freeLunch: boolean;
   showLunch: boolean;
   onSelectDinner: () => void;
   onSelectLunch: () => void;
 }
 
-function DayCell({ date, dinnerPlan, lunchPlan, isToday, freeEvening, showLunch, onSelectDinner, onSelectLunch }: DayPickerProps) {
+function DayCell({ date, dinnerPlan, lunchPlan, isToday, freeEvening, freeLunch, showLunch, onSelectDinner, onSelectLunch }: DayPickerProps) {
   return (
     <div className={cn(
       "flex flex-col border-r border-b border-border/20 overflow-hidden min-w-0",
@@ -83,12 +95,13 @@ function DayCell({ date, dinnerPlan, lunchPlan, isToday, freeEvening, showLunch,
       </div>
       {/* Lunch (weekends/holidays) */}
       {showLunch && (
-        <button onClick={onSelectLunch} className="text-left px-0.5 pb-0.5 min-w-0">
+        <button onClick={onSelectLunch} className="text-left px-0.5 min-w-0 flex items-center gap-0.5">
+          {freeLunch && <span className="w-1 h-1 rounded-full bg-blue-400/60 flex-shrink-0" />}
           <span className={cn(
-            "text-[7px] leading-tight truncate w-full block",
+            "text-[7px] leading-tight truncate block",
             lunchPlan?.label ? "text-foreground" : "text-muted-foreground/30"
           )}>
-            {lunchPlan?.label ?? "·"}
+            {lunchPlan?.label ?? ""}
           </span>
         </button>
       )}
@@ -378,6 +391,7 @@ export function CookTab() {
           const ds = toDateStr(d);
           const dayEvents = eventsMap[ds] ?? [];
           const showLunch = isWeekendOrHoliday(d, dayEvents);
+          const isFuture = ds >= todayStr;
           return (
             <DayCell
               key={i}
@@ -385,7 +399,8 @@ export function CookTab() {
               dinnerPlan={dinnerByDate[ds]}
               lunchPlan={lunchByDate[ds]}
               isToday={isSameDay(d, today)}
-              freeEvening={ds >= todayStr && !hasEveningEvent(dayEvents)}
+              freeEvening={isFuture && !hasEveningEvent(dayEvents)}
+              freeLunch={showLunch && isFuture && !hasLunchTimeEvent(dayEvents)}
               showLunch={showLunch}
               onSelectDinner={() => { setEditMealType("dinner"); setEditDate(d); }}
               onSelectLunch={() => { setEditMealType("lunch"); setEditDate(d); }}
