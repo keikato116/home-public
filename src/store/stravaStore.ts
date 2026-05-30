@@ -43,19 +43,23 @@ export const useStravaStore = create<StravaState>((set, get) => ({
   error: null,
 
   init: async () => {
-    set({ loading: true, error: null });
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    const key = `${year}-${month}`;
+    // Mark current month loaded immediately so loadMonth skips it
+    set((s) => ({
+      loading: true,
+      error: null,
+      loadedMonths: new Set(Array.from(s.loadedMonths).concat(key)),
+    }));
     try {
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = now.getMonth();
       // Fetch last 50 activities without date filter to avoid timezone edge cases
       const data = await fetchActivities();
-      const key = `${year}-${month}`;
       set((s) => ({
         connected: data.connected ?? false,
         athleteName: data.athleteName ?? s.athleteName,
         activities: mergeActivities(s.activities, data.activities ?? []),
-        loadedMonths: new Set(Array.from(s.loadedMonths).concat(key)),
         loading: false,
         error: data.error ?? null,
       }));

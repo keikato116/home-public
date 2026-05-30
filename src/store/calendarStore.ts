@@ -79,66 +79,64 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
     if (loadTimeoutId) clearTimeout(loadTimeoutId);
     const myGen = ++loadGeneration;
 
+    // Show localStorage cache immediately so tab feels instant
+    const cacheKey = `cal_cache_${householdId}`;
     const hasExistingEvents = get().events.length > 0;
-    set({
-      loading: !hasExistingEvents,
-      syncing: hasExistingEvents,
-      error: null,
-    });
+    if (!hasExistingEvents) {
+      try {
+        const raw = localStorage.getItem(cacheKey);
+        if (raw) {
+          set({ events: JSON.parse(raw), loading: false, syncing: true, error: null });
+        } else {
+          set({ loading: true, syncing: false, error: null });
+        }
+      } catch {
+        set({ loading: true, syncing: false, error: null });
+      }
+    } else {
+      set({ syncing: true, error: null });
+    }
 
     const supabase = createClient();
 
-    // Only timeout on first load — polling failures are silently ignored
-    if (!hasExistingEvents) {
+    // Timeout only when truly showing a spinner (no cache, no existing events)
+    const showingSpinner = get().loading;
+    if (showingSpinner) {
       loadTimeoutId = setTimeout(() => {
         loadTimeoutId = null;
         if (myGen !== loadGeneration) return;
-        loadGeneration++; // invalidate any in-flight fetch so its result is discarded
+        loadGeneration++;
         set({ loading: false, syncing: false, error: "calendar fetch timed out" });
       }, 30000);
     }
 
     try {
-      const { data: settingsData } = await supabase
-        .from("calendar_settings")
-        .select("*")
-        .eq("household_id", householdId)
-        .maybeSingle();
+      const { user } = useAuthStore.getState();
+      const currentUserId = user?.id;
 
-      const settings = (settingsData as CalendarSettings | null) ?? {
+      // Run all Supabase queries in parallel
+      const [settingsRes, localRes, tokensRes] = await Promise.all([
+        supabase.from("calendar_settings").select("*").eq("household_id", householdId).maybeSingle(),
+        supabase.from("local_calendar_events").select("*").eq("household_id", householdId),
+        supabase.from("user_tokens").select("user_id, google_access_token, display_name, calendar_colors").eq("household_id", householdId),
+      ]);
+
+      const settings = (settingsRes.data as CalendarSettings | null) ?? {
         household_id: householdId,
         selected_colors: [],
         start_date: toISODate(new Date()),
       };
       set({ settings });
 
-      const { user } = useAuthStore.getState();
-      const currentUserId = user?.id;
-
-      const [{ data: localData }, { data: memberTokens }] = await Promise.all([
-        supabase.from("local_calendar_events").select("*").eq("household_id", householdId),
-        supabase.from("user_tokens").select("user_id, google_access_token, display_name").eq("household_id", householdId),
-      ]);
-
-      // Best-effort: fetch per-user color prefs (requires migration; ignored if column absent)
+      const memberTokens = tokensRes.data ?? [];
       const colorMap: Record<string, string[]> = {};
-      try {
-        const { data: colorRows } = await supabase
-          .from("user_tokens")
-          .select("user_id, calendar_colors")
-          .eq("household_id", householdId);
-        for (const row of colorRows ?? []) {
-          const colors = (row as { calendar_colors?: string[] | null }).calendar_colors;
-          if (colors) colorMap[row.user_id] = colors;
-        }
-      } catch { /* column not yet migrated — fall back to partner's colors being empty (show all) */ }
-
       const nameMap: Record<string, string> = {};
-      for (const m of memberTokens ?? []) {
+      for (const m of memberTokens) {
         nameMap[m.user_id] = (m.display_name ?? "").split(" ")[0];
+        const colors = (m as { calendar_colors?: string[] | null }).calendar_colors;
+        if (colors) colorMap[m.user_id] = colors;
       }
-
-      const localEvents: CalendarEvent[] = (localData as LocalCalendarEvent[] ?? []).map(e =>
+      const localEvents: CalendarEvent[] = ((localRes.data ?? []) as LocalCalendarEvent[]).map(e =>
         localToCalendarEvent(e, e.user_id ? nameMap[e.user_id] : undefined)
       );
 
@@ -189,6 +187,7 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
 
       if (loadTimeoutId) { clearTimeout(loadTimeoutId); loadTimeoutId = null; }
       if (myGen !== loadGeneration) return;
+      try { localStorage.setItem(cacheKey, JSON.stringify(allEvents)); } catch { /* storage full */ }
       set({ events: allEvents, loading: false, syncing: false });
     } catch (e) {
       if (loadTimeoutId) { clearTimeout(loadTimeoutId); loadTimeoutId = null; }

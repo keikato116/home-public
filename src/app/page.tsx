@@ -2,6 +2,8 @@
 
 import { useEffect } from "react";
 import { useAuthStore } from "@/store/authStore";
+import { useCalendarStore } from "@/store/calendarStore";
+import { useStravaStore } from "@/store/stravaStore";
 import { AuthGate } from "@/components/auth/AuthGate";
 import { HouseholdSetup } from "@/components/onboarding/HouseholdSetup";
 import { BottomTabBar } from "@/components/layout/BottomTabBar";
@@ -15,7 +17,16 @@ import { SplitTab } from "@/components/split/SplitTab";
 import { SettingsPage } from "@/components/settings/SettingsPage";
 
 function MainApp() {
-  const { activeTab, settingsOpen } = useAuthStore();
+  const { activeTab, settingsOpen, householdId, accessToken } = useAuthStore();
+
+  // Prefetch slow data sources immediately on app load, before tabs are opened
+  useEffect(() => {
+    if (householdId) {
+      useCalendarStore.getState().load(householdId, accessToken);
+      useStravaStore.getState().init();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="relative flex flex-col h-screen max-w-xl mx-auto">
