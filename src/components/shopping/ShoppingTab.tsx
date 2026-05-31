@@ -34,7 +34,7 @@ function formatTabDate(dateStr: string) {
 function ItemRow({ item, onDelete }: { item: ShoppingItem; onDelete: () => void }) {
   const manual = isManual(item);
   return (
-    <div className="flex items-center gap-3 py-2.5 border-b border-border/10 group">
+    <div className="flex items-center gap-3 py-2.5 group">
       {manual && (
         <input
           type="checkbox"
