@@ -63,15 +63,20 @@ export const useMealPlanStore = create<MealPlanState>((set, get) => ({
     const supabase = createClient();
     const existing = get().plans.find((p) => p.date === date && p.meal_type === mealType);
     if (existing) {
-      await supabase.from("meal_plans").delete().eq("id", existing.id);
       set((s) => ({ plans: s.plans.filter((p) => p.id !== existing.id) }));
+      await supabase.from("meal_plans").delete().eq("id", existing.id);
     } else {
+      const tempId = `temp-${date}-${mealType}`;
+      const tempPlan: MealPlan = { id: tempId, household_id: householdId, date, meal_type: mealType, recipe_id: null, label: null, created_at: new Date().toISOString() };
+      set((s) => ({ plans: [...s.plans, tempPlan] }));
       const { data } = await supabase
         .from("meal_plans")
         .insert({ household_id: householdId, date, meal_type: mealType, recipe_id: null, label: null })
         .select()
         .single();
-      if (data) set((s) => ({ plans: [...s.plans, data as MealPlan] }));
+      if (data) {
+        set((s) => ({ plans: s.plans.map((p) => p.id === tempId ? data as MealPlan : p) }));
+      }
     }
   },
 }));
