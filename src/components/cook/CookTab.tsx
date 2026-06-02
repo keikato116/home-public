@@ -80,10 +80,12 @@ interface DayPickerProps {
   freeEvening: boolean;
   freeLunch: boolean;
   showLunch: boolean;
-  isHighlighted: boolean;
+  isHighlightedDinner: boolean;
+  isHighlightedLunch: boolean;
   onSelectDinner: () => void;
   onSelectLunch: () => void;
-  onToggleHighlight: () => void;
+  onToggleHighlightDinner: () => void;
+  onToggleHighlightLunch: () => void;
 }
 
 const FREE_BG = "rgb(59 130 246 / 0.08)";
@@ -94,42 +96,59 @@ function displayLabel(label: string | null | undefined): string {
   return match ? match[1] : label;
 }
 
-function DayCell({ date, dinnerPlan, lunchPlan, isToday, freeEvening, freeLunch, showLunch, isHighlighted, onSelectDinner, onSelectLunch, onToggleHighlight }: DayPickerProps) {
-  const bothFree = freeLunch && freeEvening;
+function DayCell({ date, dinnerPlan, lunchPlan, isToday, freeEvening, freeLunch, showLunch, isHighlightedDinner, isHighlightedLunch, onSelectDinner, onSelectLunch, onToggleHighlightDinner, onToggleHighlightLunch }: DayPickerProps) {
+  const dinnerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dinnerLongFired = useRef(false);
+  const lunchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lunchLongFired = useRef(false);
+
+  const effectiveFreeEvening = freeEvening || isHighlightedDinner;
+  const effectiveFreeLunch = freeLunch || isHighlightedLunch;
+  const bothFree = effectiveFreeEvening && effectiveFreeLunch;
+
   return (
-    <div className="flex flex-col border-r border-b border-border/20 overflow-hidden min-w-0" style={(bothFree || isHighlighted) ? { backgroundColor: FREE_BG } : undefined}>
+    <div className="flex flex-col border-r border-b border-border/20 overflow-hidden min-w-0" style={bothFree ? { backgroundColor: FREE_BG } : undefined}>
       {/* Date number */}
       <div className="flex items-center px-0.5 pt-0.5">
-        <button
-          onClick={onToggleHighlight}
-          className={cn(
-            "text-[9px] leading-none w-4 h-4 flex items-center justify-center rounded-full flex-shrink-0",
-            isToday ? "bg-foreground text-background" :
-            isHighlighted ? "bg-blue-400/70 text-white" :
-            "text-muted-foreground"
-          )}
-        >
+        <span className={cn(
+          "text-[9px] leading-none w-4 h-4 flex items-center justify-center rounded-full flex-shrink-0",
+          isToday ? "bg-foreground text-background" : "text-muted-foreground"
+        )}>
           {date.getDate()}
-        </button>
+        </span>
       </div>
       {/* Lunch (weekends/holidays) */}
       {showLunch && (
-        <button onClick={onSelectLunch} className="flex-1 text-left px-0.5 min-w-0 border-b border-border/10" style={!bothFree && freeLunch ? { backgroundColor: FREE_BG } : undefined}>
+        <button
+          onTouchStart={() => { lunchLongFired.current = false; lunchTimer.current = setTimeout(() => { lunchLongFired.current = true; onToggleHighlightLunch(); }, 500); }}
+          onTouchMove={() => { if (lunchTimer.current) clearTimeout(lunchTimer.current); lunchLongFired.current = true; }}
+          onTouchEnd={(e) => { if (lunchTimer.current) clearTimeout(lunchTimer.current); if (!lunchLongFired.current) onSelectLunch(); e.preventDefault(); }}
+          onClick={onSelectLunch}
+          className="flex-1 text-left px-0.5 min-w-0 border-b border-border/10"
+          style={!bothFree && effectiveFreeLunch ? { backgroundColor: FREE_BG } : undefined}
+        >
           <span className={cn(
             "text-[7px] leading-tight truncate block",
-            lunchPlan?.label ? "text-foreground" : ""
+            lunchPlan?.label ? "text-foreground" : isHighlightedLunch ? "text-blue-400/50" : ""
           )}>
-            {displayLabel(lunchPlan?.label)}
+            {lunchPlan?.label ? displayLabel(lunchPlan.label) : isHighlightedLunch ? "·" : ""}
           </span>
         </button>
       )}
       {/* Dinner */}
-      <button onClick={onSelectDinner} className="flex-1 text-left px-0.5 pb-0.5 min-w-0" style={!bothFree && freeEvening ? { backgroundColor: FREE_BG } : undefined}>
+      <button
+        onTouchStart={() => { dinnerLongFired.current = false; dinnerTimer.current = setTimeout(() => { dinnerLongFired.current = true; onToggleHighlightDinner(); }, 500); }}
+        onTouchMove={() => { if (dinnerTimer.current) clearTimeout(dinnerTimer.current); dinnerLongFired.current = true; }}
+        onTouchEnd={(e) => { if (dinnerTimer.current) clearTimeout(dinnerTimer.current); if (!dinnerLongFired.current) onSelectDinner(); e.preventDefault(); }}
+        onClick={onSelectDinner}
+        className="flex-1 text-left px-0.5 pb-0.5 min-w-0"
+        style={!bothFree && effectiveFreeEvening ? { backgroundColor: FREE_BG } : undefined}
+      >
         <span className={cn(
           "text-[8px] leading-tight truncate w-full block",
-          dinnerPlan?.label ? "text-foreground" : ""
+          dinnerPlan?.label ? "text-foreground" : isHighlightedDinner ? "text-blue-400/50" : ""
         )}>
-          {displayLabel(dinnerPlan?.label)}
+          {dinnerPlan?.label ? displayLabel(dinnerPlan.label) : isHighlightedDinner ? "·" : ""}
         </span>
       </button>
     </div>
@@ -456,7 +475,8 @@ export function CookTab() {
   const lunchByDate = Object.fromEntries(
     plans.filter((p) => p.meal_type === "lunch").map((p) => [p.date, p])
   );
-  const highlightDates = new Set(plans.filter((p) => p.meal_type === "highlight").map((p) => p.date));
+  const highlightDinnerDates = new Set(plans.filter((p) => p.meal_type === "highlight_dinner").map((p) => p.date));
+  const highlightLunchDates = new Set(plans.filter((p) => p.meal_type === "highlight_lunch").map((p) => p.date));
 
   const eventsMap = eventsByDate();
   const todayStr = toDateStr(today);
@@ -526,10 +546,12 @@ export function CookTab() {
               freeEvening={isFuture && !hasEventInWindow(dayEvents, 18, 21)}
               freeLunch={lunchFreeWindow && (isHolidayOrWeekend || bothHaveAllDayEvent(dayEvents))}
               showLunch={true}
-              isHighlighted={highlightDates.has(ds)}
+              isHighlightedDinner={highlightDinnerDates.has(ds)}
+              isHighlightedLunch={highlightLunchDates.has(ds)}
               onSelectDinner={() => { setEditMealType("dinner"); setEditDate(d); }}
               onSelectLunch={() => { setEditMealType("lunch"); setEditDate(d); }}
-              onToggleHighlight={() => householdId && toggleHighlight(householdId, ds)}
+              onToggleHighlightDinner={() => { if (householdId) toggleHighlight(householdId, ds, "highlight_dinner"); }}
+              onToggleHighlightLunch={() => { if (householdId) toggleHighlight(householdId, ds, "highlight_lunch"); }}
             />
           );
         })}

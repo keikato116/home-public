@@ -66,7 +66,7 @@ export interface MealPlan {
   id: string;
   household_id: string;
   date: string;
-  meal_type: "dinner" | "lunch" | "highlight";
+  meal_type: "dinner" | "lunch" | "highlight_dinner" | "highlight_lunch";
   recipe_id: string | null;
   label: string | null;
   created_at: string;
