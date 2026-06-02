@@ -29,10 +29,20 @@ function toJSTMinOfDay(dt: string): number {
   return (d.getUTCHours() * 60 + d.getUTCMinutes() + 9 * 60) % 1440;
 }
 
+function toJSTDateStr(dt: string): string {
+  const d = new Date(dt);
+  const jst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
+  return jst.toISOString().slice(0, 10);
+}
+
 function hasEventInWindow(events: CalendarEvent[], startHour: number, endHour: number): boolean {
   return events.some((ev) => {
     if (!ev.start.dateTime || ev.start.date) return false;
     const startMin = toJSTMinOfDay(ev.start.dateTime);
+    // If end date (JST) is later than start date, the event covers the rest of the start day
+    if (ev.end.dateTime && toJSTDateStr(ev.end.dateTime) > toJSTDateStr(ev.start.dateTime)) {
+      return startMin < endHour * 60;
+    }
     const endMin = ev.end.dateTime ? toJSTMinOfDay(ev.end.dateTime) : startMin + 60;
     const spansMidnight = endMin < startMin;
     if (spansMidnight) return startMin < endHour * 60;
