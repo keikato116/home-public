@@ -50,10 +50,6 @@ function hasEventInWindow(events: CalendarEvent[], startHour: number, endHour: n
   });
 }
 
-function hasAllDayEvent(events: CalendarEvent[]): boolean {
-  return events.some(ev => ev.start.date && !ev.start.dateTime);
-}
-
 function bothHaveAllDayEvent(events: CalendarEvent[]): boolean {
   const owners = new Set(
     events
@@ -519,7 +515,7 @@ export function CookTab() {
               dinnerPlan={dinnerByDate[ds]}
               lunchPlan={lunchByDate[ds]}
               isToday={isSameDay(d, today)}
-              freeEvening={isFuture && !hasEventInWindow(dayEvents, 18, 21) && (!hasAllDayEvent(dayEvents) || bothHaveAllDayEvent(dayEvents))}
+              freeEvening={isFuture && !hasEventInWindow(dayEvents, 18, 21)}
               freeLunch={lunchFreeWindow && (isHolidayOrWeekend || bothHaveAllDayEvent(dayEvents))}
               showLunch={true}
               onSelectDinner={() => { setEditMealType("dinner"); setEditDate(d); }}
