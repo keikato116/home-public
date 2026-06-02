@@ -10,6 +10,7 @@ interface MealPlanState {
   load: (householdId: string, year: number, month: number) => Promise<void>;
   setMeal: (householdId: string, date: string, mealType: "dinner" | "lunch", recipeId: string | null, label: string | null) => Promise<void>;
   deleteMeal: (id: string) => Promise<void>;
+  toggleHighlight: (householdId: string, date: string) => Promise<void>;
 }
 
 export const useMealPlanStore = create<MealPlanState>((set, get) => ({
@@ -56,5 +57,21 @@ export const useMealPlanStore = create<MealPlanState>((set, get) => ({
     const supabase = createClient();
     await supabase.from("meal_plans").delete().eq("id", id);
     set((s) => ({ plans: s.plans.filter((p) => p.id !== id) }));
+  },
+
+  toggleHighlight: async (householdId, date) => {
+    const supabase = createClient();
+    const existing = get().plans.find((p) => p.date === date && p.meal_type === "highlight");
+    if (existing) {
+      await supabase.from("meal_plans").delete().eq("id", existing.id);
+      set((s) => ({ plans: s.plans.filter((p) => p.id !== existing.id) }));
+    } else {
+      const { data } = await supabase
+        .from("meal_plans")
+        .insert({ household_id: householdId, date, meal_type: "highlight", recipe_id: null, label: null })
+        .select()
+        .single();
+      if (data) set((s) => ({ plans: [...s.plans, data as MealPlan] }));
+    }
   },
 }));

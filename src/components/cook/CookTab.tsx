@@ -80,8 +80,10 @@ interface DayPickerProps {
   freeEvening: boolean;
   freeLunch: boolean;
   showLunch: boolean;
+  isHighlighted: boolean;
   onSelectDinner: () => void;
   onSelectLunch: () => void;
+  onToggleHighlight: () => void;
 }
 
 const FREE_BG = "rgb(59 130 246 / 0.08)";
@@ -92,18 +94,23 @@ function displayLabel(label: string | null | undefined): string {
   return match ? match[1] : label;
 }
 
-function DayCell({ date, dinnerPlan, lunchPlan, isToday, freeEvening, freeLunch, showLunch, onSelectDinner, onSelectLunch }: DayPickerProps) {
+function DayCell({ date, dinnerPlan, lunchPlan, isToday, freeEvening, freeLunch, showLunch, isHighlighted, onSelectDinner, onSelectLunch, onToggleHighlight }: DayPickerProps) {
   const bothFree = freeLunch && freeEvening;
   return (
-    <div className="flex flex-col border-r border-b border-border/20 overflow-hidden min-w-0" style={bothFree ? { backgroundColor: FREE_BG } : undefined}>
+    <div className="flex flex-col border-r border-b border-border/20 overflow-hidden min-w-0" style={(bothFree || isHighlighted) ? { backgroundColor: FREE_BG } : undefined}>
       {/* Date number */}
       <div className="flex items-center px-0.5 pt-0.5">
-        <span className={cn(
-          "text-[9px] leading-none w-4 h-4 flex items-center justify-center rounded-full flex-shrink-0",
-          isToday ? "bg-foreground text-background" : "text-muted-foreground"
-        )}>
+        <button
+          onClick={onToggleHighlight}
+          className={cn(
+            "text-[9px] leading-none w-4 h-4 flex items-center justify-center rounded-full flex-shrink-0",
+            isToday ? "bg-foreground text-background" :
+            isHighlighted ? "bg-blue-400/70 text-white" :
+            "text-muted-foreground"
+          )}
+        >
           {date.getDate()}
-        </span>
+        </button>
       </div>
       {/* Lunch (weekends/holidays) */}
       {showLunch && (
@@ -410,7 +417,7 @@ function EditSheet({ date, mealType, plan, onClose }: EditSheetProps) {
 
 export function CookTab() {
   const { householdId } = useAuthStore();
-  const { plans, loading, load } = useMealPlanStore();
+  const { plans, loading, load, toggleHighlight } = useMealPlanStore();
   const { load: loadRecipes } = useRecipeStore();
   const { eventsByDate } = useCalendarStore();
   const today = new Date();
@@ -449,6 +456,7 @@ export function CookTab() {
   const lunchByDate = Object.fromEntries(
     plans.filter((p) => p.meal_type === "lunch").map((p) => [p.date, p])
   );
+  const highlightDates = new Set(plans.filter((p) => p.meal_type === "highlight").map((p) => p.date));
 
   const eventsMap = eventsByDate();
   const todayStr = toDateStr(today);
@@ -518,8 +526,10 @@ export function CookTab() {
               freeEvening={isFuture && !hasEventInWindow(dayEvents, 18, 21)}
               freeLunch={lunchFreeWindow && (isHolidayOrWeekend || bothHaveAllDayEvent(dayEvents))}
               showLunch={true}
+              isHighlighted={highlightDates.has(ds)}
               onSelectDinner={() => { setEditMealType("dinner"); setEditDate(d); }}
               onSelectLunch={() => { setEditMealType("lunch"); setEditDate(d); }}
+              onToggleHighlight={() => householdId && toggleHighlight(householdId, ds)}
             />
           );
         })}
