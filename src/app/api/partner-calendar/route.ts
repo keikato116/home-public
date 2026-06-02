@@ -22,36 +22,63 @@ async function refreshGoogleToken(refreshToken: string): Promise<string | null> 
   }
 }
 
+type CalInfo = { id: string; backgroundColor?: string; selected?: boolean; accessRole?: string };
+
 async function fetchPartnerEvents(
   accessToken: string,
   colors: string[],
   from: string
 ): Promise<object[] | null> {
   try {
-    const url = new URL("https://www.googleapis.com/calendar/v3/calendars/primary/events");
-    url.searchParams.set("timeMin", new Date(from).toISOString());
-    url.searchParams.set("singleEvents", "true");
-    url.searchParams.set("orderBy", "startTime");
-    url.searchParams.set("maxResults", "250");
-
+    const timeMin = new Date(from).toISOString();
     const abort = new AbortController();
-    const timer = setTimeout(() => abort.abort(), 9000);
-    const [res, calRes] = await Promise.all([
-      fetch(url.toString(), { headers: { Authorization: `Bearer ${accessToken}` }, signal: abort.signal }),
-      fetch("https://www.googleapis.com/calendar/v3/users/me/calendarList/primary", {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      }),
-    ]);
+    const timer = setTimeout(() => abort.abort(), 12000);
+
+    // Get all selected calendars
+    const calListRes = await fetch(
+      "https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=50",
+      { headers: { Authorization: `Bearer ${accessToken}` }, signal: abort.signal }
+    );
+    if (calListRes.status === 401) { clearTimeout(timer); return null; }
+    if (!calListRes.ok) { clearTimeout(timer); return []; }
+
+    const calListData = await calListRes.json();
+    const calendars: CalInfo[] = (calListData.items ?? []).filter(
+      (c: CalInfo) => c.selected !== false && c.accessRole !== "freeBusyReader"
+    );
+
+    // Fetch events from all calendars in parallel
+    const eventArrays = await Promise.all(
+      calendars.map(async (cal) => {
+        try {
+          const url = new URL(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events`);
+          url.searchParams.set("timeMin", timeMin);
+          url.searchParams.set("singleEvents", "true");
+          url.searchParams.set("orderBy", "startTime");
+          url.searchParams.set("maxResults", "250");
+          const res = await fetch(url.toString(), {
+            headers: { Authorization: `Bearer ${accessToken}` },
+            signal: abort.signal,
+          });
+          if (!res.ok) return [];
+          const data = await res.json();
+          return (data.items ?? []).map((e: object) => ({ ...e, calendarColor: cal.backgroundColor }));
+        } catch { return []; }
+      })
+    );
     clearTimeout(timer);
 
-    if (res.status === 401) return null; // expired — caller should refresh
-    if (!res.ok) return [];
+    // Deduplicate by event ID
+    const seen = new Set<string>();
+    let events: { id?: string; colorId?: string }[] = [];
+    for (const arr of eventArrays) {
+      for (const ev of arr as { id?: string }[]) {
+        if (ev.id && seen.has(ev.id)) continue;
+        if (ev.id) seen.add(ev.id);
+        events.push(ev);
+      }
+    }
 
-    const data = await res.json();
-    const calData = calRes.ok ? await calRes.json() : {};
-    const calendarColor: string | undefined = calData.backgroundColor;
-
-    let events: { colorId?: string }[] = (data.items ?? []).map((e: object) => ({ ...e, calendarColor }));
     if (colors.length > 0) {
       events = events.filter((e) => !e.colorId || colors.includes(e.colorId));
     }
