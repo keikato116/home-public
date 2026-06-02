@@ -9,7 +9,7 @@ import { useShoppingStore } from "@/store/shoppingStore";
 import { useTodoStore } from "@/store/todoStore";
 import { RecipePicker } from "@/components/recipe/RecipePicker";
 import { MealPlan, CalendarEvent, Recipe } from "@/types";
-import { X, ChevronLeft, ChevronRight } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, Shuffle } from "lucide-react";
 import { isJapaneseHoliday } from "@/lib/japaneseHolidays";
 import { cn, toISODate } from "@/lib/utils";
 
@@ -119,6 +119,38 @@ function DayCell({ date, dinnerPlan, lunchPlan, isToday, freeEvening, freeLunch,
   );
 }
 
+type GachaResult =
+  | { type: "combo"; main: Recipe; side: Recipe }
+  | { type: "single"; recipe: Recipe };
+
+function pick<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function rollGacha(recipes: Recipe[]): GachaResult | null {
+  const by = (cat: string) => recipes.filter(r => r.category === cat);
+  const mains = by("main");
+  const sides = by("side");
+  const pastas = by("pasta");
+  const noodles = by("noodles");
+  const bowls = by("rice & bowl");
+
+  const types: Array<"combo" | "pasta" | "noodles" | "bowl"> = [];
+  if (mains.length > 0 && sides.length > 0) types.push("combo");
+  if (pastas.length > 0) types.push("pasta");
+  if (noodles.length > 0) types.push("noodles");
+  if (bowls.length > 0) types.push("bowl");
+
+  if (types.length === 0) return null;
+  const type = types[Math.floor(Math.random() * types.length)];
+  switch (type) {
+    case "combo": return { type: "combo", main: pick(mains), side: pick(sides) };
+    case "pasta": return { type: "single", recipe: pick(pastas) };
+    case "noodles": return { type: "single", recipe: pick(noodles) };
+    default: return { type: "single", recipe: pick(bowls) };
+  }
+}
+
 interface EditSheetProps {
   date: Date;
   mealType: "dinner" | "lunch";
@@ -129,7 +161,7 @@ interface EditSheetProps {
 function EditSheet({ date, mealType, plan, onClose }: EditSheetProps) {
   const { householdId } = useAuthStore();
   const { setMeal, deleteMeal } = useMealPlanStore();
-  const { recipes } = useRecipeStore();
+  const { recipes, recordMade } = useRecipeStore();
   const { addItem } = useShoppingStore();
   const { addChore } = useTodoStore();
 
@@ -146,13 +178,28 @@ function EditSheet({ date, mealType, plan, onClose }: EditSheetProps) {
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(
     plan?.recipe_id ? (recipes.find((r) => r.id === plan.recipe_id) ?? null) : null
   );
+  const [gachaResult, setGachaResult] = useState<GachaResult | null>(null);
   const [saving, setSaving] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
 
   const dateLabel = date.toLocaleDateString("ja-JP", { month: "long", day: "numeric", weekday: "short" });
 
+  const handleGacha = () => {
+    const result = rollGacha(recipes);
+    if (!result) return;
+    setGachaResult(result);
+    setEatingOut(false);
+    setLabel("");
+    if (result.type === "single") {
+      setSelectedRecipe(result.recipe);
+    } else {
+      setSelectedRecipe(null);
+    }
+  };
+
   const handleSelectRecipe = (r: Recipe) => {
     setSelectedRecipe(r);
+    setGachaResult(null);
     setEatingOut(false);
     setPickerOpen(false);
   };
@@ -160,6 +207,7 @@ function EditSheet({ date, mealType, plan, onClose }: EditSheetProps) {
   const handleEatingOutToggle = () => {
     setEatingOut(true);
     setSelectedRecipe(null);
+    setGachaResult(null);
     setLabel("");
   };
 
@@ -170,12 +218,18 @@ function EditSheet({ date, mealType, plan, onClose }: EditSheetProps) {
       const dateStr = toDateStr(date);
       let mealTitle: string | null = null;
       let ingredientLines: string[] = [];
+      const recipeIdsToRecord: string[] = [];
 
-      if (selectedRecipe) {
+      if (gachaResult?.type === "combo") {
+        mealTitle = `${gachaResult.main.title} + ${gachaResult.side.title}`;
+        if (gachaResult.main.ingredients) ingredientLines.push(...parseIngredientLines(gachaResult.main.ingredients));
+        if (gachaResult.side.ingredients) ingredientLines.push(...parseIngredientLines(gachaResult.side.ingredients));
+        recipeIdsToRecord.push(gachaResult.main.id, gachaResult.side.id);
+        await setMeal(householdId, dateStr, mealType, null, mealTitle);
+      } else if (selectedRecipe) {
         mealTitle = selectedRecipe.title;
-        if (selectedRecipe.ingredients) {
-          ingredientLines = parseIngredientLines(selectedRecipe.ingredients);
-        }
+        if (selectedRecipe.ingredients) ingredientLines = parseIngredientLines(selectedRecipe.ingredients);
+        recipeIdsToRecord.push(selectedRecipe.id);
         await setMeal(householdId, dateStr, mealType, selectedRecipe.id, mealTitle);
       } else if (eatingOut) {
         mealTitle = eatingOutDetail.trim() ? `外食（${eatingOutDetail.trim()}）` : "外食";
@@ -183,6 +237,10 @@ function EditSheet({ date, mealType, plan, onClose }: EditSheetProps) {
       } else {
         mealTitle = label.trim() || null;
         await setMeal(householdId, dateStr, mealType, null, mealTitle);
+      }
+
+      if (recipeIdsToRecord.length > 0) {
+        await Promise.allSettled(recipeIdsToRecord.map(id => recordMade(id)));
       }
 
       await Promise.allSettled(
@@ -204,7 +262,7 @@ function EditSheet({ date, mealType, plan, onClose }: EditSheetProps) {
     onClose();
   };
 
-  const canSave = selectedRecipe !== null || eatingOut || label.trim().length > 0;
+  const canSave = gachaResult?.type === "combo" || selectedRecipe !== null || eatingOut || label.trim().length > 0;
 
   if (pickerOpen) {
     return (
@@ -227,66 +285,98 @@ function EditSheet({ date, mealType, plan, onClose }: EditSheetProps) {
           <button onClick={onClose}><X size={14} className="text-muted-foreground" /></button>
         </div>
 
-        {/* Recipe selection */}
-        <button
-          onClick={() => setPickerOpen(true)}
-          className={cn(
-            "w-full text-left rounded-lg px-3 py-2.5 text-[13px] border transition-colors",
-            selectedRecipe
-              ? "border-foreground/40 text-foreground"
-              : "border-border text-muted-foreground"
-          )}
-        >
-          {selectedRecipe ? selectedRecipe.title : "choose from recipes..."}
-        </button>
-        {selectedRecipe && (
-          <button onClick={() => setSelectedRecipe(null)} className="text-[10px] text-muted-foreground -mt-2">
-            clear recipe
+        {/* Gacha */}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleGacha}
+            className="flex items-center gap-1.5 text-[11px] tracking-wider border border-border rounded-lg px-3 py-2 text-muted-foreground hover:border-foreground/40 hover:text-foreground transition-colors"
+          >
+            <Shuffle size={11} />
+            <span>gacha</span>
           </button>
+          {gachaResult && (
+            <button onClick={handleGacha} className="text-[10px] text-muted-foreground hover:text-foreground transition-colors">
+              reroll
+            </button>
+          )}
+        </div>
+
+        {/* Combo gacha result */}
+        {gachaResult?.type === "combo" && (
+          <div className="rounded-lg bg-muted/40 px-3 py-2.5 space-y-0.5">
+            <p className="text-[13px]">{gachaResult.main.title}</p>
+            <p className="text-[12px] text-muted-foreground">+ {gachaResult.side.title}</p>
+            <button onClick={() => setGachaResult(null)} className="text-[10px] text-muted-foreground/50 pt-0.5 block">
+              clear
+            </button>
+          </div>
         )}
 
-        {/* Eating out */}
-        {!selectedRecipe && (
-          <div className="space-y-2">
+        {/* Manual selection — hidden when combo gacha is active */}
+        {gachaResult?.type !== "combo" && (
+          <>
+            {/* Recipe selection */}
             <button
-              onClick={handleEatingOutToggle}
+              onClick={() => setPickerOpen(true)}
               className={cn(
                 "w-full text-left rounded-lg px-3 py-2.5 text-[13px] border transition-colors",
-                eatingOut
+                selectedRecipe
                   ? "border-foreground/40 text-foreground"
                   : "border-border text-muted-foreground"
               )}
             >
-              eating out
+              {selectedRecipe ? selectedRecipe.title : "choose from recipes..."}
             </button>
-            {eatingOut && (
-              <>
-                <input
-                  type="text"
-                  value={eatingOutDetail}
-                  onChange={(e) => setEatingOutDetail(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") handleSave(); }}
-                  placeholder="restaurant / details... (optional)"
-                  className="w-full bg-muted/40 rounded-lg px-3 py-2 text-[13px] outline-none placeholder:text-muted-foreground"
-                />
-                <button onClick={() => setEatingOut(false)} className="text-[10px] text-muted-foreground">
-                  clear
-                </button>
-              </>
+            {selectedRecipe && (
+              <button onClick={() => { setSelectedRecipe(null); setGachaResult(null); }} className="text-[10px] text-muted-foreground -mt-2">
+                clear recipe
+              </button>
             )}
-          </div>
-        )}
 
-        {/* Free text (only when no recipe and not eating out) */}
-        {!selectedRecipe && !eatingOut && (
-          <input
-            type="text"
-            value={label}
-            onChange={(e) => setLabel(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") handleSave(); }}
-            placeholder="or type freely... e.g. カレー"
-            className="w-full bg-muted/40 rounded-lg px-3 py-2 text-[13px] outline-none placeholder:text-muted-foreground"
-          />
+            {/* Eating out */}
+            {!selectedRecipe && (
+              <div className="space-y-2">
+                <button
+                  onClick={handleEatingOutToggle}
+                  className={cn(
+                    "w-full text-left rounded-lg px-3 py-2.5 text-[13px] border transition-colors",
+                    eatingOut
+                      ? "border-foreground/40 text-foreground"
+                      : "border-border text-muted-foreground"
+                  )}
+                >
+                  eating out
+                </button>
+                {eatingOut && (
+                  <>
+                    <input
+                      type="text"
+                      value={eatingOutDetail}
+                      onChange={(e) => setEatingOutDetail(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") handleSave(); }}
+                      placeholder="restaurant / details... (optional)"
+                      className="w-full bg-muted/40 rounded-lg px-3 py-2 text-[13px] outline-none placeholder:text-muted-foreground"
+                    />
+                    <button onClick={() => setEatingOut(false)} className="text-[10px] text-muted-foreground">
+                      clear
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Free text (only when no recipe and not eating out) */}
+            {!selectedRecipe && !eatingOut && (
+              <input
+                type="text"
+                value={label}
+                onChange={(e) => setLabel(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") handleSave(); }}
+                placeholder="or type freely... e.g. カレー"
+                className="w-full bg-muted/40 rounded-lg px-3 py-2 text-[13px] outline-none placeholder:text-muted-foreground"
+              />
+            )}
+          </>
         )}
 
         <div className="flex gap-3 items-center pt-1">
