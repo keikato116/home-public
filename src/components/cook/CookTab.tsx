@@ -240,7 +240,7 @@ function EditSheet({ date, mealType, plan, onClose }: EditSheetProps) {
       }
 
       if (recipeIdsToRecord.length > 0) {
-        await Promise.allSettled(recipeIdsToRecord.map(id => recordMade(id)));
+        await Promise.allSettled(recipeIdsToRecord.map(id => recordMade(id, dateStr)));
       }
 
       await Promise.allSettled(
