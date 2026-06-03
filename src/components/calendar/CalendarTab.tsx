@@ -6,7 +6,7 @@ import { useAuthStore } from "@/store/authStore";
 import { useTodoStore } from "@/store/todoStore";
 import { CalendarEventRow } from "./CalendarEventRow";
 import { ScheduleTimeline } from "./ScheduleTimeline";
-import { RefreshCw, ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { RefreshCw, ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
 import { CalendarEvent } from "@/types";
 import { GOOGLE_COLOR_HEX } from "@/lib/calendar";
 import { getJapaneseHolidayName } from "@/lib/japaneseHolidays";
@@ -153,8 +153,8 @@ function MonthGrid({ selectedDate, today, eventsMap, currentUserId, onSelect }: 
           const holiday = getJapaneseHolidayName(d);
           const isRed = d.getDay() === 0 || !!holiday;
           const dayEvents = eventsMap[toDateStr(d)] ?? [];
-          const myEvents = dayEvents.filter(e => e.ownerId === currentUserId);
-          const partnerEvents = dayEvents.filter(e => e.ownerId !== currentUserId);
+          const myEvents = dayEvents.filter(e => e.ownerId === currentUserId && !e.isLocal);
+          const partnerEvents = dayEvents.filter(e => e.ownerId !== currentUserId && !e.isLocal);
           return (
             <button
               key={i}
@@ -213,7 +213,7 @@ function WeekAgenda({ weekDays, eventsMap, currentUserId, today, onDelete }: Wee
     <>
       {weekDays.map((day) => {
         const dayStr = toDateStr(day);
-        const events = eventsMap[dayStr] ?? [];
+        const events = (eventsMap[dayStr] ?? []).filter(e => !e.isLocal);
         const isToday = isSameDay(day, today);
         return (
           <div key={dayStr} className="mb-2">
@@ -256,10 +256,8 @@ export function CalendarTab() {
   const today = useRef(new Date()).current;
   const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [selectedDate, setSelectedDate] = useState<Date>(today);
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [newTitle, setNewTitle] = useState("");
-  const [newStartTime, setNewStartTime] = useState("");
-  const [newEndTime, setNewEndTime] = useState("");
+  const [showTaskInput, setShowTaskInput] = useState(false);
+  const [newTaskTitle, setNewTaskTitle] = useState("");
 
   const touchStartX = useRef<number | null>(null);
   const timelineScrollRef = useRef<HTMLDivElement | null>(null);
@@ -284,14 +282,11 @@ export function CalendarTab() {
     };
   }, [householdId, load]);
 
-  async function handleAddLocalEvent() {
-    if (!newTitle.trim() || !householdId || !currentUserId) return;
-    const dateStr = toDateStr(selectedDate);
-    await addLocalEvent(householdId, currentUserId, newTitle.trim(), dateStr, newStartTime || undefined, newEndTime || undefined);
-    setNewTitle("");
-    setNewStartTime("");
-    setNewEndTime("");
-    setShowAddForm(false);
+  async function handleAddTask() {
+    if (!newTaskTitle.trim() || !householdId || !currentUserId) return;
+    await addLocalEvent(householdId, currentUserId, newTaskTitle.trim(), toDateStr(selectedDate));
+    setNewTaskTitle("");
+    setShowTaskInput(false);
   }
 
   const eventsMap = eventsByDate();
@@ -383,47 +378,14 @@ export function CalendarTab() {
             eventsMap={eventsMap} onSelect={setSelectedDate} />
 
           <div ref={viewMode === "day" ? timelineScrollRef : undefined} className="flex-1 overflow-y-auto px-7 py-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <span className={["text-[10px] tracking-widest uppercase", getJapaneseHolidayName(selectedDate) || selectedDate.getDay() === 0 ? "text-red-500" : "text-muted-foreground"].join(" ")}>
-                  {selectedDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                </span>
-                {getJapaneseHolidayName(selectedDate) && (
-                  <span className="text-[9px] text-red-400">{getJapaneseHolidayName(selectedDate)}</span>
-                )}
-              </div>
-              <button onClick={() => setShowAddForm(v => !v)}
-                className="text-muted-foreground hover:text-foreground transition-colors" aria-label="add event">
-                <Plus size={14} />
-              </button>
+            <div className="flex items-center gap-2 mb-3">
+              <span className={["text-[10px] tracking-widest uppercase", getJapaneseHolidayName(selectedDate) || selectedDate.getDay() === 0 ? "text-red-500" : "text-muted-foreground"].join(" ")}>
+                {selectedDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+              </span>
+              {getJapaneseHolidayName(selectedDate) && (
+                <span className="text-[9px] text-red-400">{getJapaneseHolidayName(selectedDate)}</span>
+              )}
             </div>
-
-            {showAddForm && (
-              <div className="mb-4 space-y-2 border border-border rounded p-3">
-                <input type="text" placeholder="event title" value={newTitle}
-                  onChange={e => setNewTitle(e.target.value)}
-                  onKeyDown={e => e.key === "Enter" && handleAddLocalEvent()}
-                  className="w-full bg-transparent text-[12px] tracking-wide outline-none placeholder:text-muted-foreground border-b border-border pb-1"
-                  autoFocus />
-                <div className="flex gap-2">
-                  <input type="time" value={newStartTime} onChange={e => setNewStartTime(e.target.value)}
-                    className="bg-transparent text-[11px] text-muted-foreground outline-none flex-1" />
-                  <span className="text-[11px] text-muted-foreground">–</span>
-                  <input type="time" value={newEndTime} onChange={e => setNewEndTime(e.target.value)}
-                    className="bg-transparent text-[11px] text-muted-foreground outline-none flex-1" />
-                </div>
-                <div className="flex gap-2 pt-1">
-                  <button onClick={handleAddLocalEvent}
-                    className="text-[10px] tracking-widest border border-border rounded px-3 py-1 hover:bg-muted transition-colors">
-                    add
-                  </button>
-                  <button onClick={() => { setShowAddForm(false); setNewTitle(""); setNewStartTime(""); setNewEndTime(""); }}
-                    className="text-[10px] tracking-widest text-muted-foreground">
-                    cancel
-                  </button>
-                </div>
-              </div>
-            )}
 
             {error && !error.startsWith("TOKEN") && <p className="text-[11px] text-muted-foreground mb-3">{error}</p>}
             {error && error.startsWith("TOKEN") && (
@@ -437,14 +399,60 @@ export function CalendarTab() {
               <WeekAgenda weekDays={weekDays} eventsMap={eventsMap}
                 currentUserId={currentUserId} today={today} onDelete={deleteLocalEvent} />
             )}
-            {!loading && viewMode === "day" && (
-              <ScheduleTimeline
-                events={dayEvents}
-                isToday={isSameDay(selectedDate, today)}
-                userId={currentUserId}
-                memberNameMap={memberNameMap}
-              />
-            )}
+            {!loading && viewMode === "day" && (() => {
+              const localTasks = dayEvents.filter(e => e.isLocal);
+              const calEvents = dayEvents.filter(e => !e.isLocal);
+              return (
+                <>
+                  {/* Tasks */}
+                  <div className="mb-5">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <p className="text-[9px] tracking-[0.3em] text-muted-foreground uppercase">tasks</p>
+                      <button onClick={() => setShowTaskInput(v => !v)} className="text-muted-foreground">
+                        <Plus size={12} />
+                      </button>
+                    </div>
+                    {localTasks.map(task => (
+                      <div key={task.id} className="flex items-center justify-between py-1">
+                        <span className="text-[12px]">{task.summary}</span>
+                        <button onClick={() => deleteLocalEvent(task.id)} className="text-muted-foreground/50 hover:text-muted-foreground">
+                          <X size={10} />
+                        </button>
+                      </div>
+                    ))}
+                    {localTasks.length === 0 && !showTaskInput && (
+                      <p className="text-[11px] text-muted-foreground/40">—</p>
+                    )}
+                    {showTaskInput && (
+                      <div className="flex items-center gap-2 mt-1">
+                        <input
+                          autoFocus
+                          type="text"
+                          value={newTaskTitle}
+                          onChange={e => setNewTaskTitle(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === "Enter") handleAddTask();
+                            if (e.key === "Escape") { setShowTaskInput(false); setNewTaskTitle(""); }
+                          }}
+                          placeholder="add task..."
+                          className="flex-1 bg-transparent text-[12px] outline-none placeholder:text-muted-foreground border-b border-border/50 pb-0.5"
+                        />
+                        <button onClick={handleAddTask} className="text-[10px] text-muted-foreground">add</button>
+                        <button onClick={() => { setShowTaskInput(false); setNewTaskTitle(""); }} className="text-muted-foreground/50">
+                          <X size={10} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <ScheduleTimeline
+                    events={calEvents}
+                    isToday={isSameDay(selectedDate, today)}
+                    userId={currentUserId}
+                    memberNameMap={memberNameMap}
+                  />
+                </>
+              );
+            })()}
           </div>
         </>
       )}
