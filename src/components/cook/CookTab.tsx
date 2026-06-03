@@ -189,9 +189,11 @@ function EditSheet({ date, mealType, plan, isHighlighted, onToggleHighlight, onC
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(
     plan?.recipe_id ? (recipes.find((r) => r.id === plan.recipe_id) ?? null) : null
   );
+  const [selectedRecipe2, setSelectedRecipe2] = useState<Recipe | null>(null);
   const [gachaResult, setGachaResult] = useState<GachaResult | null>(null);
   const [saving, setSaving] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerSlot, setPickerSlot] = useState<1 | 2>(1);
 
   const dateLabel = date.toLocaleDateString("ja-JP", { month: "long", day: "numeric", weekday: "short" });
 
@@ -209,7 +211,12 @@ function EditSheet({ date, mealType, plan, isHighlighted, onToggleHighlight, onC
   };
 
   const handleSelectRecipe = (r: Recipe) => {
-    setSelectedRecipe(r);
+    if (pickerSlot === 2) {
+      setSelectedRecipe2(r);
+    } else {
+      setSelectedRecipe(r);
+      setSelectedRecipe2(null);
+    }
     setGachaResult(null);
     setEatingOut(false);
     setPickerOpen(false);
@@ -218,6 +225,7 @@ function EditSheet({ date, mealType, plan, isHighlighted, onToggleHighlight, onC
   const handleEatingOutToggle = () => {
     setEatingOut(true);
     setSelectedRecipe(null);
+    setSelectedRecipe2(null);
     setGachaResult(null);
     setLabel("");
   };
@@ -236,6 +244,12 @@ function EditSheet({ date, mealType, plan, isHighlighted, onToggleHighlight, onC
         if (gachaResult.main.ingredients) ingredientLines.push(...parseIngredientLines(gachaResult.main.ingredients));
         if (gachaResult.side.ingredients) ingredientLines.push(...parseIngredientLines(gachaResult.side.ingredients));
         recipeIdsToRecord.push(gachaResult.main.id, gachaResult.side.id);
+        await setMeal(householdId, dateStr, mealType, null, mealTitle);
+      } else if (selectedRecipe && selectedRecipe2) {
+        mealTitle = `${selectedRecipe.title} + ${selectedRecipe2.title}`;
+        if (selectedRecipe.ingredients) ingredientLines.push(...parseIngredientLines(selectedRecipe.ingredients));
+        if (selectedRecipe2.ingredients) ingredientLines.push(...parseIngredientLines(selectedRecipe2.ingredients));
+        recipeIdsToRecord.push(selectedRecipe.id, selectedRecipe2.id);
         await setMeal(householdId, dateStr, mealType, null, mealTitle);
       } else if (selectedRecipe) {
         mealTitle = selectedRecipe.title;
@@ -283,6 +297,8 @@ function EditSheet({ date, mealType, plan, isHighlighted, onToggleHighlight, onC
       />
     );
   }
+
+  const openPicker = (slot: 1 | 2) => { setPickerSlot(slot); setPickerOpen(true); };
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col justify-end bg-black/30" onClick={onClose}>
@@ -336,26 +352,44 @@ function EditSheet({ date, mealType, plan, isHighlighted, onToggleHighlight, onC
         {/* Manual selection — hidden when combo gacha is active */}
         {gachaResult?.type !== "combo" && (
           <>
-            {/* Recipe selection */}
+            {/* Recipe 1 */}
             <button
-              onClick={() => setPickerOpen(true)}
+              onClick={() => openPicker(1)}
               className={cn(
                 "w-full text-left rounded-lg px-3 py-2.5 text-[13px] border transition-colors",
-                selectedRecipe
-                  ? "border-foreground/40 text-foreground"
-                  : "border-border text-muted-foreground"
+                selectedRecipe ? "border-foreground/40 text-foreground" : "border-border text-muted-foreground"
               )}
             >
               {selectedRecipe ? selectedRecipe.title : "choose from recipes..."}
             </button>
-            {selectedRecipe && (
-              <button onClick={() => { setSelectedRecipe(null); setGachaResult(null); }} className="text-[10px] text-muted-foreground -mt-2">
-                clear recipe
-              </button>
+            {selectedRecipe && !selectedRecipe2 && (
+              <div className="flex items-center gap-3 -mt-2">
+                <button onClick={() => { setSelectedRecipe(null); setSelectedRecipe2(null); }} className="text-[10px] text-muted-foreground">
+                  clear
+                </button>
+                <button onClick={() => openPicker(2)} className="text-[10px] text-muted-foreground border border-border/50 rounded px-2 py-0.5">
+                  + add side
+                </button>
+              </div>
+            )}
+            {/* Recipe 2 (combo) */}
+            {selectedRecipe && selectedRecipe2 && (
+              <div className="rounded-lg bg-muted/40 px-3 py-2.5 space-y-0.5 -mt-2">
+                <p className="text-[13px]">{selectedRecipe.title}</p>
+                <p className="text-[12px] text-muted-foreground">+ {selectedRecipe2.title}</p>
+                <div className="flex gap-3 pt-0.5">
+                  <button onClick={() => setSelectedRecipe2(null)} className="text-[10px] text-muted-foreground/50">
+                    remove side
+                  </button>
+                  <button onClick={() => { setSelectedRecipe(null); setSelectedRecipe2(null); }} className="text-[10px] text-muted-foreground/50">
+                    clear all
+                  </button>
+                </div>
+              </div>
             )}
 
             {/* Eating out */}
-            {!selectedRecipe && (
+            {!selectedRecipe && !selectedRecipe2 && (
               <div className="space-y-2">
                 <button
                   onClick={handleEatingOutToggle}
@@ -387,7 +421,7 @@ function EditSheet({ date, mealType, plan, isHighlighted, onToggleHighlight, onC
             )}
 
             {/* Free text (only when no recipe and not eating out) */}
-            {!selectedRecipe && !eatingOut && (
+            {!selectedRecipe && !selectedRecipe2 && !eatingOut && (
               <input
                 type="text"
                 value={label}
