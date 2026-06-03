@@ -10,7 +10,7 @@ import { ScheduleTimeline } from "./ScheduleTimeline";
 import { RefreshCw, ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
 import { CalendarEvent, isHighlightPlan } from "@/types";
 import { GOOGLE_COLOR_HEX } from "@/lib/calendar";
-import { getJapaneseHolidayName } from "@/lib/japaneseHolidays";
+import { getJapaneseHolidayName, isJapaneseHoliday } from "@/lib/japaneseHolidays";
 
 type ViewMode = "day" | "week" | "month";
 
@@ -48,6 +48,42 @@ function getMonthDays(year: number, month: number): (Date | null)[] {
 
 function eventColor(event: CalendarEvent): string {
   return event.colorId ? GOOGLE_COLOR_HEX[event.colorId] : "#888888";
+}
+
+function toJSTMinOfDay(dt: string): number {
+  const d = new Date(dt);
+  return (d.getUTCHours() * 60 + d.getUTCMinutes() + 9 * 60) % 1440;
+}
+
+function toJSTDateStr(dt: string): string {
+  const d = new Date(dt);
+  return new Date(d.getTime() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
+function hasEventInWindow(events: CalendarEvent[], startHour: number, endHour: number): boolean {
+  return events.some((ev) => {
+    if (!ev.start.dateTime || ev.start.date) return false;
+    const startMin = toJSTMinOfDay(ev.start.dateTime);
+    if (ev.end.dateTime && toJSTDateStr(ev.end.dateTime) > toJSTDateStr(ev.start.dateTime)) {
+      return startMin < endHour * 60;
+    }
+    const endMin = ev.end.dateTime ? toJSTMinOfDay(ev.end.dateTime) : startMin + 60;
+    const spansMidnight = endMin < startMin;
+    if (spansMidnight) return startMin < endHour * 60;
+    return startMin < endHour * 60 && endMin > startHour * 60;
+  });
+}
+
+function bothHaveAllDayEvent(events: CalendarEvent[]): boolean {
+  const owners = new Set(
+    events.filter(ev => ev.start.date && !ev.start.dateTime && ev.ownerId).map(ev => ev.ownerId!)
+  );
+  return owners.size >= 2;
+}
+
+function isWeekendOrHoliday(date: Date): boolean {
+  const dow = date.getDay();
+  return dow === 0 || dow === 6 || isJapaneseHoliday(date);
 }
 
 const DOW_LETTERS = ["S", "M", "T", "W", "T", "F", "S"];
@@ -140,6 +176,7 @@ function MonthGrid({ selectedDate, today, eventsMap, currentUserId, plans, onSel
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const rows = Math.ceil((firstDay + daysInMonth) / 7);
+  const todayStr = toDateStr(today);
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden px-1 pb-1">
@@ -167,8 +204,13 @@ function MonthGrid({ selectedDate, today, eventsMap, currentUserId, plans, onSel
           const myLocalTasks = dayEvents.filter(e => e.isLocal && e.ownerId === currentUserId);
           const taskType = myLocalTasks.map(e => parseTaskType(e.summary)).find(t => t !== null);
           const taskBg = taskType === "run" ? "rgba(251,146,60,0.12)" : taskType === "ride" ? "rgba(34,211,238,0.12)" : undefined;
-          const hasDinner = plans.some(p => p.date === ds && (p.meal_type === "dinner" || p.meal_type === "highlight_dinner"));
-          const hasLunch = plans.some(p => p.date === ds && (p.meal_type === "lunch" || p.meal_type === "highlight_lunch"));
+          const calEvents = (eventsMap[ds] ?? []).filter(e => !e.isLocal);
+          const isFuture = ds >= todayStr;
+          const autoFreeDinner = isFuture && !hasEventInWindow(calEvents, 18, 21);
+          const autoFreeLunch = isFuture && !hasEventInWindow(calEvents, 11, 13) &&
+            (isWeekendOrHoliday(d) || bothHaveAllDayEvent(calEvents));
+          const hasDinner = autoFreeDinner || plans.some(p => p.date === ds && (p.meal_type === "dinner" || p.meal_type === "highlight_dinner"));
+          const hasLunch = autoFreeLunch || plans.some(p => p.date === ds && (p.meal_type === "lunch" || p.meal_type === "highlight_lunch"));
           return (
             <button
               key={i}
