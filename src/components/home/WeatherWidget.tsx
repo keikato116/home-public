@@ -5,7 +5,7 @@ import { fetchWeather } from "@/lib/weather";
 import { WeatherData } from "@/types";
 
 const LOC_KEY = "weather_location";
-const LOC_TTL = 60 * 60 * 1000; // 1 hour
+const LOC_TTL = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 function getCachedLocation(): { lat: number; lon: number } | null {
   try {
@@ -45,7 +45,8 @@ export function WeatherWidget() {
       },
       () => {
         fetchWeather(35.6762, 139.6503).then(setWeather);
-      }
+      },
+      { maximumAge: 24 * 60 * 60 * 1000 }
     );
   }, []);
 
