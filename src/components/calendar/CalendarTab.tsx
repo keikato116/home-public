@@ -478,10 +478,10 @@ export function CalendarTab() {
                           className="w-full bg-transparent text-[13px] outline-none placeholder:text-muted-foreground border-b border-border/30 pb-1.5"
                         />
                         <div className="flex items-center gap-2">
-                          <input type="time" value={newTaskStart} onChange={e => setNewTaskStart(e.target.value)}
+                          <input type="time" step="900" value={newTaskStart} onChange={e => setNewTaskStart(e.target.value)}
                             className="bg-transparent text-[11px] text-muted-foreground outline-none" />
                           <span className="text-[11px] text-muted-foreground">–</span>
-                          <input type="time" value={newTaskEnd} onChange={e => setNewTaskEnd(e.target.value)}
+                          <input type="time" step="900" value={newTaskEnd} onChange={e => setNewTaskEnd(e.target.value)}
                             className="bg-transparent text-[11px] text-muted-foreground outline-none" />
                         </div>
                         <div className="flex gap-3 pt-0.5">
