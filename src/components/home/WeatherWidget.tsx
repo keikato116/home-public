@@ -8,7 +8,7 @@ export function WeatherWidget() {
   const [weather, setWeather] = useState<WeatherData | null>(null);
 
   useEffect(() => {
-    fetchWeather(0, 0).then(setWeather);
+    fetchWeather().then(setWeather);
   }, []);
 
   if (!weather) return <div className="w-16 h-8" />;
