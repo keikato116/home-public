@@ -506,7 +506,7 @@ export function CalendarTab() {
                 currentUserId={currentUserId} today={today} onDelete={deleteLocalEvent} />
             )}
             {!loading && viewMode === "day" && (() => {
-              const localTasks = dayEvents.filter(e => e.isLocal);
+              const localTasks = dayEvents.filter(e => e.isLocal && e.ownerId === currentUserId);
               const timedLocalTasks = localTasks.filter(e => !!e.start.dateTime);
               const ds = toDateStr(selectedDate);
               const highlightEvents: CalendarEvent[] = plans
