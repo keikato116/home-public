@@ -551,6 +551,8 @@ export function CookTab() {
         {cells.map((d, i) => {
           if (!d) return <div key={i} className="border-r border-b border-border/20" />;
           const ds = toDateStr(d);
+          // Only Google Calendar events affect free detection.
+          // Meal highlights (mealPlanStore) are synthetic and never in eventsMap.
           const dayEvents = (eventsMap[ds] ?? []).filter(e => !e.isLocal);
           const isHolidayOrWeekend = isWeekendOrHoliday(d);
           const isFuture = ds >= todayStr;

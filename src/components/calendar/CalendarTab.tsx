@@ -329,8 +329,11 @@ export function CalendarTab() {
     if (!newTaskTitle.trim() && !newTaskType) return;
     if (!householdId || !currentUserId) return;
     const storedTitle = newTaskType ? `${newTaskType}:${newTaskTitle.trim() || newTaskType}` : newTaskTitle.trim();
-    await addLocalEvent(householdId, currentUserId, storedTitle, toDateStr(selectedDate), newTaskStart || undefined, newTaskEnd || undefined);
+    const date = toDateStr(selectedDate);
+    const start = newTaskStart || undefined;
+    const end = newTaskEnd || undefined;
     resetTaskForm();
+    await addLocalEvent(householdId, currentUserId, storedTitle, date, start, end);
   }
 
   const eventsMap = eventsByDate();
