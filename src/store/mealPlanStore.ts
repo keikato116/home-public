@@ -7,7 +7,7 @@ import { MealPlan } from "@/types";
 interface MealPlanState {
   plans: MealPlan[];
   loading: boolean;
-  load: (householdId: string, year: number, month: number) => Promise<void>;
+  load: (householdId: string, year?: number, month?: number) => Promise<void>;
   setMeal: (householdId: string, date: string, mealType: "dinner" | "lunch", recipeId: string | null, label: string | null) => Promise<void>;
   deleteMeal: (id: string) => Promise<void>;
   toggleHighlight: (householdId: string, date: string, mealType: "highlight_dinner" | "highlight_lunch") => Promise<void>;
@@ -20,15 +20,14 @@ export const useMealPlanStore = create<MealPlanState>((set, get) => ({
   load: async (householdId, year, month) => {
     set({ loading: true });
     const supabase = createClient();
-    const from = `${year}-${String(month + 1).padStart(2, "0")}-01`;
-    const lastDay = new Date(year, month + 1, 0).getDate();
-    const to = `${year}-${String(month + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
-    const { data } = await supabase
-      .from("meal_plans")
-      .select("*")
-      .eq("household_id", householdId)
-      .gte("date", from)
-      .lte("date", to);
+    let query = supabase.from("meal_plans").select("*").eq("household_id", householdId);
+    if (year != null && month != null) {
+      const from = `${year}-${String(month + 1).padStart(2, "0")}-01`;
+      const lastDay = new Date(year, month + 1, 0).getDate();
+      const to = `${year}-${String(month + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+      query = query.gte("date", from).lte("date", to);
+    }
+    const { data } = await query;
     set({ plans: (data ?? []) as MealPlan[], loading: false });
   },
 

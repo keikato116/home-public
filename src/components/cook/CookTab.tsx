@@ -466,8 +466,8 @@ export function CookTab() {
 
   useEffect(() => {
     if (!householdId) return;
-    load(householdId, viewYear, viewMonth);
-  }, [householdId, viewYear, viewMonth, load]);
+    load(householdId);
+  }, [householdId, load]);
 
   useEffect(() => {
     if (!householdId) return;

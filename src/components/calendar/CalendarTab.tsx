@@ -304,7 +304,7 @@ export function CalendarTab() {
   useEffect(() => {
     if (!householdId) return;
     load(householdId, null);
-    loadMealPlans(householdId, today.getFullYear(), today.getMonth() + 1);
+    loadMealPlans(householdId);
   }, [householdId, load, loadMealPlans, today]);
 
   // Auto-poll every 30 seconds + refresh immediately when app comes to foreground
