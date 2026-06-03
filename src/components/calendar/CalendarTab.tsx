@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useCalendarStore } from "@/store/calendarStore";
 import { useAuthStore } from "@/store/authStore";
 import { useTodoStore } from "@/store/todoStore";
+import { useMealPlanStore } from "@/store/mealPlanStore";
 import { CalendarEventRow } from "./CalendarEventRow";
 import { ScheduleTimeline } from "./ScheduleTimeline";
 import { RefreshCw, ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
@@ -284,6 +285,7 @@ export function CalendarTab() {
   const { householdId, reAuthGoogle, user } = useAuthStore();
   const { load, eventsByDate, loading, syncing, error, addLocalEvent, deleteLocalEvent } = useCalendarStore();
   const { memberNameMap } = useTodoStore();
+  const { plans } = useMealPlanStore();
   const currentUserId = user?.id;
 
   const today = useRef(new Date()).current;
@@ -443,7 +445,21 @@ export function CalendarTab() {
             {!loading && viewMode === "day" && (() => {
               const localTasks = dayEvents.filter(e => e.isLocal);
               const timedLocalTasks = localTasks.filter(e => !!e.start.dateTime);
-              const calEvents = [...dayEvents.filter(e => !e.isLocal), ...timedLocalTasks];
+              const ds = toDateStr(selectedDate);
+              const highlightEvents: CalendarEvent[] = plans
+                .filter(p => p.date === ds && (p.meal_type === "highlight_dinner" || p.meal_type === "highlight_lunch"))
+                .map(p => {
+                  const [sh, eh] = p.meal_type === "highlight_dinner" ? ["18:00", "20:00"] : ["11:00", "13:00"];
+                  return {
+                    id: `highlight-${p.id}`,
+                    summary: p.meal_type === "highlight_dinner" ? "夜ご飯" : "昼ごはん",
+                    calendarColor: "#a855f7",
+                    start: { dateTime: `${ds}T${sh}:00` },
+                    end: { dateTime: `${ds}T${eh}:00` },
+                    ownerId: currentUserId,
+                  };
+                });
+              const calEvents = [...dayEvents.filter(e => !e.isLocal), ...timedLocalTasks, ...highlightEvents];
               return (
                 <>
                   {/* Tasks */}
