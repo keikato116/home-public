@@ -167,8 +167,8 @@ function MonthGrid({ selectedDate, today, eventsMap, currentUserId, plans, onSel
           const myLocalTasks = dayEvents.filter(e => e.isLocal && e.ownerId === currentUserId);
           const taskType = myLocalTasks.map(e => parseTaskType(e.summary)).find(t => t !== null);
           const taskBg = taskType === "run" ? "rgba(251,146,60,0.12)" : taskType === "ride" ? "rgba(34,211,238,0.12)" : undefined;
-          const hasDinner = plans.some(p => p.date === ds && isHighlightPlan(p, "dinner"));
-          const hasLunch = plans.some(p => p.date === ds && isHighlightPlan(p, "lunch"));
+          const hasDinner = plans.some(p => p.date === ds && (p.meal_type === "dinner" || p.meal_type === "highlight_dinner"));
+          const hasLunch = plans.some(p => p.date === ds && (p.meal_type === "lunch" || p.meal_type === "highlight_lunch"));
           return (
             <button
               key={i}
