@@ -4,7 +4,7 @@ import { CalendarEvent } from "@/types";
 import { GOOGLE_COLOR_HEX } from "@/lib/calendar";
 
 const HOUR_H = 40;
-const START_H = 8;
+const START_H = 7;
 const END_H = 24;
 const HOURS = Array.from({ length: END_H - START_H + 1 }, (_, i) => i + START_H);
 const TIME_W = 28;
