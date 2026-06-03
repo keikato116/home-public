@@ -72,6 +72,13 @@ export interface MealPlan {
   created_at: string;
 }
 
+// A highlight plan uses allowed meal_type values with both recipe_id and label null.
+// Legacy rows may use meal_type "highlight_dinner"/"highlight_lunch".
+export function isHighlightPlan(p: MealPlan, mealType: "dinner" | "lunch"): boolean {
+  return (p.meal_type === mealType && p.recipe_id === null && p.label === null) ||
+    p.meal_type === (`highlight_${mealType}` as MealPlan["meal_type"]);
+}
+
 export interface CalendarSettings {
   household_id: string;
   selected_colors: string[];

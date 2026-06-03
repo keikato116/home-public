@@ -8,7 +8,7 @@ import { useCalendarStore } from "@/store/calendarStore";
 import { useShoppingStore } from "@/store/shoppingStore";
 import { useTodoStore } from "@/store/todoStore";
 import { RecipePicker } from "@/components/recipe/RecipePicker";
-import { MealPlan, CalendarEvent, Recipe } from "@/types";
+import { MealPlan, CalendarEvent, Recipe, isHighlightPlan } from "@/types";
 import { X, ChevronLeft, ChevronRight, Shuffle } from "lucide-react";
 import { isJapaneseHoliday } from "@/lib/japaneseHolidays";
 import { cn, toISODate } from "@/lib/utils";
@@ -488,14 +488,14 @@ export function CookTab() {
   ];
   const rows = Math.ceil(cells.length / 7);
 
-  const dinnerByDate = Object.fromEntries(
-    plans.filter((p) => p.meal_type === "dinner").map((p) => [p.date, p])
+  const dinnerByDate: Record<string, MealPlan> = Object.fromEntries(
+    plans.filter((p) => p.meal_type === "dinner" && !isHighlightPlan(p, "dinner")).map((p) => [p.date, p])
   );
-  const lunchByDate = Object.fromEntries(
-    plans.filter((p) => p.meal_type === "lunch").map((p) => [p.date, p])
+  const lunchByDate: Record<string, MealPlan> = Object.fromEntries(
+    plans.filter((p) => p.meal_type === "lunch" && !isHighlightPlan(p, "lunch")).map((p) => [p.date, p])
   );
-  const highlightDinnerDates = new Set(plans.filter((p) => p.meal_type === "highlight_dinner").map((p) => p.date));
-  const highlightLunchDates = new Set(plans.filter((p) => p.meal_type === "highlight_lunch").map((p) => p.date));
+  const highlightDinnerDates = new Set(plans.filter((p) => isHighlightPlan(p, "dinner")).map((p) => p.date));
+  const highlightLunchDates = new Set(plans.filter((p) => isHighlightPlan(p, "lunch")).map((p) => p.date));
 
   const eventsMap = eventsByDate();
   const todayStr = toDateStr(today);
@@ -591,7 +591,7 @@ export function CookTab() {
           onToggleHighlight={() => {
             if (!householdId) return;
             const ds = toDateStr(editDate);
-            toggleHighlight(householdId, ds, editMealType === "dinner" ? "highlight_dinner" : "highlight_lunch");
+            toggleHighlight(householdId, ds, editMealType);
           }}
           onClose={() => setEditDate(null)}
         />

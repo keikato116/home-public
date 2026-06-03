@@ -8,7 +8,7 @@ import { useMealPlanStore } from "@/store/mealPlanStore";
 import { CalendarEventRow } from "./CalendarEventRow";
 import { ScheduleTimeline } from "./ScheduleTimeline";
 import { RefreshCw, ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
-import { CalendarEvent } from "@/types";
+import { CalendarEvent, isHighlightPlan } from "@/types";
 import { GOOGLE_COLOR_HEX } from "@/lib/calendar";
 import { getJapaneseHolidayName } from "@/lib/japaneseHolidays";
 
@@ -167,8 +167,8 @@ function MonthGrid({ selectedDate, today, eventsMap, currentUserId, plans, onSel
           const myLocalTasks = dayEvents.filter(e => e.isLocal && e.ownerId === currentUserId);
           const taskType = myLocalTasks.map(e => parseTaskType(e.summary)).find(t => t !== null);
           const taskBg = taskType === "run" ? "rgba(251,146,60,0.12)" : taskType === "ride" ? "rgba(34,211,238,0.12)" : undefined;
-          const hasDinner = plans.some(p => p.date === ds && p.meal_type === "highlight_dinner");
-          const hasLunch = plans.some(p => p.date === ds && p.meal_type === "highlight_lunch");
+          const hasDinner = plans.some(p => p.date === ds && isHighlightPlan(p, "dinner"));
+          const hasLunch = plans.some(p => p.date === ds && isHighlightPlan(p, "lunch"));
           return (
             <button
               key={i}
@@ -462,11 +462,12 @@ export function CalendarTab() {
               const timedLocalTasks = localTasks.filter(e => !!e.start.dateTime);
               const ds = toDateStr(selectedDate);
               const highlightEvents: CalendarEvent[] = plans
-                .filter(p => p.date === ds && (p.meal_type === "highlight_dinner" || p.meal_type === "highlight_lunch"))
+                .filter(p => p.date === ds && (isHighlightPlan(p, "dinner") || isHighlightPlan(p, "lunch")))
                 .flatMap(p => {
-                  const [sh, eh] = p.meal_type === "highlight_dinner" ? ["18:00", "20:00"] : ["11:00", "13:00"];
+                  const isDinner = isHighlightPlan(p, "dinner");
+                  const [sh, eh] = isDinner ? ["18:00", "20:00"] : ["11:00", "13:00"];
                   const base = {
-                    summary: p.meal_type === "highlight_dinner" ? "夜ご飯" : "昼ごはん",
+                    summary: isDinner ? "夜ご飯" : "昼ごはん",
                     calendarColor: "#a855f7",
                     start: { dateTime: `${ds}T${sh}:00` },
                     end: { dateTime: `${ds}T${eh}:00` },
