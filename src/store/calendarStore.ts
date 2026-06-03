@@ -41,10 +41,17 @@ async function fetchWithAutoRefresh(
   }
 }
 
+function taskTypeColor(title: string): string | undefined {
+  if (title.startsWith("run:")) return "#fb923c";
+  if (title.startsWith("ride:")) return "#22d3ee";
+  return undefined;
+}
+
 function localToCalendarEvent(e: LocalCalendarEvent, ownerName?: string): CalendarEvent {
   return {
     id: `local-${e.id}`,
     summary: e.title,
+    calendarColor: taskTypeColor(e.title),
     start: e.start_time
       ? { dateTime: `${e.event_date}T${e.start_time}:00` }
       : { date: e.event_date },

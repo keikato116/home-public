@@ -419,7 +419,8 @@ export function CalendarTab() {
             )}
             {!loading && viewMode === "day" && (() => {
               const localTasks = dayEvents.filter(e => e.isLocal);
-              const calEvents = dayEvents.filter(e => !e.isLocal);
+              const timedLocalTasks = localTasks.filter(e => !!e.start.dateTime);
+              const calEvents = [...dayEvents.filter(e => !e.isLocal), ...timedLocalTasks];
               return (
                 <>
                   {/* Tasks */}
