@@ -87,9 +87,22 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
           cur.setUTCDate(cur.getUTCDate() + 1);
         }
       } else if (event.start.dateTime) {
-        // Timed event: group by JST date to avoid UTC midnight boundary issues
-        const utcMs = new Date(event.start.dateTime).getTime();
-        add(new Date(utcMs + 9 * 60 * 60 * 1000).toISOString().slice(0, 10), event);
+        // Timed event: use JST date; also add to all subsequent days the event covers
+        const toJSTDate = (dt: string) =>
+          new Date(new Date(dt).getTime() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+        const startDate = toJSTDate(event.start.dateTime);
+        add(startDate, event);
+        if (event.end.dateTime) {
+          const endDate = toJSTDate(event.end.dateTime);
+          if (endDate > startDate) {
+            const cur = new Date(startDate);
+            cur.setUTCDate(cur.getUTCDate() + 1);
+            while (cur.toISOString().slice(0, 10) <= endDate) {
+              add(cur.toISOString().slice(0, 10), event);
+              cur.setUTCDate(cur.getUTCDate() + 1);
+            }
+          }
+        }
       }
     }
     return groups;

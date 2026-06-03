@@ -14,6 +14,10 @@ function toMin(dt: string): number {
   return (d.getUTCHours() * 60 + d.getUTCMinutes() + 9 * 60) % 1440;
 }
 
+function toJSTDate(dt: string): string {
+  return new Date(new Date(dt).getTime() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
 function toTop(min: number): number {
   return (Math.max(START_H * 60, min) - START_H * 60) / 60 * HOUR_H;
 }
@@ -23,9 +27,10 @@ interface Props {
   isToday: boolean;
   userId?: string;
   memberNameMap: Record<string, string>;
+  date?: string; // YYYY-MM-DD of the day being displayed
 }
 
-export function ScheduleTimeline({ events, isToday, userId, memberNameMap }: Props) {
+export function ScheduleTimeline({ events, isToday, userId, memberNameMap, date }: Props) {
   const allDay = events.filter(e => !e.start.dateTime);
   const timed = events.filter(e => !!e.start.dateTime);
   const myEvents = timed.filter(e => e.ownerId === userId);
@@ -42,12 +47,16 @@ export function ScheduleTimeline({ events, isToday, userId, memberNameMap }: Pro
     : null;
 
   const renderCol = (evs: CalendarEvent[]) => evs.map(ev => {
-    const startMin = toMin(ev.start.dateTime!);
-    const rawEndMin = ev.end.dateTime ? toMin(ev.end.dateTime) : startMin + 60;
-    const spansMidnight = rawEndMin <= startMin;
-    const effectiveEndMin = spansMidnight ? END_H * 60 : rawEndMin;
+    const eventStartDate = toJSTDate(ev.start.dateTime!);
+    const eventEndDate = ev.end.dateTime ? toJSTDate(ev.end.dateTime) : eventStartDate;
+    // Clip to the portion of this event that falls on the displayed day
+    const startsBeforeToday = date && eventStartDate < date;
+    const endsAfterToday = date && eventEndDate > date;
+    const startMin = startsBeforeToday ? START_H * 60 : toMin(ev.start.dateTime!);
+    const rawEndMin = ev.end.dateTime ? toMin(ev.end.dateTime) : toMin(ev.start.dateTime!) + 60;
+    const effectiveEndMin = endsAfterToday ? END_H * 60 : (rawEndMin <= toMin(ev.start.dateTime!) && !startsBeforeToday ? END_H * 60 : rawEndMin);
     if (startMin >= END_H * 60) return null;
-    if (!spansMidnight && effectiveEndMin <= START_H * 60) return null;
+    if (effectiveEndMin <= START_H * 60) return null;
     const visibleStartMin = Math.max(startMin, START_H * 60);
     const cappedEndMin = Math.min(effectiveEndMin, END_H * 60);
     const durMin = Math.max(20, cappedEndMin - visibleStartMin);

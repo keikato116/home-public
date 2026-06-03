@@ -599,6 +599,7 @@ export function CalendarTab() {
                     isToday={isSameDay(selectedDate, today)}
                     userId={currentUserId}
                     memberNameMap={memberNameMap}
+                    date={toDateStr(selectedDate)}
                   />
                 </>
               );
