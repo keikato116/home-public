@@ -257,6 +257,13 @@ function WeekAgenda({ weekDays, eventsMap, currentUserId, today, onDelete }: Wee
   );
 }
 
+const TIME_OPTIONS: string[] = [];
+for (let h = 7; h < 24; h++) {
+  for (const m of [0, 15, 30, 45]) {
+    TIME_OPTIONS.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
+  }
+}
+
 export function CalendarTab() {
   const { householdId, reAuthGoogle, user } = useAuthStore();
   const { load, eventsByDate, loading, syncing, error, addLocalEvent, deleteLocalEvent } = useCalendarStore();
@@ -478,11 +485,17 @@ export function CalendarTab() {
                           className="w-full bg-transparent text-[13px] outline-none placeholder:text-muted-foreground border-b border-border/30 pb-1.5"
                         />
                         <div className="flex items-center gap-2">
-                          <input type="time" step="900" value={newTaskStart} onChange={e => setNewTaskStart(e.target.value)}
-                            className="bg-transparent text-[11px] text-muted-foreground outline-none" />
+                          <select value={newTaskStart} onChange={e => setNewTaskStart(e.target.value)}
+                            className="bg-transparent text-[11px] text-muted-foreground outline-none">
+                            <option value="">--:--</option>
+                            {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                          </select>
                           <span className="text-[11px] text-muted-foreground">–</span>
-                          <input type="time" step="900" value={newTaskEnd} onChange={e => setNewTaskEnd(e.target.value)}
-                            className="bg-transparent text-[11px] text-muted-foreground outline-none" />
+                          <select value={newTaskEnd} onChange={e => setNewTaskEnd(e.target.value)}
+                            className="bg-transparent text-[11px] text-muted-foreground outline-none">
+                            <option value="">--:--</option>
+                            {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                          </select>
                         </div>
                         <div className="flex gap-3 pt-0.5">
                           <button onClick={handleAddTask} disabled={!newTaskTitle.trim() && !newTaskType}
