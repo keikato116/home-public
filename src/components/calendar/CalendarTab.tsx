@@ -203,7 +203,7 @@ function MonthGrid({ selectedDate, today, eventsMap, currentUserId, plans, onSel
           const partnerEvents = dayEvents.filter(e => e.ownerId !== currentUserId && !e.isLocal);
           const myLocalTasks = dayEvents.filter(e => e.isLocal && e.ownerId === currentUserId);
           const taskTypes = new Set(myLocalTasks.map(e => parseTaskType(e.summary)).filter(Boolean) as ("run" | "ride")[]);
-          const taskBg = taskTypes.has("run") ? "rgba(251,146,60,0.08)" : taskTypes.has("ride") ? "rgba(34,211,238,0.08)" : undefined;
+          const taskBg = taskTypes.has("run") ? "rgba(251,146,60,0.03)" : taskTypes.has("ride") ? "rgba(34,211,238,0.03)" : undefined;
           const calEvents = (eventsMap[ds] ?? []).filter(e => !e.isLocal);
           const isFuture = ds >= todayStr;
           const hasAllDayBlock = !isJapaneseHoliday(d) && calEvents.some(e => e.start.date && !e.start.dateTime);
