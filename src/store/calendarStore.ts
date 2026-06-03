@@ -224,26 +224,41 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
 
   addLocalEvent: async (householdId, userId, title, date, startTime, endTime) => {
     const supabase = createClient();
-    const { data } = await supabase
-      .from("local_calendar_events")
-      .insert({
-        household_id: householdId,
-        user_id: userId,
-        title,
-        event_date: date,
-        start_time: startTime ?? null,
-        end_time: endTime ?? null,
-      })
-      .select()
-      .single();
+    const { user } = useAuthStore.getState();
+    const ownerName = (user?.user_metadata?.full_name ?? user?.email ?? "").split(" ")[0];
 
-    if (data) {
-      const { user } = useAuthStore.getState();
-      const newEvent = localToCalendarEvent(data as LocalCalendarEvent, (user?.user_metadata?.full_name ?? user?.email ?? "").split(" ")[0]);
-      const events = [...get().events, newEvent].sort((a, b) =>
-        (a.start.dateTime ?? a.start.date ?? "").localeCompare(b.start.dateTime ?? b.start.date ?? "")
-      );
-      set({ events });
+    const payload = {
+      household_id: householdId,
+      user_id: userId,
+      title,
+      event_date: date,
+      start_time: startTime ?? null,
+      end_time: endTime ?? null,
+    };
+
+    // Optimistic: show event immediately
+    const tempId = `temp-${Date.now()}`;
+    const fakeLocal = { id: tempId, created_at: new Date().toISOString(), ...payload } as LocalCalendarEvent;
+    const tempEvent = localToCalendarEvent(fakeLocal, ownerName);
+    const sortFn = (a: CalendarEvent, b: CalendarEvent) =>
+      (a.start.dateTime ?? a.start.date ?? "").localeCompare(b.start.dateTime ?? b.start.date ?? "");
+    set({ events: [...get().events, tempEvent].sort(sortFn) });
+
+    let result = await supabase.from("local_calendar_events").insert(payload).select().single();
+
+    if (result.error) {
+      // Session may be stale — refresh and retry once
+      await supabase.auth.refreshSession();
+      result = await supabase.from("local_calendar_events").insert(payload).select().single();
+    }
+
+    // Replace temp with persisted event, or remove on permanent failure
+    const withoutTemp = get().events.filter(e => e.id !== tempEvent.id);
+    if (result.data) {
+      const newEvent = localToCalendarEvent(result.data as LocalCalendarEvent, ownerName);
+      set({ events: [...withoutTemp, newEvent].sort(sortFn) });
+    } else {
+      set({ events: withoutTemp });
     }
   },
 
