@@ -12,10 +12,12 @@ interface AuthState {
   loading: boolean;
   settingsOpen: boolean;
   activeTab: string;
+  calendarViewSignal: number;
   isOwner: boolean;
   setHouseholdId: (id: string, inviteCode?: string) => void;
   setSettingsOpen: (open: boolean) => void;
   setActiveTab: (tab: string) => void;
+  bumpCalendarView: () => void;
   init: () => Promise<void>;
   signOut: () => Promise<void>;
   reAuthGoogle: () => Promise<void>;
@@ -173,11 +175,13 @@ export const useAuthStore = create<AuthState>((set) => ({
   loading: true,
   settingsOpen: false,
   activeTab: "home",
+  calendarViewSignal: 0,
   isOwner: false,
 
   setHouseholdId: (id, inviteCode) => set({ householdId: id, inviteCode: inviteCode ?? null }),
   setSettingsOpen: (open) => set({ settingsOpen: open }),
   setActiveTab: (tab) => set({ activeTab: tab }),
+  bumpCalendarView: () => set((s) => ({ calendarViewSignal: s.calendarViewSignal + 1 })),
 
   init: async () => {
     const supabase = createClient();

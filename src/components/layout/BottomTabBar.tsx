@@ -18,7 +18,7 @@ const TABS = [
 ];
 
 export function BottomTabBar() {
-  const { activeTab, setActiveTab, setSettingsOpen } = useAuthStore();
+  const { activeTab, setActiveTab, setSettingsOpen, bumpCalendarView } = useAuthStore();
 
   return (
     <nav
@@ -31,7 +31,10 @@ export function BottomTabBar() {
           return (
             <button
               key={id}
-              onClick={() => setActiveTab(id)}
+              onClick={() => {
+                if (activeTab === id && id === "calendar") bumpCalendarView();
+                else setActiveTab(id);
+              }}
               className="relative flex flex-col items-center justify-center py-3 px-2 transition-colors"
             >
               <Icon

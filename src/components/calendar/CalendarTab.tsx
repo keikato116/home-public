@@ -335,7 +335,7 @@ function TimeSelect({ value, onChange }: { value: string; onChange: (v: string) 
 }
 
 export function CalendarTab() {
-  const { householdId, reAuthGoogle, user } = useAuthStore();
+  const { householdId, reAuthGoogle, user, calendarViewSignal } = useAuthStore();
   const { load, eventsByDate, loading, syncing, error, addLocalEvent, deleteLocalEvent } = useCalendarStore();
   const { memberNameMap } = useTodoStore();
   const { plans, load: loadMealPlans } = useMealPlanStore();
@@ -359,6 +359,11 @@ export function CalendarTab() {
     load(householdId, null);
     loadMealPlans(householdId);
   }, [householdId, load, loadMealPlans, today]);
+
+  // Tapping the calendar tab icon while already on calendar → go to month view
+  useEffect(() => {
+    if (calendarViewSignal > 0) setViewMode("month");
+  }, [calendarViewSignal]);
 
   // Auto-poll every 30 seconds + refresh immediately when app comes to foreground
   useEffect(() => {
