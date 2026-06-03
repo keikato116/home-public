@@ -452,16 +452,18 @@ export function CalendarTab() {
               const ds = toDateStr(selectedDate);
               const highlightEvents: CalendarEvent[] = plans
                 .filter(p => p.date === ds && (p.meal_type === "highlight_dinner" || p.meal_type === "highlight_lunch"))
-                .map(p => {
+                .flatMap(p => {
                   const [sh, eh] = p.meal_type === "highlight_dinner" ? ["18:00", "20:00"] : ["11:00", "13:00"];
-                  return {
-                    id: `highlight-${p.id}`,
+                  const base = {
                     summary: p.meal_type === "highlight_dinner" ? "夜ご飯" : "昼ごはん",
                     calendarColor: "#a855f7",
                     start: { dateTime: `${ds}T${sh}:00` },
                     end: { dateTime: `${ds}T${eh}:00` },
-                    ownerId: currentUserId,
                   };
+                  return [
+                    { ...base, id: `highlight-my-${p.id}`, ownerId: currentUserId },
+                    { ...base, id: `highlight-partner-${p.id}`, ownerId: "highlight-partner" },
+                  ];
                 });
               const calEvents = [...dayEvents.filter(e => !e.isLocal), ...timedLocalTasks, ...highlightEvents];
               return (
