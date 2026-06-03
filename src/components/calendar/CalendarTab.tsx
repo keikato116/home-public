@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useState, useRef, useMemo } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useCalendarStore } from "@/store/calendarStore";
 import { useAuthStore } from "@/store/authStore";
 import { useTodoStore } from "@/store/todoStore";
-import { useStravaStore } from "@/store/stravaStore";
 import { CalendarEventRow } from "./CalendarEventRow";
 import { ScheduleTimeline } from "./ScheduleTimeline";
 import { RefreshCw, ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
@@ -123,11 +122,16 @@ interface MonthGridProps {
   today: Date;
   eventsMap: Record<string, CalendarEvent[]>;
   currentUserId: string | undefined;
-  activityByDate: Record<string, "Run" | "Ride">;
   onSelect: (d: Date) => void;
 }
 
-function MonthGrid({ selectedDate, today, eventsMap, currentUserId, activityByDate, onSelect }: MonthGridProps) {
+function parseTaskType(summary: string): "run" | "ride" | null {
+  if (summary.startsWith("run:")) return "run";
+  if (summary.startsWith("ride:")) return "ride";
+  return null;
+}
+
+function MonthGrid({ selectedDate, today, eventsMap, currentUserId, onSelect }: MonthGridProps) {
   const year = selectedDate.getFullYear();
   const month = selectedDate.getMonth();
   const cells = getMonthDays(year, month);
@@ -157,13 +161,14 @@ function MonthGrid({ selectedDate, today, eventsMap, currentUserId, activityByDa
           const dayEvents = eventsMap[toDateStr(d)] ?? [];
           const myEvents = dayEvents.filter(e => e.ownerId === currentUserId && !e.isLocal);
           const partnerEvents = dayEvents.filter(e => e.ownerId !== currentUserId && !e.isLocal);
-          const activity = activityByDate[toDateStr(d)];
-          const activityBg = activity === "Run" ? "rgba(251,146,60,0.10)" : activity === "Ride" ? "rgba(34,211,238,0.10)" : undefined;
+          const myLocalTasks = dayEvents.filter(e => e.isLocal && e.ownerId === currentUserId);
+          const taskType = myLocalTasks.map(e => parseTaskType(e.summary)).find(t => t !== null);
+          const taskBg = taskType === "run" ? "rgba(251,146,60,0.12)" : taskType === "ride" ? "rgba(34,211,238,0.12)" : undefined;
           return (
             <button
               key={i}
               className="flex flex-col items-start p-0.5 border-r border-b border-border/20 overflow-hidden text-left"
-              style={activityBg ? { backgroundColor: activityBg } : undefined}
+              style={taskBg ? { backgroundColor: taskBg } : undefined}
               onClick={() => onSelect(d)}
             >
               <span className={[
@@ -256,7 +261,6 @@ export function CalendarTab() {
   const { householdId, reAuthGoogle, user } = useAuthStore();
   const { load, eventsByDate, loading, syncing, error, addLocalEvent, deleteLocalEvent } = useCalendarStore();
   const { memberNameMap } = useTodoStore();
-  const { activities } = useStravaStore();
   const currentUserId = user?.id;
 
   const today = useRef(new Date()).current;
@@ -266,6 +270,7 @@ export function CalendarTab() {
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskStart, setNewTaskStart] = useState("");
   const [newTaskEnd, setNewTaskEnd] = useState("");
+  const [newTaskType, setNewTaskType] = useState<"run" | "ride" | null>(null);
 
   const touchStartX = useRef<number | null>(null);
   const timelineScrollRef = useRef<HTMLDivElement | null>(null);
@@ -290,30 +295,18 @@ export function CalendarTab() {
     };
   }, [householdId, load]);
 
+  function resetTaskForm() {
+    setNewTaskTitle(""); setNewTaskStart(""); setNewTaskEnd(""); setNewTaskType(null); setShowTaskInput(false);
+  }
+
   async function handleAddTask() {
     if (!newTaskTitle.trim() || !householdId || !currentUserId) return;
-    await addLocalEvent(householdId, currentUserId, newTaskTitle.trim(), toDateStr(selectedDate), newTaskStart || undefined, newTaskEnd || undefined);
-    setNewTaskTitle("");
-    setNewTaskStart("");
-    setNewTaskEnd("");
-    setShowTaskInput(false);
+    const storedTitle = newTaskType ? `${newTaskType}:${newTaskTitle.trim()}` : newTaskTitle.trim();
+    await addLocalEvent(householdId, currentUserId, storedTitle, toDateStr(selectedDate), newTaskStart || undefined, newTaskEnd || undefined);
+    resetTaskForm();
   }
 
   const eventsMap = eventsByDate();
-
-  const activityByDate = useMemo(() => {
-    const map: Record<string, "Run" | "Ride"> = {};
-    for (const act of activities) {
-      const isRun = act.type === "Run" || act.type === "TrailRun";
-      const isRide = act.type === "Ride" || act.type === "VirtualRide" || act.type === "EBikeRide";
-      if (!isRun && !isRide) continue;
-      const d = new Date(act.startDate);
-      const jst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
-      const dateStr = jst.toISOString().slice(0, 10);
-      if (!map[dateStr]) map[dateStr] = isRun ? "Run" : "Ride";
-    }
-    return map;
-  }, [activities]);
 
   function navigate(direction: 1 | -1) {
     setSelectedDate((prev) => {
@@ -390,7 +383,6 @@ export function CalendarTab() {
             today={today}
             eventsMap={eventsMap}
             currentUserId={currentUserId}
-            activityByDate={activityByDate}
             onSelect={(d) => { setSelectedDate(d); setViewMode("day"); }}
           />
         </>
@@ -437,31 +429,49 @@ export function CalendarTab() {
                         <Plus size={12} />
                       </button>
                     </div>
-                    {localTasks.map(task => (
-                      <div key={task.id} className="flex items-center justify-between py-1 gap-2">
-                        {task.start.dateTime && (
-                          <span className="text-[11px] text-muted-foreground flex-shrink-0">
-                            {task.start.dateTime.split("T")[1]?.slice(0, 5)}
-                            {task.end.dateTime && ` – ${task.end.dateTime.split("T")[1]?.slice(0, 5)}`}
-                          </span>
-                        )}
-                        <span className="text-[12px] flex-1">{task.summary}</span>
-                        <button onClick={() => deleteLocalEvent(task.id)} className="text-muted-foreground/50 hover:text-muted-foreground flex-shrink-0">
-                          <X size={10} />
-                        </button>
-                      </div>
-                    ))}
+                    {localTasks.map(task => {
+                      const tt = parseTaskType(task.summary);
+                      const name = tt ? task.summary.slice(tt.length + 1) : task.summary;
+                      return (
+                        <div key={task.id} className="flex items-center justify-between py-1 gap-2">
+                          {tt && (
+                            <span className={`text-[9px] px-1.5 py-0.5 rounded-full flex-shrink-0 ${tt === "run" ? "bg-orange-400/20 text-orange-400" : "bg-cyan-400/20 text-cyan-400"}`}>
+                              {tt}
+                            </span>
+                          )}
+                          {task.start.dateTime && (
+                            <span className="text-[11px] text-muted-foreground flex-shrink-0">
+                              {task.start.dateTime.split("T")[1]?.slice(0, 5)}
+                              {task.end.dateTime && ` – ${task.end.dateTime.split("T")[1]?.slice(0, 5)}`}
+                            </span>
+                          )}
+                          <span className="text-[12px] flex-1">{name}</span>
+                          <button onClick={() => deleteLocalEvent(task.id)} className="text-muted-foreground/50 hover:text-muted-foreground flex-shrink-0">
+                            <X size={10} />
+                          </button>
+                        </div>
+                      );
+                    })}
                     {localTasks.length === 0 && !showTaskInput && (
                       <p className="text-[11px] text-muted-foreground/40">—</p>
                     )}
                     {showTaskInput && (
                       <div className="mt-2 space-y-2 border border-border/40 rounded-lg px-3 py-2.5">
+                        {/* type selector */}
+                        <div className="flex gap-2">
+                          {(["run", "ride"] as const).map(t => (
+                            <button key={t} onClick={() => setNewTaskType(newTaskType === t ? null : t)}
+                              className={`text-[10px] px-2.5 py-1 rounded-full border transition-colors ${newTaskType === t ? (t === "run" ? "bg-orange-400/20 border-orange-400/50 text-orange-400" : "bg-cyan-400/20 border-cyan-400/50 text-cyan-400") : "border-border text-muted-foreground"}`}>
+                              {t}
+                            </button>
+                          ))}
+                        </div>
                         <input
                           autoFocus
                           type="text"
                           value={newTaskTitle}
                           onChange={e => setNewTaskTitle(e.target.value)}
-                          onKeyDown={e => { if (e.key === "Escape") { setShowTaskInput(false); setNewTaskTitle(""); setNewTaskStart(""); setNewTaskEnd(""); } }}
+                          onKeyDown={e => { if (e.key === "Escape") resetTaskForm(); }}
                           placeholder="task name"
                           className="w-full bg-transparent text-[13px] outline-none placeholder:text-muted-foreground border-b border-border/30 pb-1.5"
                         />
@@ -477,8 +487,7 @@ export function CalendarTab() {
                             className="text-[11px] tracking-wider border border-border rounded px-3 py-1 disabled:opacity-40">
                             add
                           </button>
-                          <button onClick={() => { setShowTaskInput(false); setNewTaskTitle(""); setNewTaskStart(""); setNewTaskEnd(""); }}
-                            className="text-[11px] text-muted-foreground">
+                          <button onClick={resetTaskForm} className="text-[11px] text-muted-foreground">
                             cancel
                           </button>
                         </div>
