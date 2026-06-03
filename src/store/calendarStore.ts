@@ -79,9 +79,13 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
     };
     for (const event of get().events) {
       if (!event.start.dateTime && event.start.date) {
-        // All-day event: expand to every date it covers (end.date is exclusive per Google API)
-        const endStr = event.end.date ?? event.start.date;
-        const cur = new Date(event.start.date);
+        // All-day event: expand to every date it covers.
+        // Google API uses exclusive end.date; local events use same date for start/end — always add start.
+        const startStr = event.start.date;
+        const endStr = event.end.date ?? startStr;
+        add(startStr, event);
+        const cur = new Date(startStr);
+        cur.setUTCDate(cur.getUTCDate() + 1);
         while (cur.toISOString().slice(0, 10) < endStr) {
           add(cur.toISOString().slice(0, 10), event);
           cur.setUTCDate(cur.getUTCDate() + 1);
