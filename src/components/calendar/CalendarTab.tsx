@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { useCalendarStore } from "@/store/calendarStore";
 import { useAuthStore } from "@/store/authStore";
 import { useTodoStore } from "@/store/todoStore";
+import { useStravaStore } from "@/store/stravaStore";
 import { CalendarEventRow } from "./CalendarEventRow";
 import { ScheduleTimeline } from "./ScheduleTimeline";
 import { RefreshCw, ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
@@ -122,10 +123,11 @@ interface MonthGridProps {
   today: Date;
   eventsMap: Record<string, CalendarEvent[]>;
   currentUserId: string | undefined;
+  activityByDate: Record<string, "Run" | "Ride">;
   onSelect: (d: Date) => void;
 }
 
-function MonthGrid({ selectedDate, today, eventsMap, currentUserId, onSelect }: MonthGridProps) {
+function MonthGrid({ selectedDate, today, eventsMap, currentUserId, activityByDate, onSelect }: MonthGridProps) {
   const year = selectedDate.getFullYear();
   const month = selectedDate.getMonth();
   const cells = getMonthDays(year, month);
@@ -155,10 +157,13 @@ function MonthGrid({ selectedDate, today, eventsMap, currentUserId, onSelect }: 
           const dayEvents = eventsMap[toDateStr(d)] ?? [];
           const myEvents = dayEvents.filter(e => e.ownerId === currentUserId && !e.isLocal);
           const partnerEvents = dayEvents.filter(e => e.ownerId !== currentUserId && !e.isLocal);
+          const activity = activityByDate[toDateStr(d)];
+          const activityBg = activity === "Run" ? "rgba(251,146,60,0.10)" : activity === "Ride" ? "rgba(34,211,238,0.10)" : undefined;
           return (
             <button
               key={i}
               className="flex flex-col items-start p-0.5 border-r border-b border-border/20 overflow-hidden text-left"
+              style={activityBg ? { backgroundColor: activityBg } : undefined}
               onClick={() => onSelect(d)}
             >
               <span className={[
@@ -251,6 +256,7 @@ export function CalendarTab() {
   const { householdId, reAuthGoogle, user } = useAuthStore();
   const { load, eventsByDate, loading, syncing, error, addLocalEvent, deleteLocalEvent } = useCalendarStore();
   const { memberNameMap } = useTodoStore();
+  const { activities } = useStravaStore();
   const currentUserId = user?.id;
 
   const today = useRef(new Date()).current;
@@ -294,6 +300,20 @@ export function CalendarTab() {
   }
 
   const eventsMap = eventsByDate();
+
+  const activityByDate = useMemo(() => {
+    const map: Record<string, "Run" | "Ride"> = {};
+    for (const act of activities) {
+      const isRun = act.type === "Run" || act.type === "TrailRun";
+      const isRide = act.type === "Ride" || act.type === "VirtualRide" || act.type === "EBikeRide";
+      if (!isRun && !isRide) continue;
+      const d = new Date(act.startDate);
+      const jst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
+      const dateStr = jst.toISOString().slice(0, 10);
+      if (!map[dateStr]) map[dateStr] = isRun ? "Run" : "Ride";
+    }
+    return map;
+  }, [activities]);
 
   function navigate(direction: 1 | -1) {
     setSelectedDate((prev) => {
@@ -370,6 +390,7 @@ export function CalendarTab() {
             today={today}
             eventsMap={eventsMap}
             currentUserId={currentUserId}
+            activityByDate={activityByDate}
             onSelect={(d) => { setSelectedDate(d); setViewMode("day"); }}
           />
         </>
