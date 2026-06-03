@@ -227,8 +227,8 @@ function MonthGrid({ selectedDate, today, eventsMap, currentUserId, plans, onSel
                 ].join(" ")}>
                   {d.getDate()}
                 </span>
-                {taskTypes.has("run") && <span className="w-1.5 h-1.5 rounded-full border border-orange-400/60 flex-shrink-0" />}
-                {taskTypes.has("ride") && <span className="w-1.5 h-1.5 rounded-full border border-cyan-400/60 flex-shrink-0" />}
+                {taskTypes.has("run") && <span className="w-1.5 h-1.5 rounded-full bg-orange-400/25 flex-shrink-0" />}
+                {taskTypes.has("ride") && <span className="w-1.5 h-1.5 rounded-full bg-cyan-400/25 flex-shrink-0" />}
               </div>
               {holiday && (
                 <span className="text-[5.5px] leading-none text-red-400 truncate w-full mb-px">{holiday}</span>
