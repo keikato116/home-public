@@ -257,11 +257,27 @@ function WeekAgenda({ weekDays, eventsMap, currentUserId, today, onDelete }: Wee
   );
 }
 
-const TIME_OPTIONS: string[] = [];
-for (let h = 7; h < 24; h++) {
-  for (const m of [0, 15, 30, 45]) {
-    TIME_OPTIONS.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
-  }
+const HOURS = Array.from({ length: 17 }, (_, i) => String(i + 7).padStart(2, "0"));
+const MINUTES = ["00", "15", "30", "45"];
+
+function TimeSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [h, m] = value ? value.split(":") : ["", ""];
+  const setH = (newH: string) => onChange(newH ? `${newH}:${m || "00"}` : "");
+  const setM = (newM: string) => onChange(h ? `${h}:${newM}` : "");
+  return (
+    <div className="flex items-center gap-0.5">
+      <select value={h} onChange={e => setH(e.target.value)}
+        className="bg-transparent text-[11px] text-muted-foreground outline-none">
+        <option value="">--</option>
+        {HOURS.map(v => <option key={v} value={v}>{v}</option>)}
+      </select>
+      <span className="text-[11px] text-muted-foreground">:</span>
+      <select value={m} onChange={e => setM(e.target.value)}
+        className="bg-transparent text-[11px] text-muted-foreground outline-none">
+        {MINUTES.map(v => <option key={v} value={v}>{v}</option>)}
+      </select>
+    </div>
+  );
 }
 
 export function CalendarTab() {
@@ -485,17 +501,9 @@ export function CalendarTab() {
                           className="w-full bg-transparent text-[13px] outline-none placeholder:text-muted-foreground border-b border-border/30 pb-1.5"
                         />
                         <div className="flex items-center gap-2">
-                          <select value={newTaskStart} onChange={e => setNewTaskStart(e.target.value)}
-                            className="bg-transparent text-[11px] text-muted-foreground outline-none">
-                            <option value="">--:--</option>
-                            {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
-                          </select>
+                          <TimeSelect value={newTaskStart} onChange={setNewTaskStart} />
                           <span className="text-[11px] text-muted-foreground">–</span>
-                          <select value={newTaskEnd} onChange={e => setNewTaskEnd(e.target.value)}
-                            className="bg-transparent text-[11px] text-muted-foreground outline-none">
-                            <option value="">--:--</option>
-                            {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
-                          </select>
+                          <TimeSelect value={newTaskEnd} onChange={setNewTaskEnd} />
                         </div>
                         <div className="flex gap-3 pt-0.5">
                           <button onClick={handleAddTask} disabled={!newTaskTitle.trim() && !newTaskType}
