@@ -253,8 +253,8 @@ function MonthGrid({ selectedDate, today, eventsMap, currentUserId, plans, onSel
               </div>
               {(hasDinner || hasLunch) && (
                 <div className="flex gap-0.5 mt-auto pt-px">
-                  {hasLunch && <div className="w-2 h-2 rounded-full bg-amber-400" />}
-                  {hasDinner && <div className="w-2 h-2 rounded-full bg-purple-400" />}
+                  {hasLunch && <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />}
+                  {hasDinner && <div className="w-1.5 h-1.5 rounded-full bg-purple-400" />}
                 </div>
               )}
             </button>
