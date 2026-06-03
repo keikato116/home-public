@@ -18,7 +18,7 @@ async function fetchEventsFromAllCalendars(
 
   const calListData = await calListRes.json();
   const calendars: CalInfo[] = (calListData.items ?? []).filter(
-    (c: CalInfo) => c.selected !== false && c.accessRole !== "freeBusyReader"
+    (c: CalInfo) => c.selected !== false && c.accessRole !== "freeBusyReader" && !c.id.includes("#holiday@group")
   );
 
   // Step 2: fetch events from all calendars in parallel
