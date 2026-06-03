@@ -123,6 +123,7 @@ interface MonthGridProps {
   today: Date;
   eventsMap: Record<string, CalendarEvent[]>;
   currentUserId: string | undefined;
+  plans: import("@/types").MealPlan[];
   onSelect: (d: Date) => void;
 }
 
@@ -132,7 +133,7 @@ function parseTaskType(summary: string): "run" | "ride" | null {
   return null;
 }
 
-function MonthGrid({ selectedDate, today, eventsMap, currentUserId, onSelect }: MonthGridProps) {
+function MonthGrid({ selectedDate, today, eventsMap, currentUserId, plans, onSelect }: MonthGridProps) {
   const year = selectedDate.getFullYear();
   const month = selectedDate.getMonth();
   const cells = getMonthDays(year, month);
@@ -159,12 +160,15 @@ function MonthGrid({ selectedDate, today, eventsMap, currentUserId, onSelect }: 
           const isToday = isSameDay(d, today);
           const holiday = getJapaneseHolidayName(d);
           const isRed = d.getDay() === 0 || !!holiday;
-          const dayEvents = eventsMap[toDateStr(d)] ?? [];
+          const ds = toDateStr(d);
+          const dayEvents = eventsMap[ds] ?? [];
           const myEvents = dayEvents.filter(e => e.ownerId === currentUserId && !e.isLocal);
           const partnerEvents = dayEvents.filter(e => e.ownerId !== currentUserId && !e.isLocal);
           const myLocalTasks = dayEvents.filter(e => e.isLocal && e.ownerId === currentUserId);
           const taskType = myLocalTasks.map(e => parseTaskType(e.summary)).find(t => t !== null);
           const taskBg = taskType === "run" ? "rgba(251,146,60,0.12)" : taskType === "ride" ? "rgba(34,211,238,0.12)" : undefined;
+          const hasDinner = plans.some(p => p.date === ds && p.meal_type === "highlight_dinner");
+          const hasLunch = plans.some(p => p.date === ds && p.meal_type === "highlight_lunch");
           return (
             <button
               key={i}
@@ -202,6 +206,12 @@ function MonthGrid({ selectedDate, today, eventsMap, currentUserId, onSelect }: 
                   </div>
                 ))}
               </div>
+              {(hasDinner || hasLunch) && (
+                <div className="flex gap-0.5 mt-auto pt-px">
+                  {hasLunch && <span className="text-[5px] leading-none px-0.5 rounded-sm bg-purple-400/20 text-purple-400">昼</span>}
+                  {hasDinner && <span className="text-[5px] leading-none px-0.5 rounded-sm bg-purple-400/20 text-purple-400">夜</span>}
+                </div>
+              )}
             </button>
           );
         })}
@@ -413,6 +423,7 @@ export function CalendarTab() {
             today={today}
             eventsMap={eventsMap}
             currentUserId={currentUserId}
+            plans={plans}
             onSelect={(d) => { setSelectedDate(d); setViewMode("day"); }}
           />
         </>
