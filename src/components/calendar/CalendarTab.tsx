@@ -258,6 +258,8 @@ export function CalendarTab() {
   const [selectedDate, setSelectedDate] = useState<Date>(today);
   const [showTaskInput, setShowTaskInput] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [newTaskStart, setNewTaskStart] = useState("");
+  const [newTaskEnd, setNewTaskEnd] = useState("");
 
   const touchStartX = useRef<number | null>(null);
   const timelineScrollRef = useRef<HTMLDivElement | null>(null);
@@ -284,8 +286,10 @@ export function CalendarTab() {
 
   async function handleAddTask() {
     if (!newTaskTitle.trim() || !householdId || !currentUserId) return;
-    await addLocalEvent(householdId, currentUserId, newTaskTitle.trim(), toDateStr(selectedDate));
+    await addLocalEvent(householdId, currentUserId, newTaskTitle.trim(), toDateStr(selectedDate), newTaskStart || undefined, newTaskEnd || undefined);
     setNewTaskTitle("");
+    setNewTaskStart("");
+    setNewTaskEnd("");
     setShowTaskInput(false);
   }
 
@@ -413,9 +417,15 @@ export function CalendarTab() {
                       </button>
                     </div>
                     {localTasks.map(task => (
-                      <div key={task.id} className="flex items-center justify-between py-1">
-                        <span className="text-[12px]">{task.summary}</span>
-                        <button onClick={() => deleteLocalEvent(task.id)} className="text-muted-foreground/50 hover:text-muted-foreground">
+                      <div key={task.id} className="flex items-center justify-between py-1 gap-2">
+                        {task.start.dateTime && (
+                          <span className="text-[11px] text-muted-foreground flex-shrink-0">
+                            {task.start.dateTime.split("T")[1]?.slice(0, 5)}
+                            {task.end.dateTime && ` – ${task.end.dateTime.split("T")[1]?.slice(0, 5)}`}
+                          </span>
+                        )}
+                        <span className="text-[12px] flex-1">{task.summary}</span>
+                        <button onClick={() => deleteLocalEvent(task.id)} className="text-muted-foreground/50 hover:text-muted-foreground flex-shrink-0">
                           <X size={10} />
                         </button>
                       </div>
@@ -424,23 +434,33 @@ export function CalendarTab() {
                       <p className="text-[11px] text-muted-foreground/40">—</p>
                     )}
                     {showTaskInput && (
-                      <div className="flex items-center gap-2 mt-1">
+                      <div className="mt-2 space-y-2 border border-border/40 rounded-lg px-3 py-2.5">
                         <input
                           autoFocus
                           type="text"
                           value={newTaskTitle}
                           onChange={e => setNewTaskTitle(e.target.value)}
-                          onKeyDown={e => {
-                            if (e.key === "Enter") handleAddTask();
-                            if (e.key === "Escape") { setShowTaskInput(false); setNewTaskTitle(""); }
-                          }}
-                          placeholder="add task..."
-                          className="flex-1 bg-transparent text-[12px] outline-none placeholder:text-muted-foreground border-b border-border/50 pb-0.5"
+                          onKeyDown={e => { if (e.key === "Escape") { setShowTaskInput(false); setNewTaskTitle(""); setNewTaskStart(""); setNewTaskEnd(""); } }}
+                          placeholder="task name"
+                          className="w-full bg-transparent text-[13px] outline-none placeholder:text-muted-foreground border-b border-border/30 pb-1.5"
                         />
-                        <button onClick={handleAddTask} className="text-[10px] text-muted-foreground">add</button>
-                        <button onClick={() => { setShowTaskInput(false); setNewTaskTitle(""); }} className="text-muted-foreground/50">
-                          <X size={10} />
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <input type="time" value={newTaskStart} onChange={e => setNewTaskStart(e.target.value)}
+                            className="bg-transparent text-[11px] text-muted-foreground outline-none" />
+                          <span className="text-[11px] text-muted-foreground">–</span>
+                          <input type="time" value={newTaskEnd} onChange={e => setNewTaskEnd(e.target.value)}
+                            className="bg-transparent text-[11px] text-muted-foreground outline-none" />
+                        </div>
+                        <div className="flex gap-3 pt-0.5">
+                          <button onClick={handleAddTask} disabled={!newTaskTitle.trim()}
+                            className="text-[11px] tracking-wider border border-border rounded px-3 py-1 disabled:opacity-40">
+                            add
+                          </button>
+                          <button onClick={() => { setShowTaskInput(false); setNewTaskTitle(""); setNewTaskStart(""); setNewTaskEnd(""); }}
+                            className="text-[11px] text-muted-foreground">
+                            cancel
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
