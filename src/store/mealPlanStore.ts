@@ -13,6 +13,18 @@ interface MealPlanState {
   toggleHighlight: (householdId: string, date: string, mealType: "highlight_dinner" | "highlight_lunch") => Promise<void>;
 }
 
+async function withSessionRetry<T>(
+  supabase: ReturnType<typeof createClient>,
+  fn: () => Promise<{ data: T | null; error: unknown }>
+): Promise<T | null> {
+  let result = await fn();
+  if (result.error) {
+    await supabase.auth.refreshSession();
+    result = await fn();
+  }
+  return result.data;
+}
+
 export const useMealPlanStore = create<MealPlanState>((set, get) => ({
   plans: [],
   loading: false,
@@ -34,28 +46,38 @@ export const useMealPlanStore = create<MealPlanState>((set, get) => ({
   setMeal: async (householdId, date, mealType, recipeId, label) => {
     const supabase = createClient();
     const existing = get().plans.find((p) => p.date === date && p.meal_type === mealType);
+
     if (existing) {
-      const { data } = await supabase
-        .from("meal_plans")
-        .update({ recipe_id: recipeId, label })
-        .eq("id", existing.id)
-        .select()
-        .single();
-      if (data) set((s) => ({ plans: s.plans.map((p) => p.id === existing.id ? data as MealPlan : p) }));
+      // Optimistic update
+      set((s) => ({ plans: s.plans.map((p) => p.id === existing.id ? { ...existing, recipe_id: recipeId, label } : p) }));
+      const data = await withSessionRetry(supabase, () =>
+        supabase.from("meal_plans").update({ recipe_id: recipeId, label }).eq("id", existing.id).select().single()
+      );
+      if (data) {
+        set((s) => ({ plans: s.plans.map((p) => p.id === existing.id ? data as MealPlan : p) }));
+      } else {
+        // Revert on permanent failure
+        set((s) => ({ plans: s.plans.map((p) => p.id === existing.id ? existing : p) }));
+      }
     } else {
-      const { data } = await supabase
-        .from("meal_plans")
-        .insert({ household_id: householdId, date, meal_type: mealType, recipe_id: recipeId, label })
-        .select()
-        .single();
-      if (data) set((s) => ({ plans: [...s.plans, data as MealPlan] }));
+      const tempId = `temp-meal-${Date.now()}`;
+      const tempPlan: MealPlan = { id: tempId, household_id: householdId, date, meal_type: mealType, recipe_id: recipeId, label, created_at: new Date().toISOString() };
+      set((s) => ({ plans: [...s.plans, tempPlan] }));
+      const data = await withSessionRetry(supabase, () =>
+        supabase.from("meal_plans").insert({ household_id: householdId, date, meal_type: mealType, recipe_id: recipeId, label }).select().single()
+      );
+      if (data) {
+        set((s) => ({ plans: s.plans.map((p) => p.id === tempId ? data as MealPlan : p) }));
+      } else {
+        set((s) => ({ plans: s.plans.filter((p) => p.id !== tempId) }));
+      }
     }
   },
 
   deleteMeal: async (id) => {
     const supabase = createClient();
-    await supabase.from("meal_plans").delete().eq("id", id);
     set((s) => ({ plans: s.plans.filter((p) => p.id !== id) }));
+    await supabase.from("meal_plans").delete().eq("id", id);
   },
 
   toggleHighlight: async (householdId, date, mealType) => {
@@ -68,13 +90,13 @@ export const useMealPlanStore = create<MealPlanState>((set, get) => ({
       const tempId = `temp-${date}-${mealType}`;
       const tempPlan: MealPlan = { id: tempId, household_id: householdId, date, meal_type: mealType, recipe_id: null, label: null, created_at: new Date().toISOString() };
       set((s) => ({ plans: [...s.plans, tempPlan] }));
-      const { data } = await supabase
-        .from("meal_plans")
-        .insert({ household_id: householdId, date, meal_type: mealType, recipe_id: null, label: null })
-        .select()
-        .single();
+      const data = await withSessionRetry(supabase, () =>
+        supabase.from("meal_plans").insert({ household_id: householdId, date, meal_type: mealType, recipe_id: null, label: null }).select().single()
+      );
       if (data) {
         set((s) => ({ plans: s.plans.map((p) => p.id === tempId ? data as MealPlan : p) }));
+      } else {
+        set((s) => ({ plans: s.plans.filter((p) => p.id !== tempId) }));
       }
     }
   },
