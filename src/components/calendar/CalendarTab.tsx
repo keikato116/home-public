@@ -300,8 +300,9 @@ export function CalendarTab() {
   }
 
   async function handleAddTask() {
-    if (!newTaskTitle.trim() || !householdId || !currentUserId) return;
-    const storedTitle = newTaskType ? `${newTaskType}:${newTaskTitle.trim()}` : newTaskTitle.trim();
+    if (!newTaskTitle.trim() && !newTaskType) return;
+    if (!householdId || !currentUserId) return;
+    const storedTitle = newTaskType ? `${newTaskType}:${newTaskTitle.trim() || newTaskType}` : newTaskTitle.trim();
     await addLocalEvent(householdId, currentUserId, storedTitle, toDateStr(selectedDate), newTaskStart || undefined, newTaskEnd || undefined);
     resetTaskForm();
   }
@@ -460,7 +461,7 @@ export function CalendarTab() {
                         {/* type selector */}
                         <div className="flex gap-2">
                           {(["run", "ride"] as const).map(t => (
-                            <button key={t} onClick={() => setNewTaskType(newTaskType === t ? null : t)}
+                            <button key={t} onClick={() => { const t2 = newTaskType === t ? null : t; setNewTaskType(t2); if (t2 && !newTaskTitle.trim()) setNewTaskTitle(t2); else if (!t2 && newTaskTitle === t) setNewTaskTitle(""); }}
                               className={`text-[10px] px-2.5 py-1 rounded-full border transition-colors ${newTaskType === t ? (t === "run" ? "bg-orange-400/20 border-orange-400/50 text-orange-400" : "bg-cyan-400/20 border-cyan-400/50 text-cyan-400") : "border-border text-muted-foreground"}`}>
                               {t}
                             </button>
@@ -483,7 +484,7 @@ export function CalendarTab() {
                             className="bg-transparent text-[11px] text-muted-foreground outline-none" />
                         </div>
                         <div className="flex gap-3 pt-0.5">
-                          <button onClick={handleAddTask} disabled={!newTaskTitle.trim()}
+                          <button onClick={handleAddTask} disabled={!newTaskTitle.trim() && !newTaskType}
                             className="text-[11px] tracking-wider border border-border rounded px-3 py-1 disabled:opacity-40">
                             add
                           </button>
