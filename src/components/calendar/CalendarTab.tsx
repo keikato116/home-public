@@ -202,8 +202,7 @@ function MonthGrid({ selectedDate, today, eventsMap, currentUserId, plans, onSel
           const myEvents = dayEvents.filter(e => e.ownerId === currentUserId && !e.isLocal);
           const partnerEvents = dayEvents.filter(e => e.ownerId !== currentUserId && !e.isLocal);
           const myLocalTasks = dayEvents.filter(e => e.isLocal && e.ownerId === currentUserId);
-          const taskType = myLocalTasks.map(e => parseTaskType(e.summary)).find(t => t !== null);
-          const taskBg = taskType === "run" ? "rgba(251,146,60,0.12)" : taskType === "ride" ? "rgba(34,211,238,0.12)" : undefined;
+          const taskTypes = new Set(myLocalTasks.map(e => parseTaskType(e.summary)).filter(Boolean) as ("run" | "ride")[]);
           const calEvents = (eventsMap[ds] ?? []).filter(e => !e.isLocal);
           const isFuture = ds >= todayStr;
           const hasAllDayBlock = !isJapaneseHoliday(d) && calEvents.some(e => e.start.date && !e.start.dateTime);
@@ -216,18 +215,21 @@ function MonthGrid({ selectedDate, today, eventsMap, currentUserId, plans, onSel
             <button
               key={i}
               className="flex flex-col items-start p-0.5 border-r border-b border-border/20 overflow-hidden text-left"
-              style={taskBg ? { backgroundColor: taskBg } : undefined}
               onClick={() => onSelect(d)}
             >
-              <span className={[
-                "w-[18px] h-[18px] rounded-full flex items-center justify-center text-[10px] mb-0.5 flex-shrink-0",
-                isSelected ? "bg-foreground text-background"
-                  : isToday ? "border border-foreground text-foreground"
-                  : isRed ? "text-red-500"
-                  : "text-foreground",
-              ].join(" ")}>
-                {d.getDate()}
-              </span>
+              <div className="flex items-center gap-0.5 mb-0.5">
+                <span className={[
+                  "w-[18px] h-[18px] rounded-full flex items-center justify-center text-[10px] flex-shrink-0",
+                  isSelected ? "bg-foreground text-background"
+                    : isToday ? "border border-foreground text-foreground"
+                    : isRed ? "text-red-500"
+                    : "text-foreground",
+                ].join(" ")}>
+                  {d.getDate()}
+                </span>
+                {taskTypes.has("run") && <span className="w-1.5 h-1.5 rounded-full bg-orange-400 flex-shrink-0" />}
+                {taskTypes.has("ride") && <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 flex-shrink-0" />}
+              </div>
               {holiday && (
                 <span className="text-[5.5px] leading-none text-red-400 truncate w-full mb-px">{holiday}</span>
               )}
