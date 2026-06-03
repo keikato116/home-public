@@ -551,7 +551,7 @@ export function CookTab() {
         {cells.map((d, i) => {
           if (!d) return <div key={i} className="border-r border-b border-border/20" />;
           const ds = toDateStr(d);
-          const dayEvents = eventsMap[ds] ?? [];
+          const dayEvents = (eventsMap[ds] ?? []).filter(e => !e.isLocal);
           const isHolidayOrWeekend = isWeekendOrHoliday(d);
           const isFuture = ds >= todayStr;
           const lunchFreeWindow = isFuture && !hasEventInWindow(dayEvents, 11, 13);
