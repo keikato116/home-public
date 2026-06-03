@@ -206,8 +206,9 @@ function MonthGrid({ selectedDate, today, eventsMap, currentUserId, plans, onSel
           const taskBg = taskType === "run" ? "rgba(251,146,60,0.12)" : taskType === "ride" ? "rgba(34,211,238,0.12)" : undefined;
           const calEvents = (eventsMap[ds] ?? []).filter(e => !e.isLocal);
           const isFuture = ds >= todayStr;
-          const autoFreeDinner = isFuture && !hasEventInWindow(calEvents, 18, 21);
-          const autoFreeLunch = isFuture && !hasEventInWindow(calEvents, 11, 13) &&
+          const hasAllDayBlock = !isJapaneseHoliday(d) && calEvents.some(e => e.start.date && !e.start.dateTime);
+          const autoFreeDinner = isFuture && !hasEventInWindow(calEvents, 18, 21) && !hasAllDayBlock;
+          const autoFreeLunch = isFuture && !hasEventInWindow(calEvents, 11, 13) && !hasAllDayBlock &&
             (isWeekendOrHoliday(d) || bothHaveAllDayEvent(calEvents));
           const hasDinner = autoFreeDinner || plans.some(p => p.date === ds && (p.meal_type === "dinner" || p.meal_type === "highlight_dinner"));
           const hasLunch = autoFreeLunch || plans.some(p => p.date === ds && (p.meal_type === "lunch" || p.meal_type === "highlight_lunch"));

@@ -556,7 +556,9 @@ export function CookTab() {
           const dayEvents = (eventsMap[ds] ?? []).filter(e => !e.isLocal);
           const isHolidayOrWeekend = isWeekendOrHoliday(d);
           const isFuture = ds >= todayStr;
-          const lunchFreeWindow = isFuture && !hasEventInWindow(dayEvents, 11, 13);
+          // All-day events (e.g. 当直) block free detection on non-public-holiday dates
+          const hasAllDayBlock = !isJapaneseHoliday(d) && dayEvents.some(e => e.start.date && !e.start.dateTime);
+          const lunchFreeWindow = isFuture && !hasEventInWindow(dayEvents, 11, 13) && !hasAllDayBlock;
           return (
             <DayCell
               key={i}
@@ -564,7 +566,7 @@ export function CookTab() {
               dinnerPlan={dinnerByDate[ds]}
               lunchPlan={lunchByDate[ds]}
               isToday={isSameDay(d, today)}
-              freeEvening={isFuture && !hasEventInWindow(dayEvents, 18, 21)}
+              freeEvening={isFuture && !hasEventInWindow(dayEvents, 18, 21) && !hasAllDayBlock}
               freeLunch={lunchFreeWindow && (isHolidayOrWeekend || bothHaveAllDayEvent(dayEvents))}
               showLunch={true}
               isHighlightedDinner={highlightDinnerDates.has(ds)}

@@ -73,11 +73,24 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
 
   eventsByDate: () => {
     const groups: Record<string, CalendarEvent[]> = {};
-    for (const event of get().events) {
-      const date = (event.start.dateTime ?? event.start.date ?? "").split("T")[0];
-      if (!date) continue;
+    const add = (date: string, event: CalendarEvent) => {
       if (!groups[date]) groups[date] = [];
       groups[date].push(event);
+    };
+    for (const event of get().events) {
+      if (!event.start.dateTime && event.start.date) {
+        // All-day event: expand to every date it covers (end.date is exclusive per Google API)
+        const endStr = event.end.date ?? event.start.date;
+        const cur = new Date(event.start.date);
+        while (cur.toISOString().slice(0, 10) < endStr) {
+          add(cur.toISOString().slice(0, 10), event);
+          cur.setUTCDate(cur.getUTCDate() + 1);
+        }
+      } else if (event.start.dateTime) {
+        // Timed event: group by JST date to avoid UTC midnight boundary issues
+        const utcMs = new Date(event.start.dateTime).getTime();
+        add(new Date(utcMs + 9 * 60 * 60 * 1000).toISOString().slice(0, 10), event);
+      }
     }
     return groups;
   },
