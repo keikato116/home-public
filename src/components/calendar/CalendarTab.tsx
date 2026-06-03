@@ -285,7 +285,7 @@ export function CalendarTab() {
   const { householdId, reAuthGoogle, user } = useAuthStore();
   const { load, eventsByDate, loading, syncing, error, addLocalEvent, deleteLocalEvent } = useCalendarStore();
   const { memberNameMap } = useTodoStore();
-  const { plans } = useMealPlanStore();
+  const { plans, load: loadMealPlans } = useMealPlanStore();
   const currentUserId = user?.id;
 
   const today = useRef(new Date()).current;
@@ -304,7 +304,8 @@ export function CalendarTab() {
   useEffect(() => {
     if (!householdId) return;
     load(householdId, null);
-  }, [householdId, load]);
+    loadMealPlans(householdId, today.getFullYear(), today.getMonth() + 1);
+  }, [householdId, load, loadMealPlans, today]);
 
   // Auto-poll every 30 seconds + refresh immediately when app comes to foreground
   useEffect(() => {
