@@ -227,8 +227,8 @@ function MonthGrid({ selectedDate, today, eventsMap, currentUserId, plans, onSel
                 ].join(" ")}>
                   {d.getDate()}
                 </span>
-                {taskTypes.has("run") && <span className="w-1.5 h-1.5 rounded-full bg-orange-300/70 flex-shrink-0" />}
-                {taskTypes.has("ride") && <span className="w-1.5 h-1.5 rounded-full bg-cyan-300/70 flex-shrink-0" />}
+                {taskTypes.has("run") && <span className="w-1.5 h-1.5 rounded-full border border-orange-400/60 flex-shrink-0" />}
+                {taskTypes.has("ride") && <span className="w-1.5 h-1.5 rounded-full border border-cyan-400/60 flex-shrink-0" />}
               </div>
               {holiday && (
                 <span className="text-[5.5px] leading-none text-red-400 truncate w-full mb-px">{holiday}</span>
@@ -253,8 +253,8 @@ function MonthGrid({ selectedDate, today, eventsMap, currentUserId, plans, onSel
               </div>
               {(hasDinner || hasLunch) && (
                 <div className="flex gap-0.5 mt-auto pt-px">
-                  {hasLunch && <div className="w-1.5 h-1.5 rounded-full bg-amber-300/70" />}
-                  {hasDinner && <div className="w-1.5 h-1.5 rounded-full bg-purple-300/70" />}
+                  {hasLunch && <div className="w-1.5 h-1.5 rounded-full border border-amber-400/60" />}
+                  {hasDinner && <div className="w-1.5 h-1.5 rounded-full border border-purple-400/60" />}
                 </div>
               )}
             </button>
