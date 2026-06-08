@@ -31,36 +31,40 @@ export const useSplitStore = create<SplitState>((set) => ({
     set({ loading: true });
     const supabase = createClient();
 
-    const [sessRes, totRes, subRes] = await Promise.all([
-      supabase
-        .from("split_sessions")
-        .select("*")
-        .eq("household_id", householdId)
-        .gte("date", from)
-        .lte("date", to)
-        .order("date", { ascending: false })
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("family_card_totals")
-        .select("*")
-        .eq("household_id", householdId)
-        .eq("year", periodYear)
-        .eq("month", periodMonth + 1)
-        .maybeSingle(),
-      supabase
-        .from("split_subscriptions")
-        .select("*")
-        .eq("household_id", householdId)
-        .eq("active", true)
-        .order("created_at", { ascending: true }),
-    ]);
+    try {
+      const [sessRes, totRes, subRes] = await Promise.all([
+        supabase
+          .from("split_sessions")
+          .select("*")
+          .eq("household_id", householdId)
+          .gte("date", from)
+          .lte("date", to)
+          .order("date", { ascending: false })
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("family_card_totals")
+          .select("*")
+          .eq("household_id", householdId)
+          .eq("year", periodYear)
+          .eq("month", periodMonth + 1)
+          .maybeSingle(),
+        supabase
+          .from("split_subscriptions")
+          .select("*")
+          .eq("household_id", householdId)
+          .eq("active", true)
+          .order("created_at", { ascending: true }),
+      ]);
 
-    set({
-      sessions: (sessRes.data ?? []) as SplitSession[],
-      familyTotal: (totRes.data as FamilyCardTotal | null) ?? null,
-      subscriptions: (subRes.data ?? []) as SplitSubscription[],
-      loading: false,
-    });
+      set({
+        sessions: (sessRes.data ?? []) as SplitSession[],
+        familyTotal: (totRes.data as FamilyCardTotal | null) ?? null,
+        subscriptions: (subRes.data ?? []) as SplitSubscription[],
+        loading: false,
+      });
+    } catch {
+      set({ loading: false });
+    }
   },
 
   addSession: async (householdId, data) => {

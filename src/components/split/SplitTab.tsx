@@ -442,6 +442,12 @@ export function SplitTab() {
   useEffect(() => {
     if (!householdId) return;
     load(householdId, period.from, period.to, viewYear, viewMonth);
+    const refresh = () => {
+      if (document.visibilityState === "visible")
+        load(householdId, period.from, period.to, viewYear, viewMonth);
+    };
+    document.addEventListener("visibilitychange", refresh);
+    return () => document.removeEventListener("visibilitychange", refresh);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [householdId, viewYear, viewMonth, closingDay, load]);
 
