@@ -289,6 +289,7 @@ export function HomeTab() {
               isToday={isSameDay(selectedDate, today)}
               userId={user?.id}
               memberNameMap={memberNameMap}
+              date={dateKey}
             />
           );
         })()}
