@@ -136,6 +136,26 @@ function pick<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
+const GACHA_HISTORY_KEY = "gacha_history";
+const GACHA_HISTORY_MAX = 8;
+
+function getGachaHistory(): string[] {
+  try { return JSON.parse(localStorage.getItem(GACHA_HISTORY_KEY) ?? "[]"); } catch { return []; }
+}
+
+function recordGachaHistory(ids: string[]) {
+  try {
+    const prev = getGachaHistory();
+    const next = [...ids, ...prev].slice(0, GACHA_HISTORY_MAX);
+    localStorage.setItem(GACHA_HISTORY_KEY, JSON.stringify(next));
+  } catch {}
+}
+
+function freshPool<T extends { id: string }>(pool: T[], history: string[]): T[] {
+  const fresh = pool.filter(r => !history.includes(r.id));
+  return fresh.length > 0 ? fresh : pool;
+}
+
 function rollGacha(recipes: Recipe[]): GachaResult | null {
   const by = (cat: string) => recipes.filter(r => r.category === cat);
   const mains = by("main");
@@ -151,12 +171,30 @@ function rollGacha(recipes: Recipe[]): GachaResult | null {
   if (bowls.length > 0) types.push("bowl");
 
   if (types.length === 0) return null;
+  const history = getGachaHistory();
   const type = types[Math.floor(Math.random() * types.length)];
   switch (type) {
-    case "combo": return { type: "combo", main: pick(mains), side: pick(sides) };
-    case "pasta": return { type: "single", recipe: pick(pastas) };
-    case "noodles": return { type: "single", recipe: pick(noodles) };
-    default: return { type: "single", recipe: pick(bowls) };
+    case "combo": {
+      const main = pick(freshPool(mains, history));
+      const side = pick(freshPool(sides, history));
+      recordGachaHistory([main.id, side.id]);
+      return { type: "combo", main, side };
+    }
+    case "pasta": {
+      const r = pick(freshPool(pastas, history));
+      recordGachaHistory([r.id]);
+      return { type: "single", recipe: r };
+    }
+    case "noodles": {
+      const r = pick(freshPool(noodles, history));
+      recordGachaHistory([r.id]);
+      return { type: "single", recipe: r };
+    }
+    default: {
+      const r = pick(freshPool(bowls, history));
+      recordGachaHistory([r.id]);
+      return { type: "single", recipe: r };
+    }
   }
 }
 
