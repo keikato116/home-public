@@ -2,7 +2,7 @@
 
 import { CalendarEvent, MealPlan } from "@/types";
 import { getJapaneseHolidayName } from "@/lib/japaneseHolidays";
-import { toDateStr, isSameDay, isWeekendOrHoliday, getMonthDays, DOW_LETTERS } from "@/lib/dates";
+import { toDateStr, isSameDay, isWeekendOrHoliday, getMonthDays, DOW_LETTERS, toJSTDateStr } from "@/lib/dates";
 import { hasEventInWindow, bothHaveAllDayEvent, hasAllDayBlock } from "@/lib/freeTime";
 import { eventColor, parseTaskType } from "./lib";
 import { RUN_CELL_BG, RIDE_CELL_BG } from "@/lib/colors";
@@ -45,7 +45,11 @@ export function MonthGrid({ selectedDate, today, eventsMap, currentUserId, plans
           const holiday = getJapaneseHolidayName(d);
           const isRed = d.getDay() === 0 || !!holiday;
           const ds = toDateStr(d);
-          const dayEvents = eventsMap[ds] ?? [];
+          // For timed events, only show on the day they START (not on overflow days).
+          // All-day events keep their multi-day span. The timeline view keeps full spans.
+          const dayEvents = (eventsMap[ds] ?? []).filter(e =>
+            e.start.dateTime ? toJSTDateStr(e.start.dateTime) === ds : true
+          );
           const myEvents = dayEvents.filter(e => e.ownerId === currentUserId && !e.isLocal);
           const partnerEvents = dayEvents.filter(e => e.ownerId !== currentUserId && !e.isLocal);
           const myLocalTasks = dayEvents.filter(e => e.isLocal && e.ownerId === currentUserId);
