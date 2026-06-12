@@ -8,68 +8,19 @@ import { useCalendarStore } from "@/store/calendarStore";
 import { useShoppingStore } from "@/store/shoppingStore";
 import { useTodoStore } from "@/store/todoStore";
 import { RecipePicker } from "@/components/recipe/RecipePicker";
-import { MealPlan, CalendarEvent, Recipe, isHighlightPlan } from "@/types";
+import { MealPlan, Recipe, isHighlightPlan } from "@/types";
 import { X, ChevronLeft, ChevronRight, Shuffle } from "lucide-react";
-import { isJapaneseHoliday } from "@/lib/japaneseHolidays";
 import { cn, toISODate } from "@/lib/utils";
+import { toDateStr, isSameDay, isWeekendOrHoliday, DOW_LETTERS, MONTH_NAMES } from "@/lib/dates";
+import { hasEventInWindow, bothHaveAllDayEvent, hasAllDayBlock } from "@/lib/freeTime";
+import { getJSON, setJSON } from "@/lib/storage";
+import { LS_GACHA_HISTORY } from "@/lib/constants";
 
 function parseIngredientLines(text: string): string[] {
   return text
     .split("\n")
     .map((l) => l.trim())
     .filter((l) => l.length > 0 && !/^【.*】$/.test(l));
-}
-
-const DOW = ["S", "M", "T", "W", "T", "F", "S"];
-const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-
-
-function toJSTMinOfDay(dt: string): number {
-  const d = new Date(dt);
-  return (d.getUTCHours() * 60 + d.getUTCMinutes() + 9 * 60) % 1440;
-}
-
-function toJSTDateStr(dt: string): string {
-  const d = new Date(dt);
-  const jst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
-  return jst.toISOString().slice(0, 10);
-}
-
-function hasEventInWindow(events: CalendarEvent[], startHour: number, endHour: number): boolean {
-  return events.some((ev) => {
-    if (!ev.start.dateTime || ev.start.date) return false;
-    const startMin = toJSTMinOfDay(ev.start.dateTime);
-    // If end date (JST) is later than start date, the event covers the rest of the start day
-    if (ev.end.dateTime && toJSTDateStr(ev.end.dateTime) > toJSTDateStr(ev.start.dateTime)) {
-      return startMin < endHour * 60;
-    }
-    const endMin = ev.end.dateTime ? toJSTMinOfDay(ev.end.dateTime) : startMin + 60;
-    const spansMidnight = endMin < startMin;
-    if (spansMidnight) return startMin < endHour * 60;
-    return startMin < endHour * 60 && endMin > startHour * 60;
-  });
-}
-
-function bothHaveAllDayEvent(events: CalendarEvent[]): boolean {
-  const owners = new Set(
-    events
-      .filter(ev => ev.start.date && !ev.start.dateTime && ev.ownerId)
-      .map(ev => ev.ownerId!)
-  );
-  return owners.size >= 2;
-}
-
-function toDateStr(d: Date) {
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
-}
-
-function isSameDay(a: Date, b: Date) {
-  return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
-}
-
-function isWeekendOrHoliday(date: Date): boolean {
-  const dow = date.getDay();
-  return dow === 0 || dow === 6 || isJapaneseHoliday(date);
 }
 
 interface DayPickerProps {
@@ -136,19 +87,14 @@ function pick<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-const GACHA_HISTORY_KEY = "gacha_history";
 const GACHA_HISTORY_MAX = 8;
 
 function getGachaHistory(): string[] {
-  try { return JSON.parse(localStorage.getItem(GACHA_HISTORY_KEY) ?? "[]"); } catch { return []; }
+  return getJSON<string[]>(LS_GACHA_HISTORY, []);
 }
 
 function recordGachaHistory(ids: string[]) {
-  try {
-    const prev = getGachaHistory();
-    const next = [...ids, ...prev].slice(0, GACHA_HISTORY_MAX);
-    localStorage.setItem(GACHA_HISTORY_KEY, JSON.stringify(next));
-  } catch {}
+  setJSON(LS_GACHA_HISTORY, [...ids, ...getGachaHistory()].slice(0, GACHA_HISTORY_MAX));
 }
 
 function freshPool<T extends { id: string }>(pool: T[], history: string[]): T[] {
@@ -573,7 +519,7 @@ export function CookTab() {
       </div>
 
       <div className="grid grid-cols-7 px-1">
-        {DOW.map((d, i) => (
+        {DOW_LETTERS.map((d, i) => (
           <div key={i} className="flex justify-center py-1">
             <span className="text-[9px] text-muted-foreground">{d}</span>
           </div>
@@ -594,9 +540,8 @@ export function CookTab() {
           const dayEvents = (eventsMap[ds] ?? []).filter(e => !e.isLocal);
           const isHolidayOrWeekend = isWeekendOrHoliday(d);
           const isFuture = ds >= todayStr;
-          // All-day events (e.g. 当直) block free detection on non-public-holiday dates
-          const hasAllDayBlock = !isJapaneseHoliday(d) && dayEvents.some(e => e.start.date && !e.start.dateTime);
-          const lunchFreeWindow = isFuture && !hasEventInWindow(dayEvents, 11, 13) && !hasAllDayBlock;
+          const allDayBlocked = hasAllDayBlock(d, dayEvents);
+          const lunchFreeWindow = isFuture && !hasEventInWindow(dayEvents, 11, 13) && !allDayBlocked;
           return (
             <DayCell
               key={i}
@@ -604,7 +549,7 @@ export function CookTab() {
               dinnerPlan={dinnerByDate[ds]}
               lunchPlan={lunchByDate[ds]}
               isToday={isSameDay(d, today)}
-              freeEvening={isFuture && !hasEventInWindow(dayEvents, 18, 21) && !hasAllDayBlock}
+              freeEvening={isFuture && !hasEventInWindow(dayEvents, 18, 21) && !allDayBlocked}
               freeLunch={lunchFreeWindow && (isHolidayOrWeekend || bothHaveAllDayEvent(dayEvents))}
               showLunch={true}
               isHighlightedDinner={highlightDinnerDates.has(ds)}

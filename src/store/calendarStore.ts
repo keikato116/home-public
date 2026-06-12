@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/client";
 import { CalendarEvent, CalendarSettings, LocalCalendarEvent } from "@/types";
 import { fetchCalendarEvents } from "@/lib/calendar";
 import { toISODate } from "@/lib/utils";
+import { toJSTDateStr } from "@/lib/dates";
+import { LS_GOOGLE_TOKEN, LS_CAL_CACHE_PREFIX } from "@/lib/constants";
 import { useAuthStore, ensureValidAccessToken } from "@/store/authStore";
 
 let loadGeneration = 0;
@@ -92,12 +94,10 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
         }
       } else if (event.start.dateTime) {
         // Timed event: use JST date; also add to all subsequent days the event covers
-        const toJSTDate = (dt: string) =>
-          new Date(new Date(dt).getTime() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
-        const startDate = toJSTDate(event.start.dateTime);
+        const startDate = toJSTDateStr(event.start.dateTime);
         add(startDate, event);
         if (event.end.dateTime) {
-          const endDate = toJSTDate(event.end.dateTime);
+          const endDate = toJSTDateStr(event.end.dateTime);
           if (endDate > startDate) {
             const cur = new Date(startDate);
             cur.setUTCDate(cur.getUTCDate() + 1);
@@ -117,7 +117,7 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
     const myGen = ++loadGeneration;
 
     // Show localStorage cache immediately so tab feels instant
-    const cacheKey = `cal_cache_${householdId}`;
+    const cacheKey = `${LS_CAL_CACHE_PREFIX}${householdId}`;
     const hasExistingEvents = get().events.length > 0;
     if (!hasExistingEvents) {
       try {
@@ -181,7 +181,7 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
       const effectiveToken =
         (await ensureValidAccessToken()) ??
         accessToken ??
-        localStorage.getItem("google_access_token");
+        localStorage.getItem(LS_GOOGLE_TOKEN);
 
       if (!effectiveToken) {
         if (loadTimeoutId) { clearTimeout(loadTimeoutId); loadTimeoutId = null; }

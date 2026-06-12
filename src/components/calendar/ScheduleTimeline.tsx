@@ -2,21 +2,13 @@
 
 import { CalendarEvent } from "@/types";
 import { GOOGLE_COLOR_HEX } from "@/lib/calendar";
+import { toJSTMinOfDay as toMin, toJSTDateStr as toJSTDate } from "@/lib/dates";
 
 const HOUR_H = 40;
 const START_H = 7;
 const END_H = 24;
 const HOURS = Array.from({ length: END_H - START_H + 1 }, (_, i) => i + START_H);
 const TIME_W = 28;
-
-function toMin(dt: string): number {
-  const d = new Date(dt);
-  return (d.getUTCHours() * 60 + d.getUTCMinutes() + 9 * 60) % 1440;
-}
-
-function toJSTDate(dt: string): string {
-  return new Date(new Date(dt).getTime() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
-}
 
 function toTop(min: number): number {
   return (Math.max(START_H * 60, min) - START_H * 60) / 60 * HOUR_H;

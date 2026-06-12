@@ -10,88 +10,18 @@ import { ScheduleTimeline } from "./ScheduleTimeline";
 import { RefreshCw, ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
 import { CalendarEvent, isHighlightPlan } from "@/types";
 import { GOOGLE_COLOR_HEX } from "@/lib/calendar";
-import { getJapaneseHolidayName, isJapaneseHoliday } from "@/lib/japaneseHolidays";
+import { getJapaneseHolidayName } from "@/lib/japaneseHolidays";
+import {
+  toDateStr, isSameDay, isWeekendOrHoliday, getWeekDays, getMonthDays,
+  DOW_LETTERS, MONTH_NAMES,
+} from "@/lib/dates";
+import { hasEventInWindow, bothHaveAllDayEvent, hasAllDayBlock } from "@/lib/freeTime";
 
 type ViewMode = "day" | "week" | "month";
-
-function isSameDay(a: Date, b: Date): boolean {
-  return a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate();
-}
-
-function toDateStr(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
-function getWeekDays(date: Date): Date[] {
-  const sunday = new Date(date);
-  sunday.setDate(date.getDate() - date.getDay());
-  return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(sunday);
-    d.setDate(sunday.getDate() + i);
-    return d;
-  });
-}
-
-function getMonthDays(year: number, month: number): (Date | null)[] {
-  const firstDay = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const cells: (Date | null)[] = [];
-  for (let i = 0; i < firstDay; i++) cells.push(null);
-  for (let d = 1; d <= daysInMonth; d++) cells.push(new Date(year, month, d));
-  return cells;
-}
 
 function eventColor(event: CalendarEvent): string {
   return event.colorId ? GOOGLE_COLOR_HEX[event.colorId] : "#888888";
 }
-
-function toJSTMinOfDay(dt: string): number {
-  const d = new Date(dt);
-  return (d.getUTCHours() * 60 + d.getUTCMinutes() + 9 * 60) % 1440;
-}
-
-function toJSTDateStr(dt: string): string {
-  const d = new Date(dt);
-  return new Date(d.getTime() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
-}
-
-function hasEventInWindow(events: CalendarEvent[], startHour: number, endHour: number): boolean {
-  return events.some((ev) => {
-    if (!ev.start.dateTime || ev.start.date) return false;
-    const startMin = toJSTMinOfDay(ev.start.dateTime);
-    if (ev.end.dateTime && toJSTDateStr(ev.end.dateTime) > toJSTDateStr(ev.start.dateTime)) {
-      return startMin < endHour * 60;
-    }
-    const endMin = ev.end.dateTime ? toJSTMinOfDay(ev.end.dateTime) : startMin + 60;
-    const spansMidnight = endMin < startMin;
-    if (spansMidnight) return startMin < endHour * 60;
-    return startMin < endHour * 60 && endMin > startHour * 60;
-  });
-}
-
-function bothHaveAllDayEvent(events: CalendarEvent[]): boolean {
-  const owners = new Set(
-    events.filter(ev => ev.start.date && !ev.start.dateTime && ev.ownerId).map(ev => ev.ownerId!)
-  );
-  return owners.size >= 2;
-}
-
-function isWeekendOrHoliday(date: Date): boolean {
-  const dow = date.getDay();
-  return dow === 0 || dow === 6 || isJapaneseHoliday(date);
-}
-
-const DOW_LETTERS = ["S", "M", "T", "W", "T", "F", "S"];
-
-const MONTH_NAMES = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
-];
 
 function getPeriodLabel(viewMode: ViewMode, selectedDate: Date): string {
   if (viewMode === "day") {
@@ -206,9 +136,9 @@ function MonthGrid({ selectedDate, today, eventsMap, currentUserId, plans, onSel
           const taskBg = taskTypes.has("run") ? "rgba(251,146,60,0.06)" : taskTypes.has("ride") ? "rgba(34,211,238,0.06)" : undefined;
           const calEvents = (eventsMap[ds] ?? []).filter(e => !e.isLocal);
           const isFuture = ds >= todayStr;
-          const hasAllDayBlock = !isJapaneseHoliday(d) && calEvents.some(e => e.start.date && !e.start.dateTime);
-          const autoFreeDinner = isFuture && !hasEventInWindow(calEvents, 18, 21) && !hasAllDayBlock;
-          const autoFreeLunch = isFuture && !hasEventInWindow(calEvents, 11, 13) && !hasAllDayBlock &&
+          const allDayBlocked = hasAllDayBlock(d, calEvents);
+          const autoFreeDinner = isFuture && !hasEventInWindow(calEvents, 18, 21) && !allDayBlocked;
+          const autoFreeLunch = isFuture && !hasEventInWindow(calEvents, 11, 13) && !allDayBlocked &&
             (isWeekendOrHoliday(d) || bothHaveAllDayEvent(calEvents));
           const hasDinner = autoFreeDinner || plans.some(p => p.date === ds && (p.meal_type === "dinner" || p.meal_type === "highlight_dinner"));
           const hasLunch = autoFreeLunch || plans.some(p => p.date === ds && (p.meal_type === "lunch" || p.meal_type === "highlight_lunch"));

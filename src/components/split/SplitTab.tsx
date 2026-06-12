@@ -6,16 +6,9 @@ import { useAuthStore } from "@/store/authStore";
 import { SplitItem, SplitSession } from "@/types";
 import { ChevronLeft, ChevronRight, Camera, Plus, X, Pencil, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toDateStr, MONTH_NAMES, MON_SHORT } from "@/lib/dates";
+import { LS_SPLIT_CLOSING_DAY, LS_SPLIT_RATIO } from "@/lib/constants";
 
-const MONTH_NAMES = [
-  "January","February","March","April","May","June",
-  "July","August","September","October","November","December",
-];
-const MON_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-
-function toDateStr(d: Date) {
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
-}
 function formatDateHeader(dateStr: string) {
   const d = new Date(dateStr + "T00:00:00");
   return d.toLocaleDateString("ja-JP", { month: "numeric", day: "numeric", weekday: "short" });
@@ -402,7 +395,7 @@ export function SplitTab() {
   // Closing day: 0 = calendar month, 1-28 = billing cycle closes on that day
   const [closingDay, setClosingDay] = useState<number>(() => {
     if (typeof window === "undefined") return 0;
-    return parseInt(localStorage.getItem("split_closing_day") ?? "0", 10);
+    return parseInt(localStorage.getItem(LS_SPLIT_CLOSING_DAY) ?? "0", 10);
   });
   const [editingClosingDay, setEditingClosingDay] = useState(false);
   const [closingDayInput, setClosingDayInput] = useState("");
@@ -410,7 +403,7 @@ export function SplitTab() {
   // Split ratio: her's share (0.0–1.0), default 0.5
   const [splitRatio, setSplitRatio] = useState<number>(() => {
     if (typeof window === "undefined") return 0.5;
-    return parseFloat(localStorage.getItem("split_ratio") ?? "0.5");
+    return parseFloat(localStorage.getItem(LS_SPLIT_RATIO) ?? "0.5");
   });
   const [editingRatio, setEditingRatio] = useState(false);
   const [ratioInput, setRatioInput] = useState("");
@@ -420,7 +413,7 @@ export function SplitTab() {
     const valid = !isNaN(pct) && pct >= 0 && pct <= 100;
     const ratio = valid ? pct / 100 : splitRatio;
     setSplitRatio(ratio);
-    localStorage.setItem("split_ratio", String(ratio));
+    localStorage.setItem(LS_SPLIT_RATIO, String(ratio));
     setEditingRatio(false);
   };
 
@@ -466,7 +459,7 @@ export function SplitTab() {
     const valid = !isNaN(n) && n >= 0 && n <= 28;
     const day = valid ? n : closingDay;
     setClosingDay(day);
-    localStorage.setItem("split_closing_day", String(day));
+    localStorage.setItem(LS_SPLIT_CLOSING_DAY, String(day));
     // Jump to current period under new closing day
     const p = getCurrentPeriod(day);
     setViewYear(p.year);

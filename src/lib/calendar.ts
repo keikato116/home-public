@@ -46,10 +46,6 @@ export async function fetchCalendarEvents(
   return data.events ?? [];
 }
 
-export function getEventDate(event: CalendarEvent): string {
-  return (event.start.dateTime ?? event.start.date ?? "").split("T")[0];
-}
-
 export function formatEventTime(event: CalendarEvent): string {
   if (event.start.date && !event.start.dateTime) return "all day";
   if (!event.start.dateTime) return "";

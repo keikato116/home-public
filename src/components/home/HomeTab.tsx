@@ -9,26 +9,9 @@ import { toISODate, cn } from "@/lib/utils";
 import { WeatherWidget } from "./WeatherWidget";
 import { ScheduleTimeline } from "@/components/calendar/ScheduleTimeline";
 
+import { getJSTToday, isSameDay } from "@/lib/dates";
+
 const JST = "Asia/Tokyo";
-
-function getJSTToday(): Date {
-  const now = new Date();
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: JST, year: "numeric", month: "numeric", day: "numeric",
-  }).formatToParts(now);
-  const y = parseInt(parts.find(p => p.type === "year")!.value);
-  const m = parseInt(parts.find(p => p.type === "month")!.value) - 1;
-  const d = parseInt(parts.find(p => p.type === "day")!.value);
-  return new Date(y, m, d);
-}
-
-function isSameDay(a: Date, b: Date) {
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
-  );
-}
 
 function tabLabel(date: Date, today: Date) {
   const diff = Math.round(

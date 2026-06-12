@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import { useStravaStore, StravaActivity } from "@/store/stravaStore";
 import { cn } from "@/lib/utils";
+import { STRAVA_REDIRECT_URI } from "@/lib/constants";
 
 const STRAVA_CLIENT_ID = "248914";
-const STRAVA_REDIRECT_URI = "https://homes-lime.vercel.app/api/strava/callback";
 
 function stravaAuthUrl() {
   const redirectUri = encodeURIComponent(STRAVA_REDIRECT_URI);

@@ -3,6 +3,11 @@
 import { create } from "zustand";
 import { User, AuthChangeEvent, Session } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
+import {
+  LS_GOOGLE_TOKEN, LS_GOOGLE_TOKEN_EXPIRY, LS_GOOGLE_REFRESH,
+  LS_CACHED_USER, LS_CACHED_HOUSEHOLD, LS_CACHED_INVITE, LS_CACHED_IS_OWNER,
+  GOOGLE_CALENDAR_SCOPE,
+} from "@/lib/constants";
 
 interface AuthState {
   user: User | null;
@@ -23,9 +28,9 @@ interface AuthState {
   reAuthGoogle: () => Promise<void>;
 }
 
-const TOKEN_KEY = "google_access_token";
-const TOKEN_EXPIRY_KEY = "google_access_token_expires_at";
-const REFRESH_KEY = "google_refresh_token";
+const TOKEN_KEY = LS_GOOGLE_TOKEN;
+const TOKEN_EXPIRY_KEY = LS_GOOGLE_TOKEN_EXPIRY;
+const REFRESH_KEY = LS_GOOGLE_REFRESH;
 
 let isSigningOut = false;
 let refreshInFlight: Promise<string | null> | null = null;
@@ -78,13 +83,13 @@ async function doRefresh(): Promise<string | null> {
 
   if (!refreshToken) {
     // No refresh token anywhere — if the user is logged in, re-auth silently to get one
-    if (typeof window !== "undefined" && localStorage.getItem("cached_user")) {
+    if (typeof window !== "undefined" && localStorage.getItem(LS_CACHED_USER)) {
       const supabase = createClient();
       supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
-          scopes: "https://www.googleapis.com/auth/calendar.readonly",
+          scopes: GOOGLE_CALENDAR_SCOPE,
           queryParams: { access_type: "offline", prompt: "consent" },
         },
       }).catch(() => {});
@@ -107,13 +112,13 @@ async function doRefresh(): Promise<string | null> {
         if (googleError === "invalid_grant" || googleError === "invalid_client") {
           localStorage.removeItem(REFRESH_KEY);
         }
-        if (typeof window !== "undefined" && localStorage.getItem("cached_user")) {
+        if (typeof window !== "undefined" && localStorage.getItem(LS_CACHED_USER)) {
           const supabase = createClient();
           supabase.auth.signInWithOAuth({
             provider: "google",
             options: {
               redirectTo: `${window.location.origin}/auth/callback`,
-              scopes: "https://www.googleapis.com/auth/calendar.readonly",
+              scopes: GOOGLE_CALENDAR_SCOPE,
               queryParams: { access_type: "offline", prompt: "consent" },
             },
           }).catch(() => {});
@@ -186,10 +191,10 @@ export const useAuthStore = create<AuthState>((set) => ({
   init: async () => {
     const supabase = createClient();
 
-    const cachedUser = localStorage.getItem("cached_user");
-    const cachedHouseholdId = localStorage.getItem("cached_household_id");
-    const cachedInviteCode = localStorage.getItem("cached_invite_code");
-    const cachedIsOwner = localStorage.getItem("cached_is_owner") === "true";
+    const cachedUser = localStorage.getItem(LS_CACHED_USER);
+    const cachedHouseholdId = localStorage.getItem(LS_CACHED_HOUSEHOLD);
+    const cachedInviteCode = localStorage.getItem(LS_CACHED_INVITE);
+    const cachedIsOwner = localStorage.getItem(LS_CACHED_IS_OWNER) === "true";
 
     try {
       if (cachedUser) {
@@ -250,10 +255,10 @@ export const useAuthStore = create<AuthState>((set) => ({
           isOwner = firstMember?.user_id === session.user.id;
         }
 
-        localStorage.setItem("cached_user", JSON.stringify(session.user));
-        localStorage.setItem("cached_household_id", hid ?? "");
-        localStorage.setItem("cached_invite_code", ic ?? "");
-        localStorage.setItem("cached_is_owner", String(isOwner));
+        localStorage.setItem(LS_CACHED_USER, JSON.stringify(session.user));
+        localStorage.setItem(LS_CACHED_HOUSEHOLD, hid ?? "");
+        localStorage.setItem(LS_CACHED_INVITE, ic ?? "");
+        localStorage.setItem(LS_CACHED_IS_OWNER, String(isOwner));
 
         set({ user: session.user, householdId: hid, inviteCode: ic, accessToken: token, isOwner, loading: false });
 
@@ -299,9 +304,9 @@ export const useAuthStore = create<AuthState>((set) => ({
         const hid = member?.household_id ?? null;
         const ic = (member?.households as { invite_code?: string } | null)?.invite_code ?? null;
 
-        localStorage.setItem("cached_user", JSON.stringify(session.user));
-        localStorage.setItem("cached_household_id", hid ?? "");
-        localStorage.setItem("cached_invite_code", ic ?? "");
+        localStorage.setItem(LS_CACHED_USER, JSON.stringify(session.user));
+        localStorage.setItem(LS_CACHED_HOUSEHOLD, hid ?? "");
+        localStorage.setItem(LS_CACHED_INVITE, ic ?? "");
 
         set({ user: session.user, householdId: hid, inviteCode: ic, accessToken: token });
         if (hid && token) {
@@ -317,20 +322,20 @@ export const useAuthStore = create<AuthState>((set) => ({
           localStorage.removeItem(TOKEN_KEY);
           localStorage.removeItem(TOKEN_EXPIRY_KEY);
           localStorage.removeItem(REFRESH_KEY);
-          localStorage.removeItem("cached_user");
-          localStorage.removeItem("cached_household_id");
-          localStorage.removeItem("cached_invite_code");
-          localStorage.removeItem("cached_is_owner");
+          localStorage.removeItem(LS_CACHED_USER);
+          localStorage.removeItem(LS_CACHED_HOUSEHOLD);
+          localStorage.removeItem(LS_CACHED_INVITE);
+          localStorage.removeItem(LS_CACHED_IS_OWNER);
           set({ user: null, householdId: null, inviteCode: null, accessToken: null, isOwner: false });
         } else {
           const { data: { session: recovered } } = await supabase.auth.refreshSession();
           if (recovered) {
-            localStorage.setItem("cached_user", JSON.stringify(recovered.user));
+            localStorage.setItem(LS_CACHED_USER, JSON.stringify(recovered.user));
             set({ user: recovered.user });
           } else {
-            localStorage.removeItem("cached_user");
-            localStorage.removeItem("cached_household_id");
-            localStorage.removeItem("cached_invite_code");
+            localStorage.removeItem(LS_CACHED_USER);
+            localStorage.removeItem(LS_CACHED_HOUSEHOLD);
+            localStorage.removeItem(LS_CACHED_INVITE);
             set({ user: null, householdId: null, inviteCode: null, accessToken: null });
           }
         }
@@ -357,7 +362,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       provider: "google",
       options: {
         redirectTo: `${location.origin}/auth/callback`,
-        scopes: "https://www.googleapis.com/auth/calendar.readonly",
+        scopes: GOOGLE_CALENDAR_SCOPE,
         queryParams: { access_type: "offline", prompt: "consent" },
       },
     });
