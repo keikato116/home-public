@@ -2,7 +2,7 @@
 
 import { CalendarEvent, MealPlan } from "@/types";
 import { getJapaneseHolidayName } from "@/lib/japaneseHolidays";
-import { toDateStr, isSameDay, isWeekendOrHoliday, getMonthDays, DOW_LETTERS, toJSTDateStr } from "@/lib/dates";
+import { toDateStr, isSameDay, isWeekendOrHoliday, getMonthDays, DOW_LETTERS, toJSTDateStr, toJSTMinOfDay } from "@/lib/dates";
 import { hasEventInWindow, bothHaveAllDayEvent, hasAllDayBlock } from "@/lib/freeTime";
 import { eventColor, parseTaskType } from "./lib";
 import { RUN_CELL_BG, RIDE_CELL_BG } from "@/lib/colors";
@@ -45,11 +45,19 @@ export function MonthGrid({ selectedDate, today, eventsMap, currentUserId, plans
           const holiday = getJapaneseHolidayName(d);
           const isRed = d.getDay() === 0 || !!holiday;
           const ds = toDateStr(d);
-          // For timed events, only show on the day they START (not on overflow days).
-          // All-day events keep their multi-day span. The timeline view keeps full spans.
-          const dayEvents = (eventsMap[ds] ?? []).filter(e =>
-            e.start.dateTime ? toJSTDateStr(e.start.dateTime) === ds : true
-          );
+          // Timed events: show on start day always; show on a later day only if the event
+          // ends after noon on that day (genuine multi-day event) or extends even further.
+          // This hides overnight tails (e.g. 23:00–07:00 next day) while keeping
+          // full multi-day events (e.g. day1 10:00 – day2 22:00) visible on both days.
+          const dayEvents = (eventsMap[ds] ?? []).filter(e => {
+            if (!e.start.dateTime) return true; // all-day events keep multi-day span
+            const startDate = toJSTDateStr(e.start.dateTime);
+            if (startDate === ds) return true;
+            if (!e.end.dateTime) return false;
+            const endDate = toJSTDateStr(e.end.dateTime);
+            if (endDate > ds) return true; // event extends past this day entirely
+            return endDate === ds && toJSTMinOfDay(e.end.dateTime) >= 12 * 60; // ends after noon
+          });
           const myEvents = dayEvents.filter(e => e.ownerId === currentUserId && !e.isLocal);
           const partnerEvents = dayEvents.filter(e => e.ownerId !== currentUserId && !e.isLocal);
           const myLocalTasks = dayEvents.filter(e => e.isLocal && e.ownerId === currentUserId);
