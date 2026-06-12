@@ -6,8 +6,11 @@ import { createClient } from "@/lib/supabase/client";
 import {
   LS_GOOGLE_TOKEN, LS_GOOGLE_TOKEN_EXPIRY, LS_GOOGLE_REFRESH,
   LS_CACHED_USER, LS_CACHED_HOUSEHOLD, LS_CACHED_INVITE, LS_CACHED_IS_OWNER,
-  GOOGLE_CALENDAR_SCOPE,
 } from "@/lib/constants";
+import {
+  storeAccessToken, upsertUserToken, refreshAccessToken,
+  ensureValidAccessToken, startGoogleOAuth,
+} from "@/lib/googleToken";
 
 interface AuthState {
   user: User | null;
@@ -28,149 +31,8 @@ interface AuthState {
   reAuthGoogle: () => Promise<void>;
 }
 
-const TOKEN_KEY = LS_GOOGLE_TOKEN;
-const TOKEN_EXPIRY_KEY = LS_GOOGLE_TOKEN_EXPIRY;
-const REFRESH_KEY = LS_GOOGLE_REFRESH;
-
 let isSigningOut = false;
-let refreshInFlight: Promise<string | null> | null = null;
 let periodicRefreshInterval: ReturnType<typeof setInterval> | null = null;
-
-function storeAccessToken(token: string, expiresInSec?: number) {
-  localStorage.setItem(TOKEN_KEY, token);
-  const seconds = expiresInSec && expiresInSec > 0 ? expiresInSec : 3300;
-  localStorage.setItem(TOKEN_EXPIRY_KEY, String(Date.now() + seconds * 1000));
-}
-
-async function upsertUserToken(
-  supabase: ReturnType<typeof createClient>,
-  userId: string,
-  householdId: string,
-  accessToken: string,
-  displayName: string
-) {
-  await supabase.from("user_tokens").upsert({
-    user_id: userId,
-    household_id: householdId,
-    google_access_token: accessToken,
-    ...(localStorage.getItem(REFRESH_KEY) ? { google_refresh_token: localStorage.getItem(REFRESH_KEY) } : {}),
-    display_name: displayName,
-    updated_at: new Date().toISOString(),
-  });
-}
-
-async function doRefresh(): Promise<string | null> {
-  let refreshToken = localStorage.getItem(REFRESH_KEY);
-
-  if (!refreshToken) {
-    // localStorage may have been cleared (iOS PWA storage eviction); recover from DB
-    try {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data } = await supabase
-          .from("user_tokens")
-          .select("google_refresh_token")
-          .eq("user_id", user.id)
-          .maybeSingle();
-        if (data?.google_refresh_token) {
-          refreshToken = data.google_refresh_token;
-          localStorage.setItem(REFRESH_KEY, data.google_refresh_token);
-        }
-      }
-    } catch {}
-  }
-
-  if (!refreshToken) {
-    // No refresh token anywhere — if the user is logged in, re-auth silently to get one
-    if (typeof window !== "undefined" && localStorage.getItem(LS_CACHED_USER)) {
-      const supabase = createClient();
-      supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-          scopes: GOOGLE_CALENDAR_SCOPE,
-          queryParams: { access_type: "offline", prompt: "consent" },
-        },
-      }).catch(() => {});
-    }
-    return null;
-  }
-
-  try {
-    const res = await fetch("/api/refresh-token", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refreshToken }),
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      const googleError = err.googleError ?? "";
-      // Any non-transient Google error: clear stored token and re-auth automatically
-      const isNonTransient = res.status < 500;
-      if (isNonTransient) {
-        if (googleError === "invalid_grant" || googleError === "invalid_client") {
-          localStorage.removeItem(REFRESH_KEY);
-        }
-        if (typeof window !== "undefined" && localStorage.getItem(LS_CACHED_USER)) {
-          const supabase = createClient();
-          supabase.auth.signInWithOAuth({
-            provider: "google",
-            options: {
-              redirectTo: `${window.location.origin}/auth/callback`,
-              scopes: GOOGLE_CALENDAR_SCOPE,
-              queryParams: { access_type: "offline", prompt: "consent" },
-            },
-          }).catch(() => {});
-        }
-      }
-      return null;
-    }
-
-    const { accessToken, idToken, expiresIn } = await res.json();
-    if (!accessToken) return null;
-
-    storeAccessToken(accessToken, expiresIn);
-    useAuthStore.setState({ accessToken });
-
-    const supabase = createClient();
-    if (idToken) {
-      await supabase.auth.signInWithIdToken({ provider: "google", token: idToken }).catch(() => {});
-    }
-
-    const { user, householdId } = useAuthStore.getState();
-    if (user && householdId) {
-      const displayName = user.user_metadata?.full_name ?? user.email ?? "";
-      upsertUserToken(supabase, user.id, householdId, accessToken, displayName).catch(() => {});
-    }
-
-    return accessToken;
-  } catch {
-    return null;
-  }
-}
-
-function refreshAccessToken(): Promise<string | null> {
-  if (refreshInFlight) return refreshInFlight;
-  refreshInFlight = doRefresh().finally(() => { refreshInFlight = null; });
-  return refreshInFlight;
-}
-
-// Returns a valid access token, refreshing proactively if expired or near expiry.
-// Returns null if refresh fails (caller should prompt re-auth).
-export async function ensureValidAccessToken(): Promise<string | null> {
-  if (typeof window === "undefined") return null;
-
-  const token = localStorage.getItem(TOKEN_KEY);
-  const expiresAt = parseInt(localStorage.getItem(TOKEN_EXPIRY_KEY) || "0", 10);
-
-  // Refresh if no expiry recorded (legacy), or less than 5 min remaining
-  if (token && expiresAt > 0 && Date.now() < expiresAt - 5 * 60 * 1000) {
-    return token;
-  }
-
-  return refreshAccessToken();
-}
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
@@ -203,7 +65,7 @@ export const useAuthStore = create<AuthState>((set) => ({
           user: parsedUser,
           householdId: cachedHouseholdId,
           inviteCode: cachedInviteCode,
-          accessToken: localStorage.getItem(TOKEN_KEY),
+          accessToken: localStorage.getItem(LS_GOOGLE_TOKEN),
           isOwner: cachedIsOwner,
           loading: false,
         });
@@ -217,9 +79,9 @@ export const useAuthStore = create<AuthState>((set) => ({
           storeAccessToken(session.provider_token);
         }
         if (session.provider_refresh_token) {
-          localStorage.setItem(REFRESH_KEY, session.provider_refresh_token);
+          localStorage.setItem(LS_GOOGLE_REFRESH, session.provider_refresh_token);
         }
-        const token = session.provider_token ?? localStorage.getItem(TOKEN_KEY);
+        const token = session.provider_token ?? localStorage.getItem(LS_GOOGLE_TOKEN);
 
         const [{ data: member }, { data: tokenRow }] = await Promise.all([
           supabase
@@ -227,7 +89,7 @@ export const useAuthStore = create<AuthState>((set) => ({
             .select("household_id, households(invite_code)")
             .eq("user_id", session.user.id)
             .maybeSingle(),
-          !localStorage.getItem(REFRESH_KEY)
+          !localStorage.getItem(LS_GOOGLE_REFRESH)
             ? supabase
                 .from("user_tokens")
                 .select("google_refresh_token")
@@ -236,8 +98,8 @@ export const useAuthStore = create<AuthState>((set) => ({
             : Promise.resolve({ data: null }),
         ]);
 
-        if (tokenRow?.google_refresh_token && !localStorage.getItem(REFRESH_KEY)) {
-          localStorage.setItem(REFRESH_KEY, tokenRow.google_refresh_token);
+        if (tokenRow?.google_refresh_token && !localStorage.getItem(LS_GOOGLE_REFRESH)) {
+          localStorage.setItem(LS_GOOGLE_REFRESH, tokenRow.google_refresh_token);
         }
 
         const hid = member?.household_id ?? null;
@@ -291,9 +153,9 @@ export const useAuthStore = create<AuthState>((set) => ({
           storeAccessToken(session.provider_token);
         }
         if (session.provider_refresh_token) {
-          localStorage.setItem(REFRESH_KEY, session.provider_refresh_token);
+          localStorage.setItem(LS_GOOGLE_REFRESH, session.provider_refresh_token);
         }
-        const token = session.provider_token ?? localStorage.getItem(TOKEN_KEY);
+        const token = session.provider_token ?? localStorage.getItem(LS_GOOGLE_TOKEN);
 
         const { data: member } = await supabase
           .from("household_members")
@@ -319,9 +181,9 @@ export const useAuthStore = create<AuthState>((set) => ({
       } else if (event === "SIGNED_OUT") {
         if (isSigningOut) {
           isSigningOut = false;
-          localStorage.removeItem(TOKEN_KEY);
-          localStorage.removeItem(TOKEN_EXPIRY_KEY);
-          localStorage.removeItem(REFRESH_KEY);
+          localStorage.removeItem(LS_GOOGLE_TOKEN);
+          localStorage.removeItem(LS_GOOGLE_TOKEN_EXPIRY);
+          localStorage.removeItem(LS_GOOGLE_REFRESH);
           localStorage.removeItem(LS_CACHED_USER);
           localStorage.removeItem(LS_CACHED_HOUSEHOLD);
           localStorage.removeItem(LS_CACHED_INVITE);
@@ -357,14 +219,9 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   reAuthGoogle: async () => {
-    const supabase = createClient();
-    await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: `${location.origin}/auth/callback`,
-        scopes: GOOGLE_CALENDAR_SCOPE,
-        queryParams: { access_type: "offline", prompt: "consent" },
-      },
-    });
+    await startGoogleOAuth(createClient());
   },
 }));
+
+// Re-exported for existing consumers (calendarStore)
+export { ensureValidAccessToken } from "@/lib/googleToken";

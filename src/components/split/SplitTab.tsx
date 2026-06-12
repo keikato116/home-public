@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useForegroundRefresh } from "@/hooks/useForegroundRefresh";
 import { useSplitStore } from "@/store/splitStore";
 import { useAuthStore } from "@/store/authStore";
 import { SplitSession } from "@/types";
@@ -62,17 +63,13 @@ export function SplitTab() {
 
   const period = getBillingPeriod(viewYear, viewMonth, closingDay);
 
-  useEffect(() => {
-    if (!householdId) return;
-    load(householdId, period.from, period.to, viewYear, viewMonth);
-    const refresh = () => {
-      if (document.visibilityState === "visible")
-        load(householdId, period.from, period.to, viewYear, viewMonth);
-    };
-    document.addEventListener("visibilitychange", refresh);
-    return () => document.removeEventListener("visibilitychange", refresh);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [householdId, viewYear, viewMonth, closingDay, load]);
+  const refresh = useCallback(() => {
+    if (householdId) load(householdId, period.from, period.to, viewYear, viewMonth);
+  }, [householdId, period.from, period.to, viewYear, viewMonth, load]);
+
+  // Initial load (and reload on period change) + refresh on foreground
+  useEffect(() => { refresh(); }, [refresh]);
+  useForegroundRefresh(refresh);
 
   useEffect(() => {
     setFamilyInput(familyTotal ? String(familyTotal.total) : "");

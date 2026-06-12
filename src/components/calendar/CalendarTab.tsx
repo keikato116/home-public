@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
+import { useForegroundRefresh } from "@/hooks/useForegroundRefresh";
 import { useCalendarStore } from "@/store/calendarStore";
 import { useAuthStore } from "@/store/authStore";
 import { useTodoStore } from "@/store/todoStore";
@@ -43,18 +44,10 @@ export function CalendarTab() {
   }, [calendarViewSignal]);
 
   // Auto-poll every 30 seconds + refresh immediately when app comes to foreground
-  useEffect(() => {
-    if (!householdId) return;
-    const refresh = () => {
-      if (document.visibilityState === "visible") load(householdId, null);
-    };
-    const id = setInterval(refresh, 30_000);
-    document.addEventListener("visibilitychange", refresh);
-    return () => {
-      clearInterval(id);
-      document.removeEventListener("visibilitychange", refresh);
-    };
+  const refresh = useCallback(() => {
+    if (householdId) load(householdId, null);
   }, [householdId, load]);
+  useForegroundRefresh(refresh, 30_000);
 
   const eventsMap = eventsByDate();
 
