@@ -13,7 +13,7 @@ export async function ensureSession(): Promise<void> {
  *  Returns the row data, or null if both attempts fail. */
 export async function withSessionRetry<T>(
   supabase: ReturnType<typeof createClient>,
-  fn: () => Promise<{ data: T | null; error: unknown }>
+  fn: () => PromiseLike<{ data: T | null; error: unknown }>
 ): Promise<T | null> {
   let result = await fn();
   if (result.error) {
