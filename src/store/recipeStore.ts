@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { createClient } from "@/lib/supabase/client";
+import { ensureSession } from "@/lib/supabase/helpers";
 import { Recipe } from "@/types";
 
 export const RECIPE_CATEGORIES = ["main", "side", "soup", "rice & bowl", "pasta", "noodles", "dessert", "seasonal"] as const;
@@ -188,6 +189,7 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
     set({ loading: true, loadError: null });
     try {
       const supabase = createClient();
+      await ensureSession();
       const { data, error } = await supabase
         .from("recipes")
         .select("id, household_id, title, url, ingredients, thumbnail_url, photo_urls, cook_time_min, servings, category, subcategory, memo, times_made, last_made_at, created_by, created_at")

@@ -3,6 +3,7 @@
 import { create } from "zustand";
 import { createClient } from "@/lib/supabase/client";
 import { SplitSession, FamilyCardTotal, SplitItem, SplitSubscription } from "@/types";
+import { ensureSession, withSessionRetry } from "@/lib/supabase/helpers";
 
 interface SplitState {
   sessions: SplitSession[];
@@ -30,6 +31,7 @@ export const useSplitStore = create<SplitState>((set) => ({
   load: async (householdId, from, to, periodYear, periodMonth) => {
     set({ loading: true });
     const supabase = createClient();
+    await ensureSession();
 
     try {
       const [sessRes, totRes, subRes] = await Promise.all([
@@ -69,13 +71,11 @@ export const useSplitStore = create<SplitState>((set) => ({
 
   addSession: async (householdId, data) => {
     const supabase = createClient();
-    const { data: row, error } = await supabase
-      .from("split_sessions")
-      .insert({ household_id: householdId, ...data })
-      .select()
-      .single();
-    if (error) throw new Error(error.message);
-    if (row) set((s) => ({ sessions: [row as SplitSession, ...s.sessions] }));
+    const row = await withSessionRetry<SplitSession>(supabase, () =>
+      supabase.from("split_sessions").insert({ household_id: householdId, ...data }).select().single()
+    );
+    if (row) set((s) => ({ sessions: [row, ...s.sessions] }));
+    else throw new Error("save failed");
   },
 
   deleteSession: async (id) => {

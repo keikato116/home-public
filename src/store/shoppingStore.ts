@@ -3,7 +3,7 @@
 import { create } from "zustand";
 import { createClient } from "@/lib/supabase/client";
 import { ShoppingItem } from "@/types";
-import { subscribeTableChanges } from "@/lib/supabase/helpers";
+import { ensureSession, subscribeTableChanges } from "@/lib/supabase/helpers";
 
 interface ShoppingState {
   items: ShoppingItem[];
@@ -34,6 +34,7 @@ export const useShoppingStore = create<ShoppingState>((set, get) => ({
     set({ loading: true });
     try {
       const supabase = createClient();
+      await ensureSession();
       const { data } = await supabase
         .from("shopping_items")
         .select("*")

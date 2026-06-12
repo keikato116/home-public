@@ -3,6 +3,7 @@
 import { create } from "zustand";
 import { createClient } from "@/lib/supabase/client";
 import { RoutineDefinition, RoutineTodo, SharedTodo } from "@/types";
+import { ensureSession } from "@/lib/supabase/helpers";
 import { getTodaysRoutines, getLastScheduledDate } from "@/lib/routine";
 import { toISODate } from "@/lib/utils";
 
@@ -56,6 +57,7 @@ export const useTodoStore = create<TodoState>((set, get) => ({
     set({ loading: true });
     try {
     const supabase = createClient();
+    await ensureSession();
     const today = toISODate(new Date());
 
     const [defsRes, compsRes, todosRes, membersRes] = await Promise.all([

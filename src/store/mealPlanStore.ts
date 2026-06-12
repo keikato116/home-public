@@ -3,7 +3,7 @@
 import { create } from "zustand";
 import { createClient } from "@/lib/supabase/client";
 import { MealPlan, isHighlightPlan } from "@/types";
-import { withSessionRetry } from "@/lib/supabase/helpers";
+import { ensureSession, withSessionRetry } from "@/lib/supabase/helpers";
 
 interface MealPlanState {
   plans: MealPlan[];
@@ -22,6 +22,7 @@ export const useMealPlanStore = create<MealPlanState>((set, get) => ({
     set({ loading: true });
     try {
       const supabase = createClient();
+      await ensureSession();
       let query = supabase.from("meal_plans").select("*").eq("household_id", householdId);
       if (year != null && month != null) {
         const from = `${year}-${String(month + 1).padStart(2, "0")}-01`;

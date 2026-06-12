@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { createClient } from "@/lib/supabase/client";
+import { ensureSession } from "@/lib/supabase/helpers";
 import { RoutineDefinition } from "@/types";
 
 interface SettingsState {
@@ -20,6 +21,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
     set({ loading: true });
     try {
       const supabase = createClient();
+      await ensureSession();
       const { data } = await supabase
         .from("routine_definitions")
         .select("*")

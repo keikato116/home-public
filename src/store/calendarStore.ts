@@ -9,6 +9,7 @@ import { toJSTDateStr } from "@/lib/dates";
 import { LS_GOOGLE_TOKEN, LS_CAL_CACHE_PREFIX } from "@/lib/constants";
 import { RUN_COLOR, RIDE_COLOR } from "@/lib/colors";
 import { useAuthStore, ensureValidAccessToken } from "@/store/authStore";
+import { ensureSession } from "@/lib/supabase/helpers";
 
 let loadGeneration = 0;
 let loadTimeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -136,6 +137,7 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
     }
 
     const supabase = createClient();
+    await ensureSession();
 
     // Timeout only when truly showing a spinner (no cache, no existing events)
     const showingSpinner = get().loading;

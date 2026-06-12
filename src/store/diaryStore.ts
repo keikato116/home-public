@@ -3,7 +3,7 @@
 import { create } from "zustand";
 import { createClient } from "@/lib/supabase/client";
 import { DiaryEntry } from "@/types";
-import { subscribeTableChanges } from "@/lib/supabase/helpers";
+import { ensureSession, subscribeTableChanges } from "@/lib/supabase/helpers";
 
 interface DiaryState {
   entries: DiaryEntry[];
@@ -22,6 +22,7 @@ export const useDiaryStore = create<DiaryState>((set) => ({
     set({ loading: true });
     try {
       const supabase = createClient();
+      await ensureSession();
       const { data } = await supabase
         .from("diary_entries")
         .select("*")
