@@ -186,14 +186,18 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
 
   load: async (householdId) => {
     set({ loading: true, loadError: null });
-    const supabase = createClient();
-    const { data, error } = await supabase
-      .from("recipes")
-      .select("id, household_id, title, url, ingredients, thumbnail_url, photo_urls, cook_time_min, servings, category, subcategory, memo, times_made, last_made_at, created_by, created_at")
-      .eq("household_id", householdId)
-      .order("created_at", { ascending: false });
-    if (error) set({ loadError: error.message, loading: false, recipes: [] });
-    else set({ recipes: (data ?? []) as Recipe[], loading: false });
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("recipes")
+        .select("id, household_id, title, url, ingredients, thumbnail_url, photo_urls, cook_time_min, servings, category, subcategory, memo, times_made, last_made_at, created_by, created_at")
+        .eq("household_id", householdId)
+        .order("created_at", { ascending: false });
+      if (error) set({ loadError: error.message, loading: false, recipes: [] });
+      else set({ recipes: (data ?? []) as Recipe[], loading: false });
+    } catch {
+      set({ loadError: "failed to load recipes", loading: false });
+    }
   },
 
   loadPreset: async (householdId, userId) => {

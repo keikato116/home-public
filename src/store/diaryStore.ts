@@ -3,6 +3,7 @@
 import { create } from "zustand";
 import { createClient } from "@/lib/supabase/client";
 import { DiaryEntry } from "@/types";
+import { subscribeTableChanges } from "@/lib/supabase/helpers";
 
 interface DiaryState {
   entries: DiaryEntry[];
@@ -53,16 +54,9 @@ export const useDiaryStore = create<DiaryState>((set) => ({
   },
 
   subscribeRealtime: (userId) => {
-    const supabase = createClient();
-    const channel = supabase
-      .channel(`diary-${userId}`)
-      .on("postgres_changes", {
-        event: "*",
-        schema: "public",
-        table: "diary_entries",
-        filter: `user_id=eq.${userId}`,
-      }, (payload: { eventType: string; new: unknown; old: unknown }) => {
-        const { eventType, new: newRow, old: oldRow } = payload;
+    return subscribeTableChanges(
+      `diary-${userId}`, "diary_entries", `user_id=eq.${userId}`,
+      (eventType, newRow, oldRow) => {
         set((s) => {
           if (eventType === "INSERT") {
             const entry = newRow as DiaryEntry;
@@ -75,8 +69,7 @@ export const useDiaryStore = create<DiaryState>((set) => ({
           }
           return s;
         });
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
+      }
+    );
   },
 }));

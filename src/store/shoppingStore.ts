@@ -3,6 +3,7 @@
 import { create } from "zustand";
 import { createClient } from "@/lib/supabase/client";
 import { ShoppingItem } from "@/types";
+import { subscribeTableChanges } from "@/lib/supabase/helpers";
 
 interface ShoppingState {
   items: ShoppingItem[];
@@ -31,14 +32,18 @@ export const useShoppingStore = create<ShoppingState>((set, get) => ({
 
   load: async (householdId) => {
     set({ loading: true });
-    const supabase = createClient();
-    const { data } = await supabase
-      .from("shopping_items")
-      .select("*")
-      .eq("household_id", householdId)
-      .order("done")
-      .order("order");
-    set({ items: (data ?? []) as ShoppingItem[], loading: false });
+    try {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from("shopping_items")
+        .select("*")
+        .eq("household_id", householdId)
+        .order("done")
+        .order("order");
+      set({ items: (data ?? []) as ShoppingItem[], loading: false });
+    } catch {
+      set({ loading: false });
+    }
   },
 
   addItem: async (householdId, label, category, date) => {
@@ -72,24 +77,16 @@ export const useShoppingStore = create<ShoppingState>((set, get) => ({
   },
 
   subscribeRealtime: (householdId) => {
-    const supabase = createClient();
-    const channel = supabase
-      .channel(`shopping-${householdId}`)
-      .on("postgres_changes", {
-        event: "*",
-        schema: "public",
-        table: "shopping_items",
-        filter: `household_id=eq.${householdId}`,
-      }, (payload: { eventType: string; new: unknown; old: unknown }) => {
-        const { eventType, new: newRow, old: oldRow } = payload;
+    return subscribeTableChanges(
+      `shopping-${householdId}`, "shopping_items", `household_id=eq.${householdId}`,
+      (eventType, newRow, oldRow) => {
         set((s) => {
           if (eventType === "INSERT") return { items: [...s.items, newRow as ShoppingItem] };
           if (eventType === "UPDATE") return { items: s.items.map((i) => i.id === (newRow as ShoppingItem).id ? newRow as ShoppingItem : i) };
           if (eventType === "DELETE") return { items: s.items.filter((i) => i.id !== (oldRow as ShoppingItem).id) };
           return s;
         });
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
+      }
+    );
   },
 }));

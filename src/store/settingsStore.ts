@@ -18,13 +18,17 @@ export const useSettingsStore = create<SettingsState>((set) => ({
 
   load: async (householdId) => {
     set({ loading: true });
-    const supabase = createClient();
-    const { data } = await supabase
-      .from("routine_definitions")
-      .select("*")
-      .eq("household_id", householdId)
-      .order("order");
-    set({ routineDefinitions: (data ?? []) as RoutineDefinition[], loading: false });
+    try {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from("routine_definitions")
+        .select("*")
+        .eq("household_id", householdId)
+        .order("order");
+      set({ routineDefinitions: (data ?? []) as RoutineDefinition[], loading: false });
+    } catch {
+      set({ loading: false });
+    }
   },
 
   addRoutine: async (householdId, def) => {

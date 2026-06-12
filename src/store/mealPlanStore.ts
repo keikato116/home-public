@@ -3,6 +3,7 @@
 import { create } from "zustand";
 import { createClient } from "@/lib/supabase/client";
 import { MealPlan, isHighlightPlan } from "@/types";
+import { withSessionRetry } from "@/lib/supabase/helpers";
 
 interface MealPlanState {
   plans: MealPlan[];
@@ -13,40 +14,32 @@ interface MealPlanState {
   toggleHighlight: (householdId: string, date: string, mealType: "dinner" | "lunch") => Promise<void>;
 }
 
-async function withSessionRetry<T>(
-  supabase: ReturnType<typeof createClient>,
-  fn: () => Promise<{ data: T | null; error: unknown }>
-): Promise<T | null> {
-  let result = await fn();
-  if (result.error) {
-    await supabase.auth.refreshSession();
-    result = await fn();
-  }
-  return result.data;
-}
-
 export const useMealPlanStore = create<MealPlanState>((set, get) => ({
   plans: [],
   loading: false,
 
   load: async (householdId, year, month) => {
     set({ loading: true });
-    const supabase = createClient();
-    let query = supabase.from("meal_plans").select("*").eq("household_id", householdId);
-    if (year != null && month != null) {
-      const from = `${year}-${String(month + 1).padStart(2, "0")}-01`;
-      const lastDay = new Date(year, month + 1, 0).getDate();
-      const to = `${year}-${String(month + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
-      query = query.gte("date", from).lte("date", to);
+    try {
+      const supabase = createClient();
+      let query = supabase.from("meal_plans").select("*").eq("household_id", householdId);
+      if (year != null && month != null) {
+        const from = `${year}-${String(month + 1).padStart(2, "0")}-01`;
+        const lastDay = new Date(year, month + 1, 0).getDate();
+        const to = `${year}-${String(month + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+        query = query.gte("date", from).lte("date", to);
+      }
+      const { data } = await query;
+      const serverPlans = (data ?? []) as MealPlan[];
+      // Preserve optimistic (temp) plans not yet confirmed in DB
+      const serverKeys = new Set(serverPlans.map(p => `${p.date}|${p.meal_type}`));
+      const tempPlans = get().plans.filter(
+        p => p.id.startsWith("temp-") && !serverKeys.has(`${p.date}|${p.meal_type}`)
+      );
+      set({ plans: [...serverPlans, ...tempPlans], loading: false });
+    } catch {
+      set({ loading: false });
     }
-    const { data } = await query;
-    const serverPlans = (data ?? []) as MealPlan[];
-    // Preserve optimistic (temp) plans not yet confirmed in DB
-    const serverKeys = new Set(serverPlans.map(p => `${p.date}|${p.meal_type}`));
-    const tempPlans = get().plans.filter(
-      p => p.id.startsWith("temp-") && !serverKeys.has(`${p.date}|${p.meal_type}`)
-    );
-    set({ plans: [...serverPlans, ...tempPlans], loading: false });
   },
 
   setMeal: async (householdId, date, mealType, recipeId, label) => {

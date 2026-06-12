@@ -54,6 +54,7 @@ export const useTodoStore = create<TodoState>((set, get) => ({
 
   load: async (householdId) => {
     set({ loading: true });
+    try {
     const supabase = createClient();
     const today = toISODate(new Date());
 
@@ -136,6 +137,9 @@ export const useTodoStore = create<TodoState>((set, get) => ({
       urgentTodos: (todosRes.data ?? []) as SharedTodo[],
       loading: false,
     });
+    } catch {
+      set({ loading: false });
+    }
   },
 
   markRoutineDone: async (householdId, definitionId) => {
