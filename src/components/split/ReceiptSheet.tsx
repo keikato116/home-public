@@ -52,7 +52,7 @@ function RatioInput({ card, herRatio, onChange }: { card: "mine" | "family"; her
 interface ReceiptSheetProps {
   defaultDate: string;
   defaultHerRatio: number;
-  onSave: (data: { date: string; store: string; card: "mine" | "family"; items: SplitItem[]; shared_amount: number }) => Promise<void>;
+  onSave: (data: { date: string; store: string; card: "mine" | "family"; items: SplitItem[]; shared_amount: number; her_ratio?: number }) => Promise<void>;
   onClose: () => void;
 }
 
@@ -143,7 +143,9 @@ export function ReceiptSheet({ defaultDate, defaultHerRatio, onSave, onClose }: 
         setTimeout(() => rej(new Error("timeout — check Supabase tables")), 10000)
       );
       await Promise.race([
-        onSave({ date, store: store.trim() || "−", card, items: [{ name: RATIO_KEY, price: herRatio }], shared_amount: n }),
+        // items keeps the legacy __ratio__ entry so saves still work before the
+        // Phase 6 migration adds the her_ratio column
+        onSave({ date, store: store.trim() || "−", card, items: [{ name: RATIO_KEY, price: herRatio }], shared_amount: n, her_ratio: herRatio }),
         timeout,
       ]);
       onClose();

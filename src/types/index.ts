@@ -138,6 +138,8 @@ export interface SplitSession {
   card: "mine" | "family";
   items: SplitItem[];
   shared_amount: number;
+  // Per-session her share (0-1). Legacy rows store it as a __ratio__ item instead.
+  her_ratio?: number | null;
   created_at: string;
 }
 
