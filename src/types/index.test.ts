@@ -20,11 +20,6 @@ describe("isHighlightPlan", () => {
     expect(isHighlightPlan(plan({ meal_type: "lunch" }), "lunch")).toBe(true);
   });
 
-  it("detects the legacy highlight_* format", () => {
-    expect(isHighlightPlan(plan({ meal_type: "highlight_dinner" }), "dinner")).toBe(true);
-    expect(isHighlightPlan(plan({ meal_type: "highlight_lunch" }), "lunch")).toBe(true);
-  });
-
   it("rejects plans with a recipe or label", () => {
     expect(isHighlightPlan(plan({ meal_type: "dinner", label: "カレー" }), "dinner")).toBe(false);
     expect(isHighlightPlan(plan({ meal_type: "dinner", recipe_id: "r1" }), "dinner")).toBe(false);
@@ -32,6 +27,5 @@ describe("isHighlightPlan", () => {
 
   it("rejects mismatched meal types", () => {
     expect(isHighlightPlan(plan({ meal_type: "dinner" }), "lunch")).toBe(false);
-    expect(isHighlightPlan(plan({ meal_type: "highlight_dinner" }), "lunch")).toBe(false);
   });
 });

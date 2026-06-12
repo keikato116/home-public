@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { SplitItem } from "@/types";
 import { Camera, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatDateShort, fmtYen, inputStyle, RATIO_KEY } from "./lib";
+import { formatDateShort, fmtYen, inputStyle } from "./lib";
 
 function RatioInput({ card, herRatio, onChange }: { card: "mine" | "family"; herRatio: number; onChange: (r: number) => void }) {
   const [editing, setEditing] = useState(false);
@@ -143,9 +143,7 @@ export function ReceiptSheet({ defaultDate, defaultHerRatio, onSave, onClose }: 
         setTimeout(() => rej(new Error("timeout — check Supabase tables")), 10000)
       );
       await Promise.race([
-        // items keeps the legacy __ratio__ entry so saves still work before the
-        // Phase 6 migration adds the her_ratio column
-        onSave({ date, store: store.trim() || "−", card, items: [{ name: RATIO_KEY, price: herRatio }], shared_amount: n, her_ratio: herRatio }),
+        onSave({ date, store: store.trim() || "−", card, items: [], shared_amount: n, her_ratio: herRatio }),
         timeout,
       ]);
       onClose();

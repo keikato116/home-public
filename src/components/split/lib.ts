@@ -49,12 +49,6 @@ export function getCurrentPeriod(closingDay: number) {
 // iOS prevents zoom when font-size >= 16px
 export const inputStyle = { fontSize: "16px" };
 
-// Legacy: per-session ratio used to be stored as a synthetic item row.
-// New rows use the her_ratio column; the item is kept only for backward compat.
-export const RATIO_KEY = "__ratio__";
-
 export function getSessionRatio(session: SplitSession, fallback: number): number {
-  if (typeof session.her_ratio === "number") return session.her_ratio;
-  const ri = session.items.find((i) => i.name === RATIO_KEY);
-  return ri !== undefined ? ri.price : fallback;
+  return typeof session.her_ratio === "number" ? session.her_ratio : fallback;
 }

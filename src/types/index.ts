@@ -66,17 +66,15 @@ export interface MealPlan {
   id: string;
   household_id: string;
   date: string;
-  meal_type: "dinner" | "lunch" | "highlight_dinner" | "highlight_lunch";
+  meal_type: "dinner" | "lunch";
   recipe_id: string | null;
   label: string | null;
   created_at: string;
 }
 
-// A highlight plan uses allowed meal_type values with both recipe_id and label null.
-// Legacy rows may use meal_type "highlight_dinner"/"highlight_lunch".
+// A highlight plan is a row with both recipe_id and label null.
 export function isHighlightPlan(p: MealPlan, mealType: "dinner" | "lunch"): boolean {
-  return (p.meal_type === mealType && p.recipe_id === null && p.label === null) ||
-    p.meal_type === (`highlight_${mealType}` as MealPlan["meal_type"]);
+  return p.meal_type === mealType && p.recipe_id === null && p.label === null;
 }
 
 export interface CalendarSettings {
@@ -138,7 +136,7 @@ export interface SplitSession {
   card: "mine" | "family";
   items: SplitItem[];
   shared_amount: number;
-  // Per-session her share (0-1). Legacy rows store it as a __ratio__ item instead.
+  // Per-session her share (0-1); null falls back to the household default
   her_ratio?: number | null;
   created_at: string;
 }

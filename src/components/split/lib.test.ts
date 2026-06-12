@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getBillingPeriod, fmtYen, getSessionRatio, RATIO_KEY } from "./lib";
+import { getBillingPeriod, fmtYen, getSessionRatio } from "./lib";
 import { SplitSession } from "@/types";
 
 describe("getBillingPeriod", () => {
@@ -37,14 +37,11 @@ describe("getSessionRatio", () => {
     id: "1", household_id: "h", date: "2026-06-01", store: "s",
     card: "mine", items: [], shared_amount: 1000, created_at: "",
   };
-  it("prefers the her_ratio column when present", () => {
-    expect(getSessionRatio({ ...base, her_ratio: 0.4, items: [{ name: RATIO_KEY, price: 0.3 }] }, 0.5)).toBe(0.4);
+  it("uses the her_ratio column when present", () => {
+    expect(getSessionRatio({ ...base, her_ratio: 0.4 }, 0.5)).toBe(0.4);
   });
-  it("reads the ratio from the legacy synthetic item row", () => {
-    expect(getSessionRatio({ ...base, items: [{ name: RATIO_KEY, price: 0.3 }] }, 0.5)).toBe(0.3);
-    expect(getSessionRatio({ ...base, her_ratio: null, items: [{ name: RATIO_KEY, price: 0.3 }] }, 0.5)).toBe(0.3);
-  });
-  it("falls back when no ratio exists anywhere", () => {
+  it("falls back to the household default when her_ratio is null or missing", () => {
     expect(getSessionRatio(base, 0.5)).toBe(0.5);
+    expect(getSessionRatio({ ...base, her_ratio: null }, 0.5)).toBe(0.5);
   });
 });

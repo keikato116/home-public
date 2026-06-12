@@ -57,8 +57,8 @@ export function MonthGrid({ selectedDate, today, eventsMap, currentUserId, plans
           const autoFreeDinner = isFuture && !hasEventInWindow(calEvents, 18, 21) && !allDayBlocked;
           const autoFreeLunch = isFuture && !hasEventInWindow(calEvents, 11, 13) && !allDayBlocked &&
             (isWeekendOrHoliday(d) || bothHaveAllDayEvent(calEvents));
-          const hasDinner = autoFreeDinner || plans.some(p => p.date === ds && (p.meal_type === "dinner" || p.meal_type === "highlight_dinner"));
-          const hasLunch = autoFreeLunch || plans.some(p => p.date === ds && (p.meal_type === "lunch" || p.meal_type === "highlight_lunch"));
+          const hasDinner = autoFreeDinner || plans.some(p => p.date === ds && p.meal_type === "dinner");
+          const hasLunch = autoFreeLunch || plans.some(p => p.date === ds && p.meal_type === "lunch");
           return (
             <button
               key={i}

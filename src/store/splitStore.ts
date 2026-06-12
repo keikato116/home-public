@@ -69,24 +69,13 @@ export const useSplitStore = create<SplitState>((set) => ({
 
   addSession: async (householdId, data) => {
     const supabase = createClient();
-    let result = await supabase
+    const { data: row, error } = await supabase
       .from("split_sessions")
       .insert({ household_id: householdId, ...data })
       .select()
       .single();
-    if (result.error && data.her_ratio !== undefined && result.error.message.includes("her_ratio")) {
-      // her_ratio column doesn't exist yet (Phase 6 migration not run);
-      // fall back to the legacy __ratio__ item already included in items
-      const legacy = { ...data };
-      delete legacy.her_ratio;
-      result = await supabase
-        .from("split_sessions")
-        .insert({ household_id: householdId, ...legacy })
-        .select()
-        .single();
-    }
-    if (result.error) throw new Error(result.error.message);
-    if (result.data) set((s) => ({ sessions: [result.data as SplitSession, ...s.sessions] }));
+    if (error) throw new Error(error.message);
+    if (row) set((s) => ({ sessions: [row as SplitSession, ...s.sessions] }));
   },
 
   deleteSession: async (id) => {
