@@ -5,6 +5,7 @@ import { getJapaneseHolidayName } from "@/lib/japaneseHolidays";
 import { toDateStr, isSameDay, isWeekendOrHoliday, getMonthDays, DOW_LETTERS } from "@/lib/dates";
 import { hasEventInWindow, bothHaveAllDayEvent, hasAllDayBlock } from "@/lib/freeTime";
 import { eventColor, parseTaskType } from "./lib";
+import { RUN_CELL_BG, RIDE_CELL_BG } from "@/lib/colors";
 
 interface MonthGridProps {
   selectedDate: Date;
@@ -49,7 +50,7 @@ export function MonthGrid({ selectedDate, today, eventsMap, currentUserId, plans
           const partnerEvents = dayEvents.filter(e => e.ownerId !== currentUserId && !e.isLocal);
           const myLocalTasks = dayEvents.filter(e => e.isLocal && e.ownerId === currentUserId);
           const taskTypes = new Set(myLocalTasks.map(e => parseTaskType(e.summary)).filter(Boolean) as ("run" | "ride")[]);
-          const taskBg = taskTypes.has("run") ? "rgba(251,146,60,0.06)" : taskTypes.has("ride") ? "rgba(34,211,238,0.06)" : undefined;
+          const taskBg = taskTypes.has("run") ? RUN_CELL_BG : taskTypes.has("ride") ? RIDE_CELL_BG : undefined;
           const calEvents = (eventsMap[ds] ?? []).filter(e => !e.isLocal);
           const isFuture = ds >= todayStr;
           const allDayBlocked = hasAllDayBlock(d, calEvents);

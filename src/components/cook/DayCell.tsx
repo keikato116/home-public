@@ -2,6 +2,7 @@
 
 import { MealPlan } from "@/types";
 import { cn } from "@/lib/utils";
+import { FREE_BG } from "@/lib/colors";
 
 interface DayCellProps {
   date: Date;
@@ -16,8 +17,6 @@ interface DayCellProps {
   onSelectDinner: () => void;
   onSelectLunch: () => void;
 }
-
-const FREE_BG = "rgb(59 130 246 / 0.08)";
 
 function displayLabel(label: string | null | undefined): string {
   if (!label) return "";

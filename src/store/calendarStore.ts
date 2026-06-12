@@ -7,6 +7,7 @@ import { fetchCalendarEvents } from "@/lib/calendar";
 import { toISODate } from "@/lib/utils";
 import { toJSTDateStr } from "@/lib/dates";
 import { LS_GOOGLE_TOKEN, LS_CAL_CACHE_PREFIX } from "@/lib/constants";
+import { RUN_COLOR, RIDE_COLOR } from "@/lib/colors";
 import { useAuthStore, ensureValidAccessToken } from "@/store/authStore";
 
 let loadGeneration = 0;
@@ -44,8 +45,8 @@ async function fetchWithAutoRefresh(
 }
 
 function taskTypeColor(title: string): string | undefined {
-  if (title.startsWith("run:")) return "#fb923c";
-  if (title.startsWith("ride:")) return "#22d3ee";
+  if (title.startsWith("run:")) return RUN_COLOR;
+  if (title.startsWith("ride:")) return RIDE_COLOR;
   return undefined;
 }
 
