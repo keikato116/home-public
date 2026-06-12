@@ -4,50 +4,13 @@ import { useState, useRef } from "react";
 import { useRecipeStore, RECIPE_CATEGORIES, SUBCATEGORIES } from "@/store/recipeStore";
 import { useAuthStore } from "@/store/authStore";
 import { X, Loader2, ChevronDown, ChevronUp } from "lucide-react";
+import { ParsedRecipe, analyzePhotos, analyzeUrl, mergeRecipes, uploadRecipeFiles } from "./parsing";
 
 interface Props {
   onClose: () => void;
 }
 
 type Mode = "photo" | "url";
-
-interface ParsedRecipe {
-  title: string;
-  category: string | null;
-  subcategory: string | null;
-  servings: number | null;
-  cook_time_min: number | null;
-  ingredients: string | null;
-  memo: string | null;
-  thumbnail_url: string | null;
-  url: string | null;
-  selected: boolean;
-  expanded: boolean;
-  sourceFiles?: File[];
-  previewUrls?: string[];
-}
-
-const makeEmpty = (): ParsedRecipe => ({
-  title: "",
-  category: null,
-  subcategory: null,
-  servings: null,
-  cook_time_min: null,
-  ingredients: null,
-  memo: null,
-  thumbnail_url: null,
-  url: null,
-  selected: true,
-  expanded: true,
-});
-
-async function fileToBase64(file: File): Promise<string> {
-  const buf = await file.arrayBuffer();
-  const bytes = new Uint8Array(buf);
-  let binary = "";
-  for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
-  return btoa(binary);
-}
 
 export function AddRecipeModal({ onClose }: Props) {
   const [mode, setMode] = useState<Mode>("photo");
@@ -75,76 +38,16 @@ export function AddRecipeModal({ onClose }: Props) {
   const analyze = async () => {
     setError("");
     setAnalyzing(true);
-    const all: ParsedRecipe[] = [];
-
     try {
+      let all: ParsedRecipe[];
       if (mode === "photo") {
         if (files.length === 0) throw new Error("please select a photo");
-
-        // Step 1: analyze each photo individually
-        for (let i = 0; i < files.length; i++) {
-          setAnalyzeProgress(files.length > 1 ? `analyzing photo ${i + 1} / ${files.length}...` : "analyzing...");
-          const base64 = await fileToBase64(files[i]);
-          const mediaType = (files[i].type || "image/jpeg") as "image/jpeg" | "image/png" | "image/webp";
-          const res = await fetch("/api/parse-recipe", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ type: "photo", imageBase64: base64, mediaType }),
-          });
-          const data = await res.json();
-          if (!res.ok) throw new Error(data.error ?? "analysis failed");
-          const parsed = (Array.isArray(data) ? data : [data]) as ParsedRecipe[];
-          parsed.forEach((r) => all.push({ ...makeEmpty(), ...r, sourceFiles: [files[i]], previewUrls: [previews[i]], expanded: false }));
-        }
-
-        // Step 2: auto-group consecutive recipes that span multiple pages
-        if (files.length > 1 && all.length > 1) {
-          setAnalyzeProgress("grouping...");
-          const groupRes = await fetch("/api/parse-recipe", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              type: "group",
-              recipes: all.map((r) => ({ title: r.title, ingredients: r.ingredients })),
-            }),
-          });
-          if (groupRes.ok) {
-            const raw = await groupRes.json();
-            const groups: number[][] = Array.isArray(raw) ? raw : [];
-            if (groups.length > 0 && groups.length < all.length) {
-              const snapshot = [...all];
-              all.length = 0;
-              for (const group of groups) {
-                if (group.length === 1) {
-                  all.push({ ...snapshot[group[0]], expanded: all.length === 0 });
-                } else {
-                  const items = group.map((idx) => snapshot[idx]);
-                  const mergedIngredients = items.map((r) => r.ingredients).filter(Boolean).join("\n");
-                  const uniqueFiles = items.flatMap((r) => r.sourceFiles ?? []).filter((f, i, arr) => arr.indexOf(f) === i);
-                  const mergedPreviews = items.flatMap((r) => r.previewUrls ?? []);
-                  all.push({ ...items[0], ingredients: mergedIngredients || null, sourceFiles: uniqueFiles, previewUrls: mergedPreviews, expanded: all.length === 0 });
-                }
-              }
-            }
-          }
-        }
-
-        if (all.length > 0) all[0] = { ...all[0], expanded: true };
-
+        all = await analyzePhotos(files, previews, setAnalyzeProgress);
       } else {
         if (!url.trim()) throw new Error("please enter a URL");
         setAnalyzeProgress("analyzing...");
-        const res = await fetch("/api/parse-recipe", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ type: "url", url: url.trim() }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error ?? "analysis failed");
-        const parsed = (Array.isArray(data) ? data : [data]) as ParsedRecipe[];
-        parsed.forEach((r, i) => all.push({ ...makeEmpty(), ...r, url: url.trim(), expanded: i === 0 }));
+        all = await analyzeUrl(url.trim());
       }
-
       setRecipes(all);
       setStep("form");
     } catch (e: unknown) {
@@ -160,21 +63,7 @@ export function AddRecipeModal({ onClose }: Props) {
   const mergeSelected = () => {
     const selectedIdxs = recipes.map((r, i) => r.selected ? i : -1).filter((i) => i >= 0);
     if (selectedIdxs.length < 2) return;
-    const base = recipes[selectedIdxs[0]];
-    const rest = selectedIdxs.slice(1).map((i) => recipes[i]);
-    const mergedIngredients = [base.ingredients, ...rest.map((r) => r.ingredients)]
-      .filter(Boolean)
-      .join("\n");
-    const allFiles = [base, ...rest].flatMap((r) => r.sourceFiles ?? []);
-    const uniqueFiles = allFiles.filter((f, i) => allFiles.indexOf(f) === i);
-    const mergedPreviews = [base, ...rest].flatMap((r) => r.previewUrls ?? []);
-    const merged: ParsedRecipe = {
-      ...base,
-      ingredients: mergedIngredients || null,
-      sourceFiles: uniqueFiles,
-      previewUrls: mergedPreviews,
-      expanded: true,
-    };
+    const merged: ParsedRecipe = { ...mergeRecipes(selectedIdxs.map((i) => recipes[i])), expanded: true };
     setRecipes((rs) => [
       ...rs.filter((_, i) => !selectedIdxs.includes(i)).map((r) => ({ ...r, expanded: false })),
       merged,
@@ -190,26 +79,11 @@ export function AddRecipeModal({ onClose }: Props) {
     setError("");
     try {
       const doSave = async () => {
-        const fileUrlMap = new Map<File, string | null>();
+        let fileUrlMap = new Map<File, string | null>();
         if (mode === "photo") {
-          const { createClient } = await import("@/lib/supabase/client");
-          const supabase = createClient();
           const allFiles = toSave.flatMap((r) => r.sourceFiles ?? []);
           const uniqueFiles = allFiles.filter((f, i) => allFiles.indexOf(f) === i);
-          await Promise.allSettled(uniqueFiles.map(async (f) => {
-            try {
-              const ext = f.name.split(".").pop() ?? "jpg";
-              const path = `${householdId}/${crypto.randomUUID()}.${ext}`;
-              const uploadPromise = supabase.storage.from("recipes").upload(path, f);
-              const uploadTimeout = new Promise<never>((_, reject) =>
-                setTimeout(() => reject(new Error("upload timeout")), 60000)
-              );
-              await Promise.race([uploadPromise, uploadTimeout]);
-              fileUrlMap.set(f, supabase.storage.from("recipes").getPublicUrl(path).data.publicUrl);
-            } catch {
-              fileUrlMap.set(f, null);
-            }
-          }));
+          fileUrlMap = await uploadRecipeFiles(householdId, uniqueFiles);
         }
         await Promise.all(toSave.map(async (r) => {
           const uploadedUrls = (r.sourceFiles ?? [])
