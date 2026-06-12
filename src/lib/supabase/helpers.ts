@@ -1,11 +1,23 @@
 import { createClient } from "@/lib/supabase/client";
 
-/** Ensures the Supabase JWT is valid; refreshes if missing or expiring within 30 s. */
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<T>((_, rej) => setTimeout(() => rej(new Error("timeout")), ms)),
+  ]);
+}
+
+/** Ensures the Supabase JWT is valid; refreshes if missing or expiring within 30 s.
+ *  Never blocks the caller longer than ~8 s even if the network is dead. */
 export async function ensureSession(): Promise<void> {
   const supabase = createClient();
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session || (session.expires_at != null && Date.now() / 1000 + 30 > session.expires_at)) {
-    await supabase.auth.refreshSession().catch(() => {});
+  try {
+    const { data: { session } } = await withTimeout(supabase.auth.getSession(), 3000);
+    if (!session || (session.expires_at != null && Date.now() / 1000 + 30 > session.expires_at)) {
+      await withTimeout(supabase.auth.refreshSession(), 5000);
+    }
+  } catch {
+    // Proceed with the load anyway — the query itself will retry/fail fast.
   }
 }
 

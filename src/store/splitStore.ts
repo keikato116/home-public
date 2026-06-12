@@ -33,8 +33,8 @@ export const useSplitStore = create<SplitState>((set) => ({
     const supabase = createClient();
     await ensureSession();
 
-    try {
-      const [sessRes, totRes, subRes] = await Promise.all([
+    const runQueries = () =>
+      Promise.all([
         supabase
           .from("split_sessions")
           .select("*")
@@ -57,6 +57,17 @@ export const useSplitStore = create<SplitState>((set) => ({
           .eq("active", true)
           .order("created_at", { ascending: true }),
       ]);
+
+    try {
+      // A request over a connection killed during background suspension aborts
+      // after the fetch timeout; the retry uses a fresh connection and succeeds.
+      let results;
+      try {
+        results = await runQueries();
+      } catch {
+        results = await runQueries();
+      }
+      const [sessRes, totRes, subRes] = results;
 
       set({
         sessions: (sessRes.data ?? []) as SplitSession[],
