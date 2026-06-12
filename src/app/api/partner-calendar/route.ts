@@ -1,88 +1,34 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { fetchEventsFromAllCalendars, filterByColors, requestGoogleTokenRefresh } from "@/lib/server/google";
 
 async function refreshGoogleToken(refreshToken: string): Promise<string | null> {
   try {
-    const res = await fetch("https://oauth2.googleapis.com/token", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        client_id: process.env.GOOGLE_CLIENT_ID!,
-        client_secret: process.env.GOOGLE_CLIENT_SECRET!,
-        refresh_token: refreshToken,
-        grant_type: "refresh_token",
-      }),
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.access_token ?? null;
+    const { ok, data } = await requestGoogleTokenRefresh(refreshToken);
+    return ok ? ((data.access_token as string) ?? null) : null;
   } catch {
     return null;
   }
 }
 
-type CalInfo = { id: string; backgroundColor?: string; selected?: boolean; accessRole?: string };
-
+// Returns null when the token is expired (caller should refresh and retry),
+// or [] on other failures (give up quietly).
 async function fetchPartnerEvents(
   accessToken: string,
   colors: string[],
   from: string
 ): Promise<object[] | null> {
   try {
-    const timeMin = new Date(from).toISOString();
     const abort = new AbortController();
     const timer = setTimeout(() => abort.abort(), 12000);
-
-    // Get all selected calendars
-    const calListRes = await fetch(
-      "https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=50",
-      { headers: { Authorization: `Bearer ${accessToken}` }, signal: abort.signal }
-    );
-    if (calListRes.status === 401) { clearTimeout(timer); return null; }
-    if (!calListRes.ok) { clearTimeout(timer); return []; }
-
-    const calListData = await calListRes.json();
-    const calendars: CalInfo[] = (calListData.items ?? []).filter(
-      (c: CalInfo) => c.selected !== false && c.accessRole !== "freeBusyReader" && !c.id.includes("#holiday@group")
-    );
-
-    // Fetch events from all calendars in parallel
-    const eventArrays = await Promise.all(
-      calendars.map(async (cal) => {
-        try {
-          const url = new URL(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events`);
-          url.searchParams.set("timeMin", timeMin);
-          url.searchParams.set("singleEvents", "true");
-          url.searchParams.set("orderBy", "startTime");
-          url.searchParams.set("maxResults", "250");
-          const res = await fetch(url.toString(), {
-            headers: { Authorization: `Bearer ${accessToken}` },
-            signal: abort.signal,
-          });
-          if (!res.ok) return [];
-          const data = await res.json();
-          return (data.items ?? []).map((e: object) => ({ ...e, calendarColor: cal.backgroundColor }));
-        } catch { return []; }
-      })
+    const { events, error, status } = await fetchEventsFromAllCalendars(
+      accessToken, new Date(from).toISOString(), undefined, abort.signal
     );
     clearTimeout(timer);
-
-    // Deduplicate by event ID
-    const seen = new Set<string>();
-    let events: { id?: string; colorId?: string }[] = [];
-    for (const arr of eventArrays) {
-      for (const ev of arr as { id?: string }[]) {
-        if (ev.id && seen.has(ev.id)) continue;
-        if (ev.id) seen.add(ev.id);
-        events.push(ev);
-      }
-    }
-
-    if (colors.length > 0) {
-      events = events.filter((e) => !e.colorId || colors.includes(e.colorId));
-    }
-    return events;
+    if (status === 401) return null;
+    if (error) return [];
+    return filterByColors(events as { colorId?: string }[], colors);
   } catch {
     return [];
   }

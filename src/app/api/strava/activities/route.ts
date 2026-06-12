@@ -88,8 +88,19 @@ export async function GET(request: Request) {
     return NextResponse.json({ connected: true, activities: [], error: "fetch_failed" });
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const activities: any[] = await activitiesRes.json();
+  interface StravaApiActivity {
+    id: number;
+    name: string;
+    type: string;
+    sport_type?: string;
+    start_date_local: string;
+    distance: number;
+    moving_time: number;
+    total_elevation_gain: number;
+    average_heartrate?: number;
+    kudos_count: number;
+  }
+  const activities: StravaApiActivity[] = await activitiesRes.json();
 
   return NextResponse.json({
     connected: true,
