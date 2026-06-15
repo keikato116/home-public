@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 import { User, AuthChangeEvent, Session } from "@supabase/supabase-js";
-import { createClient } from "@/lib/supabase/client";
+import { createClient, setJwt } from "@/lib/supabase/client";
 import {
   LS_GOOGLE_TOKEN, LS_GOOGLE_TOKEN_EXPIRY, LS_GOOGLE_REFRESH,
   LS_CACHED_USER, LS_CACHED_HOUSEHOLD, LS_CACHED_INVITE, LS_CACHED_IS_OWNER,
@@ -75,6 +75,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
+        if (session.access_token) setJwt(session.access_token);
         if (session.provider_token) {
           storeAccessToken(session.provider_token);
         }
@@ -146,6 +147,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
     supabase.auth.onAuthStateChange(async (event: AuthChangeEvent, session: Session | null) => {
       if (event === "SIGNED_IN" && session) {
+        if (session.access_token) setJwt(session.access_token);
         if (session.provider_token) {
           storeAccessToken(session.provider_token);
         }
@@ -172,9 +174,12 @@ export const useAuthStore = create<AuthState>((set) => ({
           const displayName = session.user.user_metadata?.full_name ?? session.user.email ?? "";
           await upsertUserToken(supabase, session.user.id, hid, token, displayName);
         }
-      } else if (event === "TOKEN_REFRESHED" && session?.provider_token) {
-        storeAccessToken(session.provider_token);
-        set({ accessToken: session.provider_token });
+      } else if (event === "TOKEN_REFRESHED" && session) {
+        if (session.access_token) setJwt(session.access_token);
+        if (session.provider_token) {
+          storeAccessToken(session.provider_token);
+          set({ accessToken: session.provider_token });
+        }
       } else if (event === "SIGNED_OUT") {
         if (isSigningOut) {
           isSigningOut = false;
@@ -189,6 +194,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         } else {
           const { data: { session: recovered } } = await supabase.auth.refreshSession();
           if (recovered) {
+            if (recovered.access_token) setJwt(recovered.access_token);
             localStorage.setItem(LS_CACHED_USER, JSON.stringify(recovered.user));
             set({ user: recovered.user });
           } else {

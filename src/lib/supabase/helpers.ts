@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/client";
+import { createClient, setJwt } from "@/lib/supabase/client";
 
 function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   return Promise.race([
@@ -13,8 +13,10 @@ export async function ensureSession(): Promise<void> {
   const supabase = createClient();
   try {
     const { data: { session } } = await withTimeout(supabase.auth.getSession(), 3000);
+    if (session?.access_token) setJwt(session.access_token);
     if (!session || (session.expires_at != null && Date.now() / 1000 + 30 > session.expires_at)) {
-      await withTimeout(supabase.auth.refreshSession(), 5000);
+      const { data: { session: refreshed } } = await withTimeout(supabase.auth.refreshSession(), 5000);
+      if (refreshed?.access_token) setJwt(refreshed.access_token);
     }
   } catch {
     // Proceed with the load anyway — the query itself will retry/fail fast.
