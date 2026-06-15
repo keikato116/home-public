@@ -106,6 +106,24 @@ export async function analyzePhotos(
     }
   }
 
+  // Fallback: merge any remaining ingredient-less recipe with its neighbour.
+  // Covers continuation pages (steps-only) the AI grouping missed.
+  // Prefer merging backwards (with previous recipe); fall forward if it's the first.
+  let merged = true;
+  while (merged && all.length > 1) {
+    merged = false;
+    for (let i = 0; i < all.length; i++) {
+      if (!all[i].ingredients?.trim()) {
+        const target = i > 0 ? i - 1 : i + 1;
+        const [lo, hi] = target < i ? [target, i] : [i, target];
+        const combined = mergeRecipes([all[lo], all[hi]]);
+        all.splice(lo, 2, combined);
+        merged = true;
+        break;
+      }
+    }
+  }
+
   if (all.length > 0) all[0] = { ...all[0], expanded: true };
   return all;
 }

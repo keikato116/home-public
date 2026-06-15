@@ -22,20 +22,25 @@ function buildGroupPrompt(recipes: { title: string; ingredients: string | null }
   const n = recipes.length;
   const list = recipes.map((r, i) => {
     const hasIng = !!r.ingredients?.trim();
-    return `[${i}] title: "${r.title || "no title"}" | has_ingredients: ${hasIng}\n    ingredients preview: "${(r.ingredients ?? "").slice(0, 200)}"`;
+    return `[${i}] title: "${r.title || "(none)"}" | has_ingredients: ${hasIng}\n    ingredients preview: "${(r.ingredients ?? "").slice(0, 150)}"`;
   }).join("\n\n");
-  return `${n} pages were extracted from ${n} consecutive recipe book photos (indexed 0 to ${n - 1}).
+  return `You are analyzing ${n} pages scanned from a Japanese recipe book (indexed 0 to ${n - 1}).
 
-Grouping rules (apply in order):
-1. A page with a title but NO ingredients is a COVER PAGE — it must be grouped with the immediately following page(s) that contain the actual recipe content.
-2. Pages where ingredients or steps clearly continue from the previous page (no new distinct title) belong to the same recipe.
-3. Two pages are separate recipes only if each has its own distinct title AND its own ingredients list.
-Group only CONSECUTIVE indices.
+In recipe books, ONE recipe often spans 2–4 consecutive pages:
+  • Page A — COVER PAGE: large photo + title only, no ingredients list
+  • Page B — RECIPE PAGE: title + ingredients + first steps
+  • Page C — CONTINUATION PAGE: more steps or tips, no new title, no new ingredients
 
+Grouping rules (in order of priority):
+  1. COVER PAGE (has title, has_ingredients=false) → must join with the immediately following page(s).
+  2. CONTINUATION PAGE (has_ingredients=false, title same/empty/similar to previous) → must join with the previous recipe group.
+  3. Two consecutive pages are SEPARATE recipes only when BOTH have their own distinct title AND their own ingredients.
+
+Pages:
 ${list}
 
-Return ONLY a valid JSON array of groups, e.g. [[0,1],[2],[3]] or [[0],[1],[2]].
-No markdown, no explanation.`;
+Group all consecutive pages that belong to the same recipe.
+Return ONLY a valid JSON array of groups such as [[0,1,2],[3,4]] — no markdown, no explanation.`;
 }
 
 function parseJson(raw: string) {
