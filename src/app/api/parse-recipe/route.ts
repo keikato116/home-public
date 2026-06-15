@@ -3,10 +3,10 @@ import Anthropic from "@anthropic-ai/sdk";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-const CATEGORIES = ["main", "side", "soup", "rice & bowl", "pasta", "noodles", "dessert", "seasonal"];
+const CATEGORIES = ["main", "side", "soup", "rice & bowl", "pasta", "noodles", "dessert", "seasonal", "bento"];
 
 const FIELDS = `- title: recipe name (string)
-- category: one of [${CATEGORIES.join(", ")}] — pick the closest
+- category: one of [${CATEGORIES.join(", ")}] — pick the closest. Use "bento" for any lunch-box / bento dish or anything explicitly described as a bento item.
 - subcategory: for "main" use one of [meat, fish, others]; for all other categories use null
 - servings: number of servings as integer (number or null)
 - cook_time_min: total cooking time in minutes as integer (number or null)
