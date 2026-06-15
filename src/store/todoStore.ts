@@ -146,6 +146,7 @@ export const useTodoStore = create<TodoState>((set, get) => ({
 
   markRoutineDone: async (householdId, definitionId) => {
     const supabase = createClient();
+    await ensureSession();
     const today = toISODate(new Date());
     const { data: { user } } = await supabase.auth.getUser();
     await supabase.from("routine_completions").upsert({
@@ -168,6 +169,7 @@ export const useTodoStore = create<TodoState>((set, get) => ({
 
   markRoutineUndone: async (householdId, definitionId) => {
     const supabase = createClient();
+    await ensureSession();
     const today = toISODate(new Date());
     await supabase
       .from("routine_completions")
@@ -185,6 +187,7 @@ export const useTodoStore = create<TodoState>((set, get) => ({
 
   addUrgentTodo: async (householdId, label, userId) => {
     const supabase = createClient();
+    await ensureSession();
     const { data } = await supabase
       .from("shared_todos")
       .insert({ household_id: householdId, label, created_by: userId })
@@ -197,6 +200,7 @@ export const useTodoStore = create<TodoState>((set, get) => ({
 
   toggleUrgentTodo: async (id, done) => {
     const supabase = createClient();
+    await ensureSession();
     await supabase.from("shared_todos").update({ done }).eq("id", id);
     set((s) => ({
       urgentTodos: s.urgentTodos.map((t) => (t.id === id ? { ...t, done } : t)),
@@ -205,12 +209,14 @@ export const useTodoStore = create<TodoState>((set, get) => ({
 
   deleteUrgentTodo: async (id) => {
     const supabase = createClient();
+    await ensureSession();
     await supabase.from("shared_todos").delete().eq("id", id);
     set((s) => ({ urgentTodos: s.urgentTodos.filter((t) => t.id !== id) }));
   },
 
   addChore: async (householdId, label, repeat, dayOfWeek, dueDate, userId) => {
     const supabase = createClient();
+    await ensureSession();
     const maxOrder = Math.max(0, ...get().routineDefinitions.map((d) => d.order));
     const { data } = await supabase
       .from("routine_definitions")
@@ -241,6 +247,7 @@ export const useTodoStore = create<TodoState>((set, get) => ({
       })(),
     }));
     const supabase = createClient();
+    await ensureSession();
     await supabase.from("routine_definitions").delete().eq("id", id);
   },
 

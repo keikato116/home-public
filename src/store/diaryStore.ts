@@ -37,6 +37,7 @@ export const useDiaryStore = create<DiaryState>((set) => ({
 
   addEntry: async (householdId, userId, content) => {
     const supabase = createClient();
+    await ensureSession();
     const today = new Date().toISOString().split("T")[0];
     const { data } = await supabase
       .from("diary_entries")
@@ -50,6 +51,7 @@ export const useDiaryStore = create<DiaryState>((set) => ({
 
   deleteEntry: async (id) => {
     const supabase = createClient();
+    await ensureSession();
     await supabase.from("diary_entries").delete().eq("id", id);
     set((s) => ({ entries: s.entries.filter((e) => e.id !== id) }));
   },

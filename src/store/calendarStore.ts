@@ -257,6 +257,7 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
 
   addLocalEvent: async (householdId, userId, title, date, startTime, endTime) => {
     const supabase = createClient();
+    await ensureSession();
     const { user } = useAuthStore.getState();
     const ownerName = (user?.user_metadata?.full_name ?? user?.email ?? "").split(" ")[0];
 
@@ -297,6 +298,7 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
 
   deleteLocalEvent: async (id: string) => {
     const supabase = createClient();
+    await ensureSession();
     const rawId = id.replace("local-", "");
     await supabase.from("local_calendar_events").delete().eq("id", rawId);
     set({ events: get().events.filter(e => e.id !== id) });
@@ -304,6 +306,7 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
 
   updateSettings: async (householdId, partial) => {
     const supabase = createClient();
+    await ensureSession();
     const current = get().settings ?? { household_id: householdId, selected_colors: [], start_date: toISODate(new Date()) };
     const updated = { ...current, ...partial };
     const { user } = useAuthStore.getState();

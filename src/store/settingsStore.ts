@@ -35,6 +35,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
 
   addRoutine: async (householdId, def) => {
     const supabase = createClient();
+    await ensureSession();
     const { data } = await supabase
       .from("routine_definitions")
       .insert({ household_id: householdId, ...def, order: 0 })
@@ -45,6 +46,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
 
   deleteRoutine: async (id) => {
     const supabase = createClient();
+    await ensureSession();
     await supabase.from("routine_definitions").delete().eq("id", id);
     set((s) => ({ routineDefinitions: s.routineDefinitions.filter((r) => r.id !== id) }));
   },

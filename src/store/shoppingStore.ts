@@ -49,6 +49,7 @@ export const useShoppingStore = create<ShoppingState>((set, get) => ({
 
   addItem: async (householdId, label, category, date) => {
     const supabase = createClient();
+    await ensureSession();
     const maxOrder = get().items.reduce((m, i) => Math.max(m, i.order ?? 0), 0);
     const { data, error } = await supabase
       .from("shopping_items")
@@ -61,18 +62,21 @@ export const useShoppingStore = create<ShoppingState>((set, get) => ({
 
   toggleItem: async (id, done) => {
     const supabase = createClient();
+    await ensureSession();
     await supabase.from("shopping_items").update({ done }).eq("id", id);
     set((s) => ({ items: s.items.map((i) => (i.id === id ? { ...i, done } : i)) }));
   },
 
   deleteItem: async (id) => {
     const supabase = createClient();
+    await ensureSession();
     await supabase.from("shopping_items").delete().eq("id", id);
     set((s) => ({ items: s.items.filter((i) => i.id !== id) }));
   },
 
   clearDone: async (householdId) => {
     const supabase = createClient();
+    await ensureSession();
     await supabase.from("shopping_items").delete().eq("household_id", householdId).eq("done", true);
     set((s) => ({ items: s.items.filter((i) => !i.done) }));
   },

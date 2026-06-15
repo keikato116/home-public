@@ -82,6 +82,7 @@ export const useSplitStore = create<SplitState>((set) => ({
 
   addSession: async (householdId, data) => {
     const supabase = createClient();
+    await ensureSession();
     const row = await withSessionRetry<SplitSession>(supabase, () =>
       supabase.from("split_sessions").insert({ household_id: householdId, ...data }).select().single()
     );
@@ -92,17 +93,20 @@ export const useSplitStore = create<SplitState>((set) => ({
   deleteSession: async (id) => {
     set((s) => ({ sessions: s.sessions.filter((s) => s.id !== id) }));
     const supabase = createClient();
+    await ensureSession();
     await supabase.from("split_sessions").delete().eq("id", id);
   },
 
   updateSessionStore: async (id, store) => {
     set((s) => ({ sessions: s.sessions.map((s) => s.id === id ? { ...s, store } : s) }));
     const supabase = createClient();
+    await ensureSession();
     await supabase.from("split_sessions").update({ store }).eq("id", id);
   },
 
   setFamilyTotal: async (householdId, year, month, total) => {
     const supabase = createClient();
+    await ensureSession();
     const { data: row } = await supabase
       .from("family_card_totals")
       .upsert({ household_id: householdId, year, month: month + 1, total }, { onConflict: "household_id,year,month" })
@@ -113,6 +117,7 @@ export const useSplitStore = create<SplitState>((set) => ({
 
   addSubscription: async (householdId, data) => {
     const supabase = createClient();
+    await ensureSession();
     const { data: row, error } = await supabase
       .from("split_subscriptions")
       .insert({ household_id: householdId, ...data, active: true })
@@ -125,6 +130,7 @@ export const useSplitStore = create<SplitState>((set) => ({
   deleteSubscription: async (id) => {
     set((s) => ({ subscriptions: s.subscriptions.filter((s) => s.id !== id) }));
     const supabase = createClient();
+    await ensureSession();
     await supabase.from("split_subscriptions").delete().eq("id", id);
   },
 }));

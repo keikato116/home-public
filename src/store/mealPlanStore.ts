@@ -45,6 +45,7 @@ export const useMealPlanStore = create<MealPlanState>((set, get) => ({
 
   setMeal: async (householdId, date, mealType, recipeId, label) => {
     const supabase = createClient();
+    await ensureSession();
     // Find existing plan: real plans have recipe_id or label set (not a highlight)
     const existing = get().plans.find(
       (p) => p.date === date && p.meal_type === mealType && !isHighlightPlan(p, mealType)
@@ -91,12 +92,14 @@ export const useMealPlanStore = create<MealPlanState>((set, get) => ({
 
   deleteMeal: async (id) => {
     const supabase = createClient();
+    await ensureSession();
     set((s) => ({ plans: s.plans.filter((p) => p.id !== id) }));
     await supabase.from("meal_plans").delete().eq("id", id);
   },
 
   toggleHighlight: async (householdId, date, mealType) => {
     const supabase = createClient();
+    await ensureSession();
     const existing = get().plans.find((p) => p.date === date && isHighlightPlan(p, mealType));
     if (existing) {
       set((s) => ({ plans: s.plans.filter((p) => p.id !== existing.id) }));

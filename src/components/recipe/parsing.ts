@@ -146,7 +146,13 @@ export async function uploadRecipeFiles(
   files: File[]
 ): Promise<Map<File, string | null>> {
   const { createClient } = await import("@/lib/supabase/client");
+  const { ensureSession } = await import("@/lib/supabase/helpers");
   const supabase = createClient();
+  // Refresh the session once before the parallel uploads so a stale token on iOS PWA
+  // resume doesn't make every upload independently trigger a token refresh (which
+  // serializes behind the auth lock and times out). One upfront refresh warms the
+  // dead TCP connection so the actual uploads run on a live one.
+  await ensureSession();
   const fileUrlMap = new Map<File, string | null>();
   await Promise.allSettled(files.map(async (f) => {
     try {

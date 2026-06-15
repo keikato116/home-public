@@ -205,6 +205,7 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
   loadPreset: async (householdId, userId) => {
     set({ loadingPreset: true });
     const supabase = createClient();
+    await ensureSession();
     const existing = get().recipes.map((r) => r.title);
     for (const recipe of PRESET_RECIPES) {
       if (existing.includes(recipe.title)) continue;
@@ -231,6 +232,7 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
 
   add: async (householdId, input, file) => {
     const supabase = createClient();
+    await ensureSession();
     let thumbnail_url = input.thumbnail_url ?? null;
 
     if (file) {
@@ -268,6 +270,7 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
 
   recordMade: async (id, date) => {
     const supabase = createClient();
+    await ensureSession();
     const madeDate = date ?? new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tokyo" }).format(new Date());
     const recipe = get().recipes.find((r) => r.id === id);
     if (!recipe) return;
@@ -280,6 +283,7 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
 
   updateRecipe: async (id, patch) => {
     const supabase = createClient();
+    await ensureSession();
     await supabase.from("recipes").update(patch).eq("id", id);
     set((s) => ({
       recipes: s.recipes.map((r) => r.id === id ? { ...r, ...patch } : r),
@@ -288,6 +292,7 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
 
   deleteRecipe: async (id) => {
     const supabase = createClient();
+    await ensureSession();
     const recipe = get().recipes.find((r) => r.id === id);
 
     await supabase.from("recipes").delete().eq("id", id);
