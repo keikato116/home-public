@@ -20,15 +20,20 @@ ${FIELDS}`;
 
 function buildGroupPrompt(recipes: { title: string; ingredients: string | null }[]) {
   const n = recipes.length;
-  const list = recipes.map((r, i) =>
-    `[${i}] title: "${r.title || "no title"}"\ningredients preview: "${(r.ingredients ?? "").slice(0, 200)}"`
-  ).join("\n\n");
-  return `${n} recipes were extracted from ${n} consecutive recipe photos (indexed 0 to ${n - 1}).
-Some adjacent recipes may be PARTS OF THE SAME RECIPE that spans multiple pages — e.g. ingredients or steps continue on the next page with no new title.
+  const list = recipes.map((r, i) => {
+    const hasIng = !!r.ingredients?.trim();
+    return `[${i}] title: "${r.title || "no title"}" | has_ingredients: ${hasIng}\n    ingredients preview: "${(r.ingredients ?? "").slice(0, 200)}"`;
+  }).join("\n\n");
+  return `${n} pages were extracted from ${n} consecutive recipe book photos (indexed 0 to ${n - 1}).
+
+Grouping rules (apply in order):
+1. A page with a title but NO ingredients is a COVER PAGE — it must be grouped with the immediately following page(s) that contain the actual recipe content.
+2. Pages where ingredients or steps clearly continue from the previous page (no new distinct title) belong to the same recipe.
+3. Two pages are separate recipes only if each has its own distinct title AND its own ingredients list.
+Group only CONSECUTIVE indices.
 
 ${list}
 
-Task: group indices of recipes that belong to the same multi-page recipe. Only group CONSECUTIVE indices.
 Return ONLY a valid JSON array of groups, e.g. [[0,1],[2],[3]] or [[0],[1],[2]].
 No markdown, no explanation.`;
 }
