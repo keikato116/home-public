@@ -29,7 +29,9 @@ export function AddRecipeModal({ onClose }: Props) {
   const { householdId, user, loading: authLoading } = useAuthStore();
 
   const handleFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selected = Array.from(e.target.files ?? []);
+    // Sort by lastModified ascending so photos appear in the order they were taken
+    // (iOS photo picker does not guarantee selection order matches capture order)
+    const selected = Array.from(e.target.files ?? []).sort((a, b) => a.lastModified - b.lastModified);
     if (selected.length === 0) return;
     setFiles(selected);
     setPreviews(selected.map((f) => URL.createObjectURL(f)));

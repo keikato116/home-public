@@ -38,14 +38,16 @@ export async function fileToBase64(file: File): Promise<string> {
   return btoa(binary);
 }
 
-/** Merges multi-page recipes into one: first item wins, ingredients concatenated. */
+/** Merges multi-page recipes into one: cover page (first item with a title) wins, ingredients concatenated. */
 export function mergeRecipes(items: ParsedRecipe[]): ParsedRecipe {
   const mergedIngredients = items.map((r) => r.ingredients).filter(Boolean).join("\n");
   const allFiles = items.flatMap((r) => r.sourceFiles ?? []);
   const uniqueFiles = allFiles.filter((f, i) => allFiles.indexOf(f) === i);
   const mergedPreviews = items.flatMap((r) => r.previewUrls ?? []);
+  // Prefer the page that has a title (cover page) as the base for metadata like servings
+  const primary = items.find((r) => r.title.trim()) ?? items[0];
   return {
-    ...items[0],
+    ...primary,
     ingredients: mergedIngredients || null,
     sourceFiles: uniqueFiles,
     previewUrls: mergedPreviews,
