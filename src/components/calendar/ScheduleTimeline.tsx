@@ -38,28 +38,65 @@ export function ScheduleTimeline({ events, isToday, userId, memberNameMap, date 
     ? (() => { const n = new Date(); return (n.getUTCHours() * 60 + n.getUTCMinutes() + 9 * 60) % 1440; })()
     : null;
 
-  const renderCol = (evs: CalendarEvent[]) => evs.map(ev => {
-    const eventStartDate = toJSTDate(ev.start.dateTime!);
-    const eventEndDate = ev.end.dateTime ? toJSTDate(ev.end.dateTime) : eventStartDate;
-    // Clip to the portion of this event that falls on the displayed day
-    const startsBeforeToday = date && eventStartDate < date;
-    const endsAfterToday = date && eventEndDate > date;
-    const startMin = startsBeforeToday ? START_H * 60 : toMin(ev.start.dateTime!);
-    const rawEndMin = ev.end.dateTime ? toMin(ev.end.dateTime) : toMin(ev.start.dateTime!) + 60;
-    const effectiveEndMin = endsAfterToday ? END_H * 60 : (rawEndMin <= toMin(ev.start.dateTime!) && !startsBeforeToday ? END_H * 60 : rawEndMin);
-    if (startMin >= END_H * 60) return null;
-    if (effectiveEndMin <= START_H * 60) return null;
-    const visibleStartMin = Math.max(startMin, START_H * 60);
-    const cappedEndMin = Math.min(effectiveEndMin, END_H * 60);
+  const layoutEvents = (evs: CalendarEvent[]) => {
+    const items = evs.flatMap(ev => {
+      if (!ev.start.dateTime) return [];
+      const eventStartDate = toJSTDate(ev.start.dateTime);
+      const eventEndDate = ev.end.dateTime ? toJSTDate(ev.end.dateTime) : eventStartDate;
+      const startsBeforeToday = date && eventStartDate < date;
+      const endsAfterToday = date && eventEndDate > date;
+      const startMin = startsBeforeToday ? START_H * 60 : toMin(ev.start.dateTime);
+      const rawEndMin = ev.end.dateTime ? toMin(ev.end.dateTime) : toMin(ev.start.dateTime) + 60;
+      const effectiveEndMin = endsAfterToday ? END_H * 60 : (rawEndMin <= toMin(ev.start.dateTime) && !startsBeforeToday ? END_H * 60 : rawEndMin);
+      if (startMin >= END_H * 60 || effectiveEndMin <= START_H * 60) return [];
+      const visibleStartMin = Math.max(startMin, START_H * 60);
+      const cappedEndMin = Math.min(effectiveEndMin, END_H * 60);
+      return [{ ev, startMin, endMin: effectiveEndMin, visibleStartMin, cappedEndMin }];
+    }).sort((a, b) => a.startMin - b.startMin);
+
+    // Greedy column assignment: find the first sub-column with no overlap
+    const colAssign: number[] = [];
+    const colEndTimes: number[] = [];
+    for (let i = 0; i < items.length; i++) {
+      let col = 0;
+      while (colEndTimes[col] !== undefined && colEndTimes[col] > items[i].startMin) col++;
+      colAssign[i] = col;
+      colEndTimes[col] = items[i].endMin;
+    }
+
+    // totalCols per event = max sub-column among all events overlapping with it, + 1
+    const totalCols = items.map((item, i) => {
+      let maxCol = colAssign[i];
+      for (let j = 0; j < items.length; j++) {
+        if (i !== j && item.startMin < items[j].endMin && item.endMin > items[j].startMin) {
+          maxCol = Math.max(maxCol, colAssign[j]);
+        }
+      }
+      return maxCol + 1;
+    });
+
+    return items.map((item, i) => ({ ...item, col: colAssign[i], totalCols: totalCols[i] }));
+  };
+
+  const renderCol = (evs: CalendarEvent[]) => layoutEvents(evs).map(({ ev, visibleStartMin, cappedEndMin, col, totalCols }) => {
     const durMin = Math.max(20, cappedEndMin - visibleStartMin);
-    const top = toTop(startMin);
+    const top = toTop(visibleStartMin);
     const height = Math.max(HOUR_H / 2, (durMin / 60) * HOUR_H - 1);
     const hex = ev.colorId ? GOOGLE_COLOR_HEX[ev.colorId] : (ev.calendarColor ?? "#888888");
+    const leftPct = (col / totalCols) * 100;
+    const widthPct = (1 / totalCols) * 100;
     return (
       <div
         key={ev.id}
-        className="absolute inset-x-0.5 rounded px-1.5 py-1 overflow-hidden flex flex-col justify-start"
-        style={{ top, height, backgroundColor: hex + "22", borderLeft: `2px solid ${hex}` }}
+        className="absolute rounded px-1.5 py-1 overflow-hidden flex flex-col justify-start"
+        style={{
+          top,
+          height,
+          left: `calc(${leftPct}% + 2px)`,
+          width: `calc(${widthPct}% - 4px)`,
+          backgroundColor: hex + "22",
+          borderLeft: `2px solid ${hex}`,
+        }}
       >
         <p className="text-[9px] leading-tight font-medium break-words text-foreground">{ev.summary.replace(/^(run|ride):/, "")}</p>
       </div>
