@@ -90,8 +90,6 @@ export function HomeTab() {
     setAddingImportant(false);
   };
 
-  const activeUrgent = urgentTodos.filter(t => !t.done);
-
   return (
     <div className="flex flex-col h-full bg-background">
       {/* Header */}
@@ -113,54 +111,78 @@ export function HomeTab() {
       </div>
 
       <div className="flex-1 overflow-y-auto px-7 pb-8 space-y-6" style={{ scrollbarWidth: "none" }}>
-        {/* IMPORTANT card */}
-        {(activeUrgent.length > 0 || addingImportant) && (
-          <div className="bg-muted/40 rounded-2xl px-5 py-4 space-y-3">
-            <p className="text-[9px] tracking-[0.3em] text-muted-foreground uppercase">Important</p>
-            {activeUrgent.map(t => (
-              <div key={t.id} className="flex items-center gap-3">
-                <button
-                  onClick={() => toggleUrgentTodo(t.id, true)}
-                  className="w-[18px] h-[18px] rounded border border-border flex-shrink-0"
-                  aria-label="complete"
-                />
-                <span
-                  className="flex-1 text-[14px]"
-                  onDoubleClick={() => deleteUrgentTodo(t.id)}
-                >
-                  {t.label}
-                </span>
-              </div>
-            ))}
-            {addingImportant && (
-              <div className="flex items-center gap-3">
-                <span className="w-[18px] h-[18px] rounded border border-border flex-shrink-0" />
-                <input
-                  autoFocus
-                  value={newImportantLabel}
-                  onChange={e => setNewImportantLabel(e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === "Enter") handleAddImportant();
-                    if (e.key === "Escape") { setAddingImportant(false); setNewImportantLabel(""); }
-                  }}
-                  onBlur={handleAddImportant}
-                  placeholder="task name"
-                  className="flex-1 bg-transparent text-[14px] outline-none placeholder:text-muted-foreground"
-                />
-              </div>
+        {/* Shared todo card */}
+        <div className="bg-muted/40 rounded-2xl px-5 py-4">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-[9px] tracking-[0.3em] text-muted-foreground uppercase">shared</p>
+            {!addingImportant && (
+              <button
+                onClick={() => setAddingImportant(true)}
+                className="text-[10px] text-muted-foreground tracking-wider"
+              >
+                + add
+              </button>
             )}
           </div>
-        )}
-
-        {/* + important (shown when card is empty) */}
-        {activeUrgent.length === 0 && !addingImportant && (
-          <button
-            onClick={() => setAddingImportant(true)}
-            className="text-[10px] tracking-widest text-muted-foreground"
-          >
-            + important
-          </button>
-        )}
+          {urgentTodos.length === 0 && !addingImportant && (
+            <p className="text-[11px] text-muted-foreground">-</p>
+          )}
+          {urgentTodos.filter(t => !t.done).map(t => (
+            <div key={t.id} className="flex items-center gap-3 py-1.5">
+              <button
+                onClick={() => toggleUrgentTodo(t.id, true)}
+                className="w-[18px] h-[18px] rounded border border-border flex-shrink-0"
+                aria-label="complete"
+              />
+              <span className="flex-1 text-[14px]">{t.label}</span>
+              <button
+                onClick={() => deleteUrgentTodo(t.id)}
+                className="text-muted-foreground/50 hover:text-muted-foreground transition-colors flex-shrink-0 text-[14px] leading-none"
+                aria-label="delete"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+          {urgentTodos.filter(t => t.done).length > 0 && (
+            <div className={cn("space-y-0", urgentTodos.some(t => !t.done) && "mt-1 pt-1 border-t border-border/20")}>
+              {urgentTodos.filter(t => t.done).map(t => (
+                <div key={t.id} className="flex items-center gap-3 py-1.5 opacity-40">
+                  <button
+                    onClick={() => toggleUrgentTodo(t.id, false)}
+                    className="w-[18px] h-[18px] rounded border border-foreground bg-foreground flex-shrink-0"
+                    aria-label="undo"
+                  />
+                  <span className="flex-1 text-[13px] line-through">{t.label}</span>
+                  <button
+                    onClick={() => deleteUrgentTodo(t.id)}
+                    className="text-muted-foreground/50 hover:text-muted-foreground transition-colors flex-shrink-0 text-[14px] leading-none"
+                    aria-label="delete"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          {addingImportant && (
+            <div className="flex items-center gap-3 py-1.5">
+              <span className="w-[18px] h-[18px] rounded border border-border flex-shrink-0" />
+              <input
+                autoFocus
+                value={newImportantLabel}
+                onChange={e => setNewImportantLabel(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === "Enter") handleAddImportant();
+                  if (e.key === "Escape") { setAddingImportant(false); setNewImportantLabel(""); }
+                }}
+                onBlur={handleAddImportant}
+                placeholder="new task"
+                className="flex-1 bg-transparent text-[14px] outline-none placeholder:text-muted-foreground"
+              />
+            </div>
+          )}
+        </div>
 
         {/* Date tabs */}
         <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
