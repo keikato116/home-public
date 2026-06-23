@@ -187,7 +187,7 @@ function AddItemForm({
           )}
         >
           <Lock size={9} />
-          mine only
+          private
         </button>
       </div>
     </form>
@@ -312,7 +312,7 @@ export function ShoppingTab() {
             <div className="border-t border-border/20 mt-4 mb-4" />
             <div className="flex items-center gap-1.5 mb-2">
               <Lock size={9} className="text-muted-foreground" />
-              <p className="text-[10px] tracking-widest text-muted-foreground">mine only</p>
+              <p className="text-[10px] tracking-widest text-muted-foreground">private</p>
             </div>
             {privateVisible.map((item) => (
               <ItemRow key={item.id} item={item} onDelete={() => deleteItem(item.id)} />
