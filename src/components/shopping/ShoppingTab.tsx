@@ -175,7 +175,7 @@ function AddItemForm({
           )}
         >
           <Lock size={9} />
-          自分だけ
+          mine only
         </button>
       </div>
     </form>
