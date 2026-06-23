@@ -133,11 +133,23 @@ function AddItemForm({
         }}
       />
       <div className="flex gap-2 mt-3 flex-wrap">
+        <button
+          type="button"
+          onClick={() => setStore(null)}
+          className={cn(
+            "text-[10px] tracking-wider px-2 py-1 rounded border transition-colors",
+            store === null
+              ? "bg-foreground text-background border-foreground"
+              : "border-border text-muted-foreground"
+          )}
+        >
+          my list
+        </button>
         {STORES.map((s) => (
           <button
             key={s}
             type="button"
-            onClick={() => setStore(prev => prev === s ? null : s)}
+            onClick={() => setStore(s)}
             className={cn(
               "text-[10px] tracking-wider px-2 py-1 rounded border transition-colors",
               store === s
