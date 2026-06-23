@@ -13,13 +13,18 @@ type Store = typeof STORES[number];
 
 // "other" = auto-added from meal plan → shown under スーパー, no checkbox
 // store name = manually added → shown under that store, with checkbox
+// "list" = manually added with no category → shown under "my list", with checkbox
 function getStore(item: ShoppingItem): Store {
   if ((STORES as readonly string[]).includes(item.category)) return item.category as Store;
   return "grocery";
 }
 
 function isManual(item: ShoppingItem): boolean {
-  return (STORES as readonly string[]).includes(item.category);
+  return (STORES as readonly string[]).includes(item.category) || item.category === "list";
+}
+
+function isList(item: ShoppingItem): boolean {
+  return item.category === "list";
 }
 
 function todayStr() {
@@ -81,11 +86,11 @@ function AddItemForm({
   onAdd,
 }: {
   defaultDate: string | null;
-  onAdd: (label: string, store: Store, date: string | null, isPrivate: boolean) => Promise<void>;
+  onAdd: (label: string, store: Store | null, date: string | null, isPrivate: boolean) => Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
   const [label, setLabel] = useState("");
-  const [store, setStore] = useState<Store>("grocery");
+  const [store, setStore] = useState<Store | null>(null);
   const [isPrivate, setIsPrivate] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -96,6 +101,7 @@ function AddItemForm({
     try {
       await onAdd(label.trim(), store, defaultDate, isPrivate);
       setLabel("");
+      setStore(null);
       setOpen(false);
     } finally {
       setSubmitting(false);
@@ -131,7 +137,7 @@ function AddItemForm({
           <button
             key={s}
             type="button"
-            onClick={() => setStore(s)}
+            onClick={() => setStore(prev => prev === s ? null : s)}
             className={cn(
               "text-[10px] tracking-wider px-2 py-1 rounded border transition-colors",
               store === s
@@ -211,9 +217,10 @@ export function ShoppingTab() {
 
   const displayItems = dates.length === 0 ? undatedItems : tabItems;
 
-  // Split: auto-added (top, flat) vs manual (bottom, grouped by store)
+  // Split: auto-added (meal plan, flat) / "my list" (no category) / store-grouped
   const autoItems = displayItems.filter((i) => !isManual(i));
-  const manualItems = displayItems.filter((i) => isManual(i));
+  const listItems = displayItems.filter((i) => isList(i));
+  const storeItems = displayItems.filter((i) => isManual(i) && !isList(i));
 
   const byStore: Record<Store, ShoppingItem[]> = {
     grocery: [],
@@ -222,7 +229,7 @@ export function ShoppingTab() {
     muji: [],
     amazon: [],
   };
-  for (const item of manualItems) {
+  for (const item of storeItems) {
     byStore[getStore(item)].push(item);
   }
 
@@ -258,8 +265,17 @@ export function ShoppingTab() {
         {autoItems.map((item) => (
           <ItemRow key={item.id} item={item} onDelete={() => deleteItem(item.id)} />
         ))}
+        {/* my list: no category selected */}
+        {listItems.length > 0 && (
+          <div className={autoItems.length > 0 ? "mt-4" : ""}>
+            <p className="text-[10px] tracking-widest text-muted-foreground mb-1">my list</p>
+            {listItems.map((item) => (
+              <ItemRow key={item.id} item={item} onDelete={() => deleteItem(item.id)} />
+            ))}
+          </div>
+        )}
         {/* Manual items: grouped by store */}
-        {autoItems.length > 0 && manualItems.length > 0 && (
+        {(autoItems.length > 0 || listItems.length > 0) && storeItems.length > 0 && (
           <div className="border-t border-border/20 mt-4 mb-1" />
         )}
         {STORES.map((store) => (
@@ -274,7 +290,7 @@ export function ShoppingTab() {
           defaultDate={effectiveTab}
           onAdd={async (label, store, date, isPrivate) => {
             if (!householdId) return;
-            await addItem(householdId, label, store, date ?? undefined, isPrivate ? (user?.id ?? null) : null);
+            await addItem(householdId, label, store ?? "list", date ?? undefined, isPrivate ? (user?.id ?? null) : null);
           }}
         />
 
