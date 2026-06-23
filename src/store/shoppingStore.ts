@@ -53,7 +53,7 @@ export const useShoppingStore = create<ShoppingState>((set, get) => ({
     const maxOrder = get().items.reduce((m, i) => Math.max(m, i.order ?? 0), 0);
     const { data, error } = await supabase
       .from("shopping_items")
-      .insert({ household_id: householdId, label, category, order: maxOrder + 1, date: date ?? null, user_id: userId ?? null })
+      .insert({ household_id: householdId, label, category, order: maxOrder + 1, date: date ?? null, ...(userId ? { user_id: userId } : {}) })
       .select()
       .single();
     if (error) throw new Error(error.message);
