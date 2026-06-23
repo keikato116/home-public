@@ -90,7 +90,7 @@ function AddItemForm({
 }) {
   const [open, setOpen] = useState(false);
   const [label, setLabel] = useState("");
-  const [store, setStore] = useState<Store | null>(null);
+  const [store, setStore] = useState<Store | "list" | null>(null);
   const [isPrivate, setIsPrivate] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -99,7 +99,7 @@ function AddItemForm({
     if (!label.trim()) return;
     setSubmitting(true);
     try {
-      await onAdd(label.trim(), store, defaultDate, isPrivate);
+      await onAdd(label.trim(), store === "list" || store === null ? null : store, defaultDate, isPrivate);
       setLabel("");
       setStore(null);
       setOpen(false);
@@ -135,10 +135,10 @@ function AddItemForm({
       <div className="flex gap-2 mt-3 flex-wrap">
         <button
           type="button"
-          onClick={() => setStore(null)}
+          onClick={() => setStore(prev => prev === "list" ? null : "list")}
           className={cn(
             "text-[10px] tracking-wider px-2 py-1 rounded border transition-colors",
-            store === null
+            store === "list"
               ? "bg-foreground text-background border-foreground"
               : "border-border text-muted-foreground"
           )}
@@ -149,7 +149,7 @@ function AddItemForm({
           <button
             key={s}
             type="button"
-            onClick={() => setStore(s)}
+            onClick={() => setStore(prev => prev === s ? null : s)}
             className={cn(
               "text-[10px] tracking-wider px-2 py-1 rounded border transition-colors",
               store === s
