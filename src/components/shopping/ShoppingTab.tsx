@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useShoppingStore } from "@/store/shoppingStore";
 import { useAuthStore } from "@/store/authStore";
+import { Lock } from "lucide-react";
 import { ShoppingItem } from "@/types";
 import { Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -80,11 +81,12 @@ function AddItemForm({
   onAdd,
 }: {
   defaultDate: string | null;
-  onAdd: (label: string, store: Store, date: string | null) => Promise<void>;
+  onAdd: (label: string, store: Store, date: string | null, isPrivate: boolean) => Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
   const [label, setLabel] = useState("");
   const [store, setStore] = useState<Store>("grocery");
+  const [isPrivate, setIsPrivate] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const submit = async (e: React.FormEvent) => {
@@ -92,7 +94,7 @@ function AddItemForm({
     if (!label.trim()) return;
     setSubmitting(true);
     try {
-      await onAdd(label.trim(), store, defaultDate);
+      await onAdd(label.trim(), store, defaultDate, isPrivate);
       setLabel("");
       setOpen(false);
     } finally {
@@ -141,7 +143,7 @@ function AddItemForm({
           </button>
         ))}
       </div>
-      <div className="flex gap-3 mt-3">
+      <div className="flex items-center gap-3 mt-3">
         <button
           type="submit"
           disabled={!label.trim() || submitting}
@@ -156,13 +158,26 @@ function AddItemForm({
         >
           cancel
         </button>
+        <button
+          type="button"
+          onClick={() => setIsPrivate(v => !v)}
+          className={cn(
+            "ml-auto flex items-center gap-1 text-[10px] px-2 py-1 rounded border transition-colors",
+            isPrivate
+              ? "bg-foreground text-background border-foreground"
+              : "border-border text-muted-foreground"
+          )}
+        >
+          <Lock size={9} />
+          自分だけ
+        </button>
       </div>
     </form>
   );
 }
 
 export function ShoppingTab() {
-  const { householdId } = useAuthStore();
+  const { householdId, user } = useAuthStore();
   const { load, subscribeRealtime, items, deleteItem, addItem } = useShoppingStore();
   const today = todayStr();
   const [activeTab, setActiveTab] = useState<string | null>(null);
@@ -177,18 +192,22 @@ export function ShoppingTab() {
   // Only today and future
   const visibleItems = items.filter((i) => !i.date || i.date >= today);
 
-  // Sorted distinct future dates
-  const dates = Array.from(new Set(visibleItems.filter((i) => i.date).map((i) => i.date!))).sort();
+  // Separate private (mine) vs shared
+  const sharedVisible = visibleItems.filter((i) => !i.user_id);
+  const privateVisible = visibleItems.filter((i) => i.user_id === user?.id);
 
-  const undatedItems = visibleItems.filter((i) => !i.date);
+  // Sorted distinct future dates (shared only, for tabs)
+  const dates = Array.from(new Set(sharedVisible.filter((i) => i.date).map((i) => i.date!))).sort();
+
+  const undatedItems = sharedVisible.filter((i) => !i.date);
 
   const firstDate = dates[0] ?? null;
   const effectiveTab = activeTab && dates.includes(activeTab) ? activeTab : firstDate;
 
   const tabItems =
     effectiveTab === firstDate
-      ? [...undatedItems, ...visibleItems.filter((i) => i.date === effectiveTab)]
-      : visibleItems.filter((i) => i.date === effectiveTab);
+      ? [...undatedItems, ...sharedVisible.filter((i) => i.date === effectiveTab)]
+      : sharedVisible.filter((i) => i.date === effectiveTab);
 
   const displayItems = dates.length === 0 ? undatedItems : tabItems;
 
@@ -208,7 +227,7 @@ export function ShoppingTab() {
   }
 
   const hasTabs = dates.length > 0;
-  const isEmpty = displayItems.length === 0;
+  const isEmpty = displayItems.length === 0 && privateVisible.length === 0;
 
   return (
     <div className="flex flex-col h-full bg-background">
@@ -253,11 +272,25 @@ export function ShoppingTab() {
         ))}
         <AddItemForm
           defaultDate={effectiveTab}
-          onAdd={async (label, store, date) => {
+          onAdd={async (label, store, date, isPrivate) => {
             if (!householdId) return;
-            await addItem(householdId, label, store, date ?? undefined);
+            await addItem(householdId, label, store, date ?? undefined, isPrivate ? (user?.id ?? null) : null);
           }}
         />
+
+        {/* Private items section */}
+        {privateVisible.length > 0 && (
+          <>
+            <div className="border-t border-border/20 mt-4 mb-4" />
+            <div className="flex items-center gap-1.5 mb-2">
+              <Lock size={9} className="text-muted-foreground" />
+              <p className="text-[10px] tracking-widest text-muted-foreground">mine only</p>
+            </div>
+            {privateVisible.map((item) => (
+              <ItemRow key={item.id} item={item} onDelete={() => deleteItem(item.id)} />
+            ))}
+          </>
+        )}
       </div>
     </div>
   );

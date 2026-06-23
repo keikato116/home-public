@@ -35,6 +35,7 @@ export interface SharedTodo {
 export interface ShoppingItem {
   id: string;
   household_id: string;
+  user_id: string | null;
   label: string;
   category: string;
   done: boolean;
