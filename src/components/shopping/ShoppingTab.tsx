@@ -143,7 +143,7 @@ function AddItemForm({
               : "border-border text-muted-foreground"
           )}
         >
-          my list
+          other
         </button>
         {STORES.map((s) => (
           <button
@@ -280,7 +280,7 @@ export function ShoppingTab() {
         {/* my list: no category selected */}
         {listItems.length > 0 && (
           <div className={autoItems.length > 0 ? "mt-4" : ""}>
-            <p className="text-[10px] tracking-widest text-muted-foreground mb-1">my list</p>
+            <p className="text-[10px] tracking-widest text-muted-foreground mb-1">other</p>
             {listItems.map((item) => (
               <ItemRow key={item.id} item={item} onDelete={() => deleteItem(item.id)} />
             ))}
