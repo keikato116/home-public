@@ -34,15 +34,27 @@ export function rollGacha(recipes: Recipe[]): GachaResult | null {
   const noodles = by("noodles");
   const bowls = by("rice & bowl");
 
-  const types: Array<"combo" | "pasta" | "noodles" | "bowl"> = [];
-  if (mains.length > 0 && sides.length > 0) types.push("combo");
-  if (pastas.length > 0) types.push("pasta");
-  if (noodles.length > 0) types.push("noodles");
-  if (bowls.length > 0) types.push("bowl");
+  // Weight each dinner type by how many "main dish" options it holds, so a
+  // category with 1 recipe isn't as likely as one with 20. combo counts by the
+  // number of mains (each pairs with a side). This makes every main dish across
+  // all categories roughly equally likely, instead of every category equally likely.
+  const options: Array<{ type: "combo" | "pasta" | "noodles" | "bowl"; weight: number }> = [];
+  if (mains.length > 0 && sides.length > 0) options.push({ type: "combo", weight: mains.length });
+  if (pastas.length > 0) options.push({ type: "pasta", weight: pastas.length });
+  if (noodles.length > 0) options.push({ type: "noodles", weight: noodles.length });
+  if (bowls.length > 0) options.push({ type: "bowl", weight: bowls.length });
 
-  if (types.length === 0) return null;
+  if (options.length === 0) return null;
   const history = getGachaHistory();
-  const type = types[Math.floor(Math.random() * types.length)];
+
+  const totalWeight = options.reduce((sum, o) => sum + o.weight, 0);
+  let roll = Math.random() * totalWeight;
+  let type = options[options.length - 1].type;
+  for (const o of options) {
+    if (roll < o.weight) { type = o.type; break; }
+    roll -= o.weight;
+  }
+
   switch (type) {
     case "combo": {
       const main = pick(freshPool(mains, history));
