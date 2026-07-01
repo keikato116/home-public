@@ -176,6 +176,7 @@ interface RecipeState {
   add: (householdId: string, input: Partial<Recipe> & { title: string }, file?: File) => Promise<void>;
   updateRecipe: (id: string, patch: Partial<Pick<Recipe, "category" | "subcategory" | "title" | "ingredients" | "memo" | "servings">>) => Promise<void>;
   recordMade: (id: string, date?: string) => Promise<void>;
+  unrecordMade: (id: string) => Promise<void>;
   deleteRecipe: (id: string) => Promise<void>;
 }
 
@@ -278,6 +279,20 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
     await supabase.from("recipes").update({ times_made, last_made_at: madeDate }).eq("id", id);
     set((s) => ({
       recipes: s.recipes.map((r) => r.id === id ? { ...r, times_made, last_made_at: madeDate } : r),
+    }));
+  },
+
+  unrecordMade: async (id) => {
+    const supabase = createClient();
+    await ensureSession();
+    const recipe = get().recipes.find((r) => r.id === id);
+    if (!recipe) return;
+    const times_made = Math.max(0, (recipe.times_made ?? 0) - 1);
+    // Once the count hits zero there's no prior date to restore; clear it.
+    const last_made_at = times_made === 0 ? null : recipe.last_made_at;
+    await supabase.from("recipes").update({ times_made, last_made_at }).eq("id", id);
+    set((s) => ({
+      recipes: s.recipes.map((r) => r.id === id ? { ...r, times_made, last_made_at } : r),
     }));
   },
 

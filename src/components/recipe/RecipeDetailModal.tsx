@@ -52,7 +52,7 @@ function scaleIngredients(text: string, ratio: number): string {
 }
 
 export function RecipeDetailModal({ recipe, onClose }: Props) {
-  const { deleteRecipe, recordMade, updateRecipe } = useRecipeStore();
+  const { deleteRecipe, recordMade, unrecordMade, updateRecipe } = useRecipeStore();
   const [targetServings, setTargetServings] = useState<number>(recipe.servings ?? 2);
   const [recording, setRecording] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -82,6 +82,12 @@ export function RecipeDetailModal({ recipe, onClose }: Props) {
   const handleMadeIt = async () => {
     setRecording(true);
     await recordMade(recipe.id);
+    setRecording(false);
+  };
+
+  const handleUndoMade = async () => {
+    setRecording(true);
+    await unrecordMade(recipe.id);
     setRecording(false);
   };
 
@@ -191,7 +197,19 @@ export function RecipeDetailModal({ recipe, onClose }: Props) {
           <div className="flex items-center gap-4">
             <div>
               <p className="text-[10px] tracking-widest text-muted-foreground uppercase mb-0.5">made</p>
-              <p className="text-[13px]">{recipe.times_made ?? 0} times</p>
+              <div className="flex items-center gap-2">
+                <p className="text-[13px]">{recipe.times_made ?? 0} times</p>
+                {(recipe.times_made ?? 0) > 0 && (
+                  <button
+                    onClick={handleUndoMade}
+                    disabled={recording}
+                    className="text-[15px] leading-none text-muted-foreground/50 hover:text-foreground transition-colors disabled:opacity-40 px-1"
+                    aria-label="undo made it"
+                  >
+                    −
+                  </button>
+                )}
+              </div>
             </div>
             {recipe.last_made_at && (
               <div>
