@@ -14,7 +14,8 @@ import { TaskSection } from "./TaskSection";
 import { RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
 import { CalendarEvent, isHighlightPlan } from "@/types";
 import { getJapaneseHolidayName } from "@/lib/japaneseHolidays";
-import { toDateStr, isSameDay, getWeekDays } from "@/lib/dates";
+import { hasEventInWindow, bothHaveAllDayEvent, hasAllDayBlock } from "@/lib/freeTime";
+import { toDateStr, isSameDay, isWeekendOrHoliday, getWeekDays } from "@/lib/dates";
 import { ViewMode, getPeriodLabel } from "./lib";
 
 export function CalendarTab() {
@@ -164,22 +165,40 @@ export function CalendarTab() {
               const localTasks = dayEvents.filter(e => e.isLocal && e.ownerId === currentUserId);
               const timedLocalTasks = localTasks.filter(e => !!e.start.dateTime);
               const ds = toDateStr(selectedDate);
-              const highlightEvents: CalendarEvent[] = plans
-                .filter(p => p.date === ds && (isHighlightPlan(p, "dinner") || isHighlightPlan(p, "lunch")))
-                .flatMap(p => {
-                  const isDinner = isHighlightPlan(p, "dinner");
-                  const [sh, eh] = isDinner ? ["18:00", "20:00"] : ["11:00", "13:00"];
-                  const base = {
-                    summary: isDinner ? "夜ご飯" : "昼ごはん",
-                    calendarColor: "#a855f7",
-                    start: { dateTime: `${ds}T${sh}:00` },
-                    end: { dateTime: `${ds}T${eh}:00` },
-                  };
-                  return [
-                    { ...base, id: `highlight-my-${p.id}`, ownerId: currentUserId },
-                    { ...base, id: `highlight-partner-${p.id}`, ownerId: "highlight-partner" },
-                  ];
-                });
+
+              // Auto free-meal detection, kept consistent with the month view (MonthGrid):
+              // an evening with no event 18–21 (and no all-day block) shows 夜ご飯; a free
+              // 11–13 window on a weekend/holiday (or when both are off all day) shows 昼ごはん.
+              // This is why 夜ご飯 must appear on every mutually-free evening, not only ones
+              // that were manually highlighted in the cook tab.
+              const calEventsOnly = dayEvents.filter(e => !e.isLocal);
+              const isFuture = ds >= toDateStr(today);
+              const allDayBlocked = hasAllDayBlock(selectedDate, calEventsOnly);
+              const autoFreeDinner = isFuture && !hasEventInWindow(calEventsOnly, 18, 21) && !allDayBlocked;
+              const autoFreeLunch = isFuture && !hasEventInWindow(calEventsOnly, 11, 13) && !allDayBlocked &&
+                (isWeekendOrHoliday(selectedDate) || bothHaveAllDayEvent(calEventsOnly));
+
+              const showDinner = autoFreeDinner || plans.some(p => p.date === ds && isHighlightPlan(p, "dinner"));
+              const showLunch = autoFreeLunch || plans.some(p => p.date === ds && isHighlightPlan(p, "lunch"));
+
+              const mealTypes: ("dinner" | "lunch")[] = [];
+              if (showDinner) mealTypes.push("dinner");
+              if (showLunch) mealTypes.push("lunch");
+
+              const highlightEvents: CalendarEvent[] = mealTypes.flatMap(mealType => {
+                const isDinner = mealType === "dinner";
+                const [sh, eh] = isDinner ? ["18:00", "20:00"] : ["11:00", "13:00"];
+                const base = {
+                  summary: isDinner ? "夜ご飯" : "昼ごはん",
+                  calendarColor: "#a855f7",
+                  start: { dateTime: `${ds}T${sh}:00` },
+                  end: { dateTime: `${ds}T${eh}:00` },
+                };
+                return [
+                  { ...base, id: `highlight-my-${mealType}`, ownerId: currentUserId },
+                  { ...base, id: `highlight-partner-${mealType}`, ownerId: "highlight-partner" },
+                ];
+              });
               const calEvents = [...dayEvents.filter(e => !e.isLocal), ...timedLocalTasks, ...highlightEvents];
               return (
                 <>
