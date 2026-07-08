@@ -63,7 +63,9 @@ export function MonthGrid({ selectedDate, today, eventsMap, currentUserId, plans
           const myLocalTasks = dayEvents.filter(e => e.isLocal && e.ownerId === currentUserId);
           const taskTypes = new Set(myLocalTasks.map(e => parseTaskType(e.summary)).filter(Boolean) as ("run" | "ride")[]);
           const taskBg = taskTypes.has("run") ? RUN_CELL_BG : taskTypes.has("ride") ? RIDE_CELL_BG : undefined;
-          const calEvents = (eventsMap[ds] ?? []).filter(e => !e.isLocal);
+          // Local plans (e.g. 飲み) count as busy for meal detection; only local workout
+          // logs (run:/ride: tasks) are ignored.
+          const calEvents = (eventsMap[ds] ?? []).filter(e => !(e.isLocal && parseTaskType(e.summary)));
           const isFuture = ds >= todayStr;
           const allDayBlocked = hasAllDayBlock(d, calEvents);
           const autoFreeDinner = isFuture && !hasEventInWindow(calEvents, 18, 21) && !allDayBlocked;

@@ -9,6 +9,7 @@ import { MealPlan, isHighlightPlan } from "@/types";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { toDateStr, isSameDay, isWeekendOrHoliday, DOW_LETTERS, MONTH_NAMES } from "@/lib/dates";
 import { hasEventInWindow, bothHaveAllDayEvent, hasAllDayBlock } from "@/lib/freeTime";
+import { parseTaskType } from "@/components/calendar/lib";
 import { DayCell } from "./DayCell";
 import { EditSheet } from "./EditSheet";
 
@@ -110,9 +111,10 @@ export function CookTab() {
         {cells.map((d, i) => {
           if (!d) return <div key={i} className="border-r border-b border-border/20" />;
           const ds = toDateStr(d);
-          // Only Google Calendar events affect free detection.
-          // Meal highlights (mealPlanStore) are synthetic and never in eventsMap.
-          const dayEvents = (eventsMap[ds] ?? []).filter(e => !e.isLocal);
+          // Google events and local plans (e.g. 飲み) affect free detection; only local
+          // workout logs (run:/ride: tasks) are ignored. Meal highlights (mealPlanStore)
+          // are synthetic and never in eventsMap.
+          const dayEvents = (eventsMap[ds] ?? []).filter(e => !(e.isLocal && parseTaskType(e.summary)));
           const isHolidayOrWeekend = isWeekendOrHoliday(d);
           const isFuture = ds >= todayStr;
           const allDayBlocked = hasAllDayBlock(d, dayEvents);

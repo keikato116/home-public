@@ -16,7 +16,7 @@ import { CalendarEvent, isHighlightPlan } from "@/types";
 import { getJapaneseHolidayName } from "@/lib/japaneseHolidays";
 import { hasEventInWindow, bothHaveAllDayEvent, hasAllDayBlock } from "@/lib/freeTime";
 import { toDateStr, isSameDay, isWeekendOrHoliday, getWeekDays, getJSTToday } from "@/lib/dates";
-import { ViewMode, getPeriodLabel } from "./lib";
+import { ViewMode, getPeriodLabel, parseTaskType } from "./lib";
 
 export function CalendarTab() {
   const { householdId, reAuthGoogle, user, calendarViewSignal } = useAuthStore();
@@ -172,7 +172,9 @@ export function CalendarTab() {
               // 11–13 window on a weekend/holiday (or when both are off all day) shows 昼ごはん.
               // This is why 夜ご飯 must appear on every mutually-free evening, not only ones
               // that were manually highlighted in the cook tab.
-              const calEventsOnly = dayEvents.filter(e => !e.isLocal);
+              // Google events AND local plans (e.g. 飲み) count as busy; only local workout
+              // logs (run:/ride: tasks) are ignored — they don't stop you eating dinner.
+              const calEventsOnly = dayEvents.filter(e => !(e.isLocal && parseTaskType(e.summary)));
               const isFuture = ds >= toDateStr(today);
               const allDayBlocked = hasAllDayBlock(selectedDate, calEventsOnly);
               const autoFreeDinner = isFuture && !hasEventInWindow(calEventsOnly, 18, 21) && !allDayBlocked;
