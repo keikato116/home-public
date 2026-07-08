@@ -15,7 +15,7 @@ import { RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
 import { CalendarEvent, isHighlightPlan } from "@/types";
 import { getJapaneseHolidayName } from "@/lib/japaneseHolidays";
 import { hasEventInWindow, bothHaveAllDayEvent, hasAllDayBlock } from "@/lib/freeTime";
-import { toDateStr, isSameDay, isWeekendOrHoliday, getWeekDays } from "@/lib/dates";
+import { toDateStr, isSameDay, isWeekendOrHoliday, getWeekDays, getJSTToday } from "@/lib/dates";
 import { ViewMode, getPeriodLabel } from "./lib";
 
 export function CalendarTab() {
@@ -25,7 +25,8 @@ export function CalendarTab() {
   const { plans, load: loadMealPlans } = useMealPlanStore();
   const currentUserId = user?.id;
 
-  const today = useRef(new Date()).current;
+  // JST-anchored so "today" and free-evening detection don't shift on a non-JST runtime.
+  const today = useRef(getJSTToday()).current;
   const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [selectedDate, setSelectedDate] = useState<Date>(today);
 
@@ -188,11 +189,12 @@ export function CalendarTab() {
               const highlightEvents: CalendarEvent[] = mealTypes.flatMap(mealType => {
                 const isDinner = mealType === "dinner";
                 const [sh, eh] = isDinner ? ["18:00", "20:00"] : ["11:00", "13:00"];
+                // Explicit +09:00 so the timeline places these at JST regardless of runtime tz.
                 const base = {
                   summary: isDinner ? "夜ご飯" : "昼ごはん",
                   calendarColor: "#a855f7",
-                  start: { dateTime: `${ds}T${sh}:00` },
-                  end: { dateTime: `${ds}T${eh}:00` },
+                  start: { dateTime: `${ds}T${sh}:00+09:00` },
+                  end: { dateTime: `${ds}T${eh}:00+09:00` },
                 };
                 return [
                   { ...base, id: `highlight-my-${mealType}`, ownerId: currentUserId },
