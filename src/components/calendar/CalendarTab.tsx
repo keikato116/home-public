@@ -14,7 +14,7 @@ import { TaskSection } from "./TaskSection";
 import { RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
 import { CalendarEvent, isHighlightPlan } from "@/types";
 import { getJapaneseHolidayName } from "@/lib/japaneseHolidays";
-import { hasEventInWindow, bothHaveAllDayEvent, hasAllDayBlock } from "@/lib/freeTime";
+import { hasEventInWindow, bothHaveAllDayEvent } from "@/lib/freeTime";
 import { toDateStr, isSameDay, isWeekendOrHoliday, getWeekDays, getJSTToday } from "@/lib/dates";
 import { ViewMode, getPeriodLabel, parseTaskType } from "./lib";
 
@@ -172,13 +172,13 @@ export function CalendarTab() {
               // 11–13 window on a weekend/holiday (or when both are off all day) shows 昼ごはん.
               // This is why 夜ご飯 must appear on every mutually-free evening, not only ones
               // that were manually highlighted in the cook tab.
-              // Google events AND local plans (e.g. 飲み) count as busy; only local workout
-              // logs (run:/ride: tasks) are ignored — they don't stop you eating dinner.
+              // Only timed plans matter: a timed event 18–21 blocks 夜ご飯, 11–13 blocks 昼ごはん.
+              // All-day events (当直, birthdays, labels…) are ignored entirely. Local workout
+              // logs (run:/ride: tasks) are also ignored — they don't stop you eating.
               const calEventsOnly = dayEvents.filter(e => !(e.isLocal && parseTaskType(e.summary)));
               const isFuture = ds >= toDateStr(today);
-              const allDayBlocked = hasAllDayBlock(selectedDate, calEventsOnly);
-              const autoFreeDinner = isFuture && !hasEventInWindow(calEventsOnly, 18, 21) && !allDayBlocked;
-              const autoFreeLunch = isFuture && !hasEventInWindow(calEventsOnly, 11, 13) && !allDayBlocked &&
+              const autoFreeDinner = isFuture && !hasEventInWindow(calEventsOnly, 18, 21);
+              const autoFreeLunch = isFuture && !hasEventInWindow(calEventsOnly, 11, 13) &&
                 (isWeekendOrHoliday(selectedDate) || bothHaveAllDayEvent(calEventsOnly));
 
               const showDinner = autoFreeDinner || plans.some(p => p.date === ds && isHighlightPlan(p, "dinner"));

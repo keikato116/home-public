@@ -3,7 +3,7 @@
 import { CalendarEvent, MealPlan } from "@/types";
 import { getJapaneseHolidayName } from "@/lib/japaneseHolidays";
 import { toDateStr, isSameDay, isWeekendOrHoliday, getMonthDays, DOW_LETTERS, toJSTDateStr, toJSTMinOfDay } from "@/lib/dates";
-import { hasEventInWindow, bothHaveAllDayEvent, hasAllDayBlock } from "@/lib/freeTime";
+import { hasEventInWindow, bothHaveAllDayEvent } from "@/lib/freeTime";
 import { eventColor, parseTaskType } from "./lib";
 import { RUN_CELL_BG, RIDE_CELL_BG } from "@/lib/colors";
 
@@ -67,9 +67,8 @@ export function MonthGrid({ selectedDate, today, eventsMap, currentUserId, plans
           // logs (run:/ride: tasks) are ignored.
           const calEvents = (eventsMap[ds] ?? []).filter(e => !(e.isLocal && parseTaskType(e.summary)));
           const isFuture = ds >= todayStr;
-          const allDayBlocked = hasAllDayBlock(d, calEvents);
-          const autoFreeDinner = isFuture && !hasEventInWindow(calEvents, 18, 21) && !allDayBlocked;
-          const autoFreeLunch = isFuture && !hasEventInWindow(calEvents, 11, 13) && !allDayBlocked &&
+          const autoFreeDinner = isFuture && !hasEventInWindow(calEvents, 18, 21);
+          const autoFreeLunch = isFuture && !hasEventInWindow(calEvents, 11, 13) &&
             (isWeekendOrHoliday(d) || bothHaveAllDayEvent(calEvents));
           const hasDinner = autoFreeDinner || plans.some(p => p.date === ds && p.meal_type === "dinner");
           const hasLunch = autoFreeLunch || plans.some(p => p.date === ds && p.meal_type === "lunch");

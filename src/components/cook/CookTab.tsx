@@ -8,7 +8,7 @@ import { useCalendarStore } from "@/store/calendarStore";
 import { MealPlan, isHighlightPlan } from "@/types";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { toDateStr, isSameDay, isWeekendOrHoliday, DOW_LETTERS, MONTH_NAMES } from "@/lib/dates";
-import { hasEventInWindow, bothHaveAllDayEvent, hasAllDayBlock } from "@/lib/freeTime";
+import { hasEventInWindow, bothHaveAllDayEvent } from "@/lib/freeTime";
 import { parseTaskType } from "@/components/calendar/lib";
 import { DayCell } from "./DayCell";
 import { EditSheet } from "./EditSheet";
@@ -117,8 +117,7 @@ export function CookTab() {
           const dayEvents = (eventsMap[ds] ?? []).filter(e => !(e.isLocal && parseTaskType(e.summary)));
           const isHolidayOrWeekend = isWeekendOrHoliday(d);
           const isFuture = ds >= todayStr;
-          const allDayBlocked = hasAllDayBlock(d, dayEvents);
-          const lunchFreeWindow = isFuture && !hasEventInWindow(dayEvents, 11, 13) && !allDayBlocked;
+          const lunchFreeWindow = isFuture && !hasEventInWindow(dayEvents, 11, 13);
           return (
             <DayCell
               key={i}
@@ -126,7 +125,7 @@ export function CookTab() {
               dinnerPlan={dinnerByDate[ds]}
               lunchPlan={lunchByDate[ds]}
               isToday={isSameDay(d, today)}
-              freeEvening={isFuture && !hasEventInWindow(dayEvents, 18, 21) && !allDayBlocked}
+              freeEvening={isFuture && !hasEventInWindow(dayEvents, 18, 21)}
               freeLunch={lunchFreeWindow && (isHolidayOrWeekend || bothHaveAllDayEvent(dayEvents))}
               showLunch={true}
               isHighlightedDinner={highlightDinnerDates.has(ds)}
