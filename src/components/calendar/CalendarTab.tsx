@@ -177,12 +177,17 @@ export function CalendarTab() {
               // logs (run:/ride: tasks) are also ignored — they don't stop you eating.
               const calEventsOnly = dayEvents.filter(e => !(e.isLocal && parseTaskType(e.summary)));
               const isFuture = ds >= toDateStr(today);
-              const autoFreeDinner = isFuture && !hasEventInWindow(calEventsOnly, 18, 21);
-              const autoFreeLunch = isFuture && !hasEventInWindow(calEventsOnly, 11, 13) &&
+              const eveningBusy = hasEventInWindow(calEventsOnly, 18, 21);
+              const middayBusy = hasEventInWindow(calEventsOnly, 11, 13);
+              const autoFreeDinner = isFuture && !eveningBusy;
+              const autoFreeLunch = isFuture && !middayBusy &&
                 (isWeekendOrHoliday(selectedDate) || bothHaveAllDayEvent(calEventsOnly));
 
-              const showDinner = autoFreeDinner || plans.some(p => p.date === ds && isHighlightPlan(p, "dinner"));
-              const showLunch = autoFreeLunch || plans.some(p => p.date === ds && isHighlightPlan(p, "lunch"));
+              // A timed event in the meal window always wins: even a manually highlighted
+              // 夜ご飯 disappears once a real plan lands in 18–21, so the meal never lingers
+              // on top of a newly added commitment.
+              const showDinner = !eveningBusy && (autoFreeDinner || plans.some(p => p.date === ds && isHighlightPlan(p, "dinner")));
+              const showLunch = !middayBusy && (autoFreeLunch || plans.some(p => p.date === ds && isHighlightPlan(p, "lunch")));
 
               const mealTypes: ("dinner" | "lunch")[] = [];
               if (showDinner) mealTypes.push("dinner");

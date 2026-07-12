@@ -117,7 +117,11 @@ export function CookTab() {
           const dayEvents = (eventsMap[ds] ?? []).filter(e => !(e.isLocal && parseTaskType(e.summary)));
           const isHolidayOrWeekend = isWeekendOrHoliday(d);
           const isFuture = ds >= todayStr;
-          const lunchFreeWindow = isFuture && !hasEventInWindow(dayEvents, 11, 13);
+          // A timed event in the meal window wins over both auto detection and a manual
+          // highlight, so the highlight background clears once a plan lands in that window.
+          const eveningBusy = hasEventInWindow(dayEvents, 18, 21);
+          const middayBusy = hasEventInWindow(dayEvents, 11, 13);
+          const lunchFreeWindow = isFuture && !middayBusy;
           return (
             <DayCell
               key={i}
@@ -125,11 +129,11 @@ export function CookTab() {
               dinnerPlan={dinnerByDate[ds]}
               lunchPlan={lunchByDate[ds]}
               isToday={isSameDay(d, today)}
-              freeEvening={isFuture && !hasEventInWindow(dayEvents, 18, 21)}
+              freeEvening={isFuture && !eveningBusy}
               freeLunch={lunchFreeWindow && (isHolidayOrWeekend || bothHaveAllDayEvent(dayEvents))}
               showLunch={true}
-              isHighlightedDinner={highlightDinnerDates.has(ds)}
-              isHighlightedLunch={highlightLunchDates.has(ds)}
+              isHighlightedDinner={highlightDinnerDates.has(ds) && !eveningBusy}
+              isHighlightedLunch={highlightLunchDates.has(ds) && !middayBusy}
               onSelectDinner={() => { setEditMealType("dinner"); setEditDate(d); }}
               onSelectLunch={() => { setEditMealType("lunch"); setEditDate(d); }}
             />

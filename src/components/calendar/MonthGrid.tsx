@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarEvent, MealPlan } from "@/types";
+import { CalendarEvent, MealPlan, isHighlightPlan } from "@/types";
 import { getJapaneseHolidayName } from "@/lib/japaneseHolidays";
 import { toDateStr, isSameDay, isWeekendOrHoliday, getMonthDays, DOW_LETTERS, toJSTDateStr, toJSTMinOfDay } from "@/lib/dates";
 import { hasEventInWindow, bothHaveAllDayEvent } from "@/lib/freeTime";
@@ -70,8 +70,12 @@ export function MonthGrid({ selectedDate, today, eventsMap, currentUserId, plans
           const autoFreeDinner = isFuture && !hasEventInWindow(calEvents, 18, 21);
           const autoFreeLunch = isFuture && !hasEventInWindow(calEvents, 11, 13) &&
             (isWeekendOrHoliday(d) || bothHaveAllDayEvent(calEvents));
-          const hasDinner = autoFreeDinner || plans.some(p => p.date === ds && p.meal_type === "dinner");
-          const hasLunch = autoFreeLunch || plans.some(p => p.date === ds && p.meal_type === "lunch");
+          // A real planned meal (recipe/label) always keeps its dot; the auto / highlight-only
+          // marker disappears once a timed plan lands in that meal window.
+          const hasRealDinner = plans.some(p => p.date === ds && p.meal_type === "dinner" && !isHighlightPlan(p, "dinner"));
+          const hasRealLunch = plans.some(p => p.date === ds && p.meal_type === "lunch" && !isHighlightPlan(p, "lunch"));
+          const hasDinner = hasRealDinner || autoFreeDinner;
+          const hasLunch = hasRealLunch || autoFreeLunch;
           return (
             <button
               key={i}
