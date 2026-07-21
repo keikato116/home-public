@@ -17,9 +17,11 @@ interface SplitState {
   ) => Promise<void>;
   deleteSession: (id: string) => Promise<void>;
   updateSessionStore: (id: string, store: string) => Promise<void>;
+  updateSessionCard: (id: string, card: "mine" | "family") => Promise<void>;
   setFamilyTotal: (householdId: string, year: number, month: number, total: number) => Promise<void>;
   addSubscription: (householdId: string, data: { name: string; amount: number; card: "mine" | "family" }) => Promise<void>;
   deleteSubscription: (id: string) => Promise<void>;
+  updateSubscriptionCard: (id: string, card: "mine" | "family") => Promise<void>;
 }
 
 export const useSplitStore = create<SplitState>((set) => ({
@@ -104,6 +106,13 @@ export const useSplitStore = create<SplitState>((set) => ({
     await supabase.from("split_sessions").update({ store }).eq("id", id);
   },
 
+  updateSessionCard: async (id, card) => {
+    set((s) => ({ sessions: s.sessions.map((s) => s.id === id ? { ...s, card } : s) }));
+    const supabase = createClient();
+    await ensureSession();
+    await supabase.from("split_sessions").update({ card }).eq("id", id);
+  },
+
   setFamilyTotal: async (householdId, year, month, total) => {
     const supabase = createClient();
     await ensureSession();
@@ -132,5 +141,12 @@ export const useSplitStore = create<SplitState>((set) => ({
     const supabase = createClient();
     await ensureSession();
     await supabase.from("split_subscriptions").delete().eq("id", id);
+  },
+
+  updateSubscriptionCard: async (id, card) => {
+    set((s) => ({ subscriptions: s.subscriptions.map((sub) => sub.id === id ? { ...sub, card } : sub) }));
+    const supabase = createClient();
+    await ensureSession();
+    await supabase.from("split_subscriptions").update({ card }).eq("id", id);
   },
 }));

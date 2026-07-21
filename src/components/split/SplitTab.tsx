@@ -20,7 +20,7 @@ export function SplitTab() {
   const {
     sessions, familyTotal, subscriptions, loading,
     load, addSession, deleteSession, setFamilyTotal,
-    addSubscription, deleteSubscription, updateSessionStore,
+    addSubscription, deleteSubscription, updateSessionStore, updateSessionCard, updateSubscriptionCard,
   } = useSplitStore();
 
   // Closing day: 0 = calendar month, 1-28 = billing cycle closes on that day
@@ -275,6 +275,7 @@ export function SplitTab() {
                 herRatio={splitRatio}
                 onDelete={() => deleteSession(session.id)}
                 onUpdateStore={(store) => updateSessionStore(session.id, store)}
+                onUpdateCard={(card) => updateSessionCard(session.id, card)}
               />
             ))}
           </div>
@@ -349,12 +350,16 @@ export function SplitTab() {
             <div key={sub.id} className="flex items-center gap-2 py-1.5 border-b border-border/10">
               <span className="flex-1 text-[12px] text-muted-foreground">{sub.name}</span>
               <span className="text-[12px] tabular-nums text-muted-foreground/60">¥{sub.amount.toLocaleString()}</span>
-              <span className={cn(
-                "text-[9px] tracking-wide px-1.5 py-0.5 rounded border flex-shrink-0",
-                sub.card === "mine" ? "border-border/60 text-muted-foreground/60" : "border-blue-400/30 text-blue-400"
-              )}>
+              <button
+                onClick={() => updateSubscriptionCard(sub.id, sub.card === "mine" ? "family" : "mine")}
+                className={cn(
+                  "text-[9px] tracking-wide px-1.5 py-0.5 rounded border flex-shrink-0 transition-colors",
+                  sub.card === "mine" ? "border-border/60 text-muted-foreground/60" : "border-blue-400/30 text-blue-400"
+                )}
+                aria-label="toggle him/her"
+              >
                 {sub.card === "mine" ? "him" : "her"}
-              </span>
+              </button>
               <button onClick={() => deleteSubscription(sub.id)} className="text-muted-foreground/30 hover:text-muted-foreground flex-shrink-0">
                 <X size={12} />
               </button>

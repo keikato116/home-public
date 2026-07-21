@@ -6,11 +6,12 @@ import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { fmtYen } from "./lib";
 
-export function SessionRow({ session, herRatio, onDelete, onUpdateStore }: {
+export function SessionRow({ session, herRatio, onDelete, onUpdateStore, onUpdateCard }: {
   session: SplitSession;
   herRatio: number;
   onDelete: () => void;
   onUpdateStore: (store: string) => void;
+  onUpdateCard: (card: "mine" | "family") => void;
 }) {
   const [editingStore, setEditingStore] = useState(false);
   const [storeInput, setStoreInput] = useState(session.store === "−" ? "" : session.store);
@@ -49,12 +50,16 @@ export function SessionRow({ session, herRatio, onDelete, onUpdateStore }: {
               </p>
             </button>
           )}
-          <span className={cn(
-            "text-[9px] tracking-wider px-1.5 py-0.5 rounded border flex-shrink-0",
-            session.card === "mine" ? "border-border text-muted-foreground" : "border-blue-400/50 text-blue-500"
-          )}>
+          <button
+            onClick={() => onUpdateCard(session.card === "mine" ? "family" : "mine")}
+            className={cn(
+              "text-[9px] tracking-wider px-1.5 py-0.5 rounded border flex-shrink-0 transition-colors",
+              session.card === "mine" ? "border-border text-muted-foreground" : "border-blue-400/50 text-blue-500"
+            )}
+            aria-label="toggle him/her"
+          >
             {session.card === "mine" ? "him" : "her"}
-          </span>
+          </button>
         </div>
       </div>
       <div className="text-right flex-shrink-0">
