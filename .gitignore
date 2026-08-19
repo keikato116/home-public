@@ -34,3 +34,12 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# capacitor / ios (the ios/ project itself is generated on the Mac via `npm run ios:add`)
+/ios/App/Pods
+/ios/App/App/public
+/ios/App/build
+/ios/.gitignore
+DerivedData
+*.xcuserstate
+xcuserdata/
