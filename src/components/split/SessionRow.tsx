@@ -4,18 +4,20 @@ import { useState } from "react";
 import { SplitSession } from "@/types";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { fmtYen } from "./lib";
+import { fmtYen, getSessionRatio } from "./lib";
 
-export function SessionRow({ session, herRatio, onDelete, onUpdateStore, onUpdateCard }: {
+export function SessionRow({ session, fallbackRatio, onDelete, onUpdateStore, onUpdateCard }: {
   session: SplitSession;
-  herRatio: number;
+  /** Household default, used only when this receipt has no ratio of its own. */
+  fallbackRatio: number;
   onDelete: () => void;
   onUpdateStore: (store: string) => void;
   onUpdateCard: (card: "mine" | "family") => void;
 }) {
   const [editingStore, setEditingStore] = useState(false);
   const [storeInput, setStoreInput] = useState(session.store === "−" ? "" : session.store);
-  const gfOwed = Math.round(session.shared_amount * herRatio);
+  // Honour the per-receipt ratio saved on the sheet; the household default is only a fallback.
+  const gfOwed = Math.round(session.shared_amount * getSessionRatio(session, fallbackRatio));
   const isCredit = session.card === "family";
 
   const saveStore = () => {

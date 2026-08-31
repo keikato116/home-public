@@ -100,10 +100,12 @@ export function SplitTab() {
   const herFromFamily = sessions.filter(s => s.card === "family").reduce((sum, s) => sum + s.shared_amount * getSessionRatio(s, splitRatio), 0);
   const subsMine = subscriptions.filter(s => s.card === "mine").reduce((sum, s) => sum + s.amount, 0);
   const subsFamily = subscriptions.filter(s => s.card === "family").reduce((sum, s) => sum + s.amount, 0);
-  const totalMineShared = sessions.filter(s => s.card === "mine").reduce((sum, s) => sum + s.shared_amount, 0) + subsMine;
-  const totalFamilyShared = sessions.filter(s => s.card === "family").reduce((sum, s) => sum + s.shared_amount, 0) + subsFamily;
+  // Her share of each side, per-session ratio included, so the breakdown below always
+  // adds up to the headline figure (himSplits + herCardBill − herSplits = gfOwesRaw).
+  const himSplits = herFromMine + subsMine * splitRatio;
+  const herSplits = herFromFamily + subsFamily * splitRatio;
   const familyCardTotal = familyTotal?.total ?? 0;
-  const gfOwesRaw = herFromMine + subsMine * splitRatio + familyCardTotal - herFromFamily - subsFamily * splitRatio;
+  const gfOwesRaw = himSplits + familyCardTotal - herSplits;
   const netPositive = gfOwesRaw >= 0;
 
   const byDate: Record<string, SplitSession[]> = {};
@@ -224,7 +226,7 @@ export function SplitTab() {
         <div className="grid grid-cols-3 gap-2 text-center pt-2 border-t border-border/20">
           <div>
             <p className="text-[8px] text-muted-foreground tracking-wider mb-0.5">him splits</p>
-            <p className="text-[12px] tabular-nums">{fmtYen(totalMineShared * splitRatio)}</p>
+            <p className="text-[12px] tabular-nums">{fmtYen(himSplits)}</p>
           </div>
           <div>
             <p className="text-[8px] text-muted-foreground tracking-wider mb-0.5">her card bill</p>
@@ -252,7 +254,7 @@ export function SplitTab() {
           </div>
           <div>
             <p className="text-[8px] text-muted-foreground tracking-wider mb-0.5">her splits (−)</p>
-            <p className="text-[12px] text-blue-500 tabular-nums">−{fmtYen(totalFamilyShared * splitRatio)}</p>
+            <p className="text-[12px] text-blue-500 tabular-nums">−{fmtYen(herSplits)}</p>
           </div>
         </div>
       </div>
@@ -272,7 +274,7 @@ export function SplitTab() {
               <SessionRow
                 key={session.id}
                 session={session}
-                herRatio={splitRatio}
+                fallbackRatio={splitRatio}
                 onDelete={() => deleteSession(session.id)}
                 onUpdateStore={(store) => updateSessionStore(session.id, store)}
                 onUpdateCard={(card) => updateSessionCard(session.id, card)}
