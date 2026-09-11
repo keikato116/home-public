@@ -13,6 +13,3 @@ export const LS_CAL_CACHE_PREFIX = "cal_cache_";
 
 // OAuth
 export const GOOGLE_CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.readonly";
-
-// Strava
-export const STRAVA_REDIRECT_URI = "https://homes-lime.vercel.app/api/strava/callback";
