@@ -3,7 +3,7 @@
 import { useAuthStore } from "@/store/authStore";
 import { cn } from "@/lib/utils";
 import {
-  Home, Calendar, ChefHat, Dumbbell,
+  Home, Calendar, ChefHat,
   ShoppingCart, Receipt, BookOpen, Settings,
 } from "lucide-react";
 
@@ -11,7 +11,6 @@ const TABS = [
   { id: "home",     icon: Home },
   { id: "calendar", icon: Calendar },
   { id: "cook",     icon: ChefHat },
-  { id: "workout",  icon: Dumbbell },
   { id: "shopping", icon: ShoppingCart },
   { id: "split",    icon: Receipt },
   { id: "recipe",   icon: BookOpen },

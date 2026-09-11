@@ -3,7 +3,6 @@
 import { useEffect } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { useCalendarStore } from "@/store/calendarStore";
-import { useStravaStore } from "@/store/stravaStore";
 import { AuthGate } from "@/components/auth/AuthGate";
 import { HouseholdSetup } from "@/components/onboarding/HouseholdSetup";
 import { BottomTabBar } from "@/components/layout/BottomTabBar";
@@ -12,7 +11,6 @@ import { ShoppingTab } from "@/components/shopping/ShoppingTab";
 import { CalendarTab } from "@/components/calendar/CalendarTab";
 import { RecipeTab } from "@/components/recipe/RecipeTab";
 import { CookTab } from "@/components/cook/CookTab";
-import { WorkoutTab } from "@/components/workout/WorkoutTab";
 import { SplitTab } from "@/components/split/SplitTab";
 import { SettingsPage } from "@/components/settings/SettingsPage";
 
@@ -23,7 +21,6 @@ function MainApp() {
   useEffect(() => {
     if (householdId) {
       useCalendarStore.getState().load(householdId, accessToken);
-      useStravaStore.getState().init();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -37,7 +34,6 @@ function MainApp() {
         {activeTab === "home" && <HomeTab />}
         {activeTab === "calendar" && <CalendarTab />}
         {activeTab === "cook" && <CookTab />}
-        {activeTab === "workout" && <WorkoutTab />}
         {activeTab === "recipe" && <RecipeTab />}
         {activeTab === "shopping" && <ShoppingTab />}
         {activeTab === "split" && <SplitTab />}
