@@ -28,6 +28,10 @@ export default function TermsPage() {
           本アプリの利用には Google アカウントでのサインインが必要です。招待コードを共有した相手とは、
           同じ世帯のデータがすべて共有されます。共有したくない相手に招待コードを渡さないようご注意ください。
         </p>
+        <p className="text-[12px] text-muted-foreground leading-relaxed">
+          共有の解除（グループの解散）は、招待した側・された側のどちらからでも行えます。
+          解散すると、共有していたデータは世帯を作成した側に残り、もう一方は1人での利用に戻ります。
+        </p>
       </section>
 
       <section className="space-y-2">

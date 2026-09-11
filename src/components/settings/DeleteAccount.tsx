@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { useAuthStore } from "@/store/authStore";
+import { useSubscriptionStore } from "@/store/subscriptionStore";
 import {
+  MANAGE_SUBSCRIPTION_URL,
   LS_CACHED_USER, LS_CACHED_HOUSEHOLD, LS_CACHED_INVITE, LS_CACHED_IS_OWNER,
   LS_CACHED_MEMBER_COUNT, LS_ENTITLED_CACHE,
   LS_GOOGLE_TOKEN, LS_GOOGLE_TOKEN_EXPIRY, LS_GOOGLE_REFRESH,
@@ -11,15 +13,22 @@ import {
 // アカウント削除（App Store Guideline 5.1.1(v)）。
 // 「サポートに連絡してください」ではダメで、アプリ内で完結する必要がある。
 //
-// 誤操作で消えないよう、確認画面で何が消えるかを明示してから実行する。
+// 課金について: アプリ側から解約することは Apple の仕組み上できない
+// （サブスクの契約相手は開発者ではなく Apple で、解約できるのは本人だけ）。
+// 黙って削除させると請求だけが残るので、課金中の人には解約画面を開くボタンを
+// 先に踏ませ、済ませたことを確認してから削除させる。
 
 export function DeleteAccount() {
   const { memberCount, signOut } = useAuthStore();
+  const entitled = useSubscriptionStore((s) => s.entitled);
   const [confirming, setConfirming] = useState(false);
+  const [cancelAcknowledged, setCancelAcknowledged] = useState(false);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState("");
 
   const solo = memberCount !== null && memberCount <= 1;
+  const subscribed = entitled === true;
+  const canDelete = !subscribed || cancelAcknowledged;
 
   const remove = async () => {
     setWorking(true);
@@ -66,8 +75,9 @@ export function DeleteAccount() {
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <p className="text-[13px]">アカウントを削除しますか？</p>
+
       <p className="text-[11px] text-muted-foreground leading-relaxed">
         {solo
           ? "予定・やること・買い物リスト・レシピ・献立・精算記録を含む、この世帯のデータがすべて削除されます。"
@@ -75,16 +85,44 @@ export function DeleteAccount() {
         <br />
         削除すると元に戻せません。
       </p>
-      <p className="text-[11px] text-muted-foreground leading-relaxed">
-        有料プランに加入している場合は、iPhone の「設定 → Apple ID → サブスクリプション」から
-        別途、解約の手続きをしてください。アカウントを削除しても自動更新は止まりません。
-      </p>
+
+      {subscribed && (
+        <div className="space-y-2 border border-border rounded-2xl p-4">
+          <p className="text-[12px]">先に有料プランの解約が必要です</p>
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
+            有料プランの契約相手は Apple なので、アプリからは解約できません。
+            解約せずに削除すると、請求だけが続いてしまいます。
+          </p>
+          <a
+            href={MANAGE_SUBSCRIPTION_URL}
+            target="_blank"
+            rel="noreferrer"
+            onClick={() => setCancelAcknowledged(true)}
+            className="inline-block px-5 py-2 bg-foreground text-background text-[11px] tracking-wider rounded-full"
+          >
+            解約画面をひらく
+          </a>
+          <label className="flex items-start gap-2 pt-1 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={cancelAcknowledged}
+              onChange={(e) => setCancelAcknowledged(e.target.checked)}
+              className="mt-0.5"
+            />
+            <span className="text-[11px] text-muted-foreground leading-relaxed">
+              解約の手続きを済ませました
+            </span>
+          </label>
+        </div>
+      )}
+
       {error && <p className="text-[11px] text-red-500">{error}</p>}
+
       <div className="flex gap-4">
         <button
           onClick={remove}
-          disabled={working}
-          className="text-[11px] text-red-500 underline disabled:opacity-50"
+          disabled={working || !canDelete}
+          className="text-[11px] text-red-500 underline disabled:opacity-40"
         >
           {working ? "削除中..." : "完全に削除する"}
         </button>
