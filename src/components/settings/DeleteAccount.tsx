@@ -2,6 +2,11 @@
 
 import { useState } from "react";
 import { useAuthStore } from "@/store/authStore";
+import {
+  LS_CACHED_USER, LS_CACHED_HOUSEHOLD, LS_CACHED_INVITE, LS_CACHED_IS_OWNER,
+  LS_CACHED_MEMBER_COUNT, LS_ENTITLED_CACHE,
+  LS_GOOGLE_TOKEN, LS_GOOGLE_TOKEN_EXPIRY, LS_GOOGLE_REFRESH,
+} from "@/lib/constants";
 
 // アカウント削除（App Store Guideline 5.1.1(v)）。
 // 「サポートに連絡してください」ではダメで、アプリ内で完結する必要がある。
@@ -25,9 +30,23 @@ export function DeleteAccount() {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error ?? "failed to delete account");
       }
-      // 削除済みユーザーのセッションを残さない。サインアウト後は
-      // 読み込み直して、まっさらなサインイン画面に戻す。
-      await signOut();
+      // ここから先は失敗しても「削除できなかった」ことにはしない。
+      // ユーザーはもう消えているので、サインアウト API は 403 を返しうるし、
+      // それでエラーを出すと「消えたのに失敗と言われる」状態になる。
+      try {
+        await signOut();
+      } catch {
+        // 握りつぶす。下でキャッシュを直接消してリロードする。
+      }
+      // 通常のサインアウトは SIGNED_OUT イベント経由でキャッシュを消すが、
+      // ユーザーが消えているとそのイベントが来ないことがあるので自分で消す。
+      for (const key of [
+        LS_CACHED_USER, LS_CACHED_HOUSEHOLD, LS_CACHED_INVITE, LS_CACHED_IS_OWNER,
+        LS_CACHED_MEMBER_COUNT, LS_ENTITLED_CACHE,
+        LS_GOOGLE_TOKEN, LS_GOOGLE_TOKEN_EXPIRY, LS_GOOGLE_REFRESH,
+      ]) {
+        try { localStorage.removeItem(key); } catch {}
+      }
       window.location.href = "/";
     } catch (e) {
       setError(e instanceof Error ? e.message : "削除できませんでした");
