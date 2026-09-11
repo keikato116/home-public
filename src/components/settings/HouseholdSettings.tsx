@@ -29,8 +29,8 @@ export function HouseholdSettings() {
       if (!res.ok) throw new Error(body.error ?? "failed to dissolve");
 
       if (body.left) {
-        // 自分が抜けた側。世帯のキャッシュを消してから読み込み直すと、
-        // 初期設定画面から1人用で始め直せる。
+        // 自分が抜けた側。新しい1人用の世帯はサーバー側で作られているので、
+        // 古い世帯のキャッシュを消して読み込み直せばそのまま使い始められる。
         for (const key of [
           LS_CACHED_HOUSEHOLD, LS_CACHED_INVITE, LS_CACHED_IS_OWNER, LS_CACHED_MEMBER_COUNT,
         ]) {
@@ -79,8 +79,8 @@ export function HouseholdSettings() {
               </p>
               <p className="text-[11px] text-muted-foreground leading-relaxed">
                 {isOwner
-                  ? `共有していたデータはこのままあなたに残ります。${partnerName} は見られなくなります。`
-                  : `共有していたデータは ${partnerName} に残ります。あなたは新しく1人用のデータで始めます。`}
+                  ? `2人で使っていたデータはこのままあなたに残り、${partnerName} は見られなくなります。${partnerName} にしか見えなかった買い物リストは ${partnerName} が持っていきます。`
+                  : `2人で使っていたデータは ${partnerName} に残ります。あなたにしか見えない買い物リストは、そのままあなたに残ります。`}
               </p>
               <div className="flex gap-4">
                 <button

@@ -4,15 +4,17 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 // グループの解散。招待した側・された側のどちらからでも実行できる。
 //
-// 解散すると、あとから参加した人が世帯から抜ける。世帯とそのデータは
-// 世帯を作った人に残り、抜けた人は次回起動時に初期設定からやり直す（= 1人用で作り直す）。
-// どちらが押しても結果が同じなので、「先に押したほうがデータを持っていく」
-// 早い者勝ちにならない。
+// 押した人によらず、あとから参加した人が抜ける。共有していたデータ（2人で使っていた
+// 買い物リスト・やること・レシピ・献立）は世帯を作った人に残る。結果が押した人に
+// 依存しないので、「先に押したほうがデータを持っていく」早い者勝ちにならない。
+//
+// 抜ける人には新しい1人用の世帯をここで作り、**自分にしか見えなかったデータは
+// そちらへ持っていく**。持ち主にしか見えないものを共有側に置いていく理由はないし、
+// 置いていくと本人からも見えなくなる（RLS が「世帯メンバーであること」も見るため）。
 //
 // カレンダーが見えなくなるのは household_members を消すだけでは不十分。
 // /api/partner-calendar は service role で user_tokens を household_id で引くので、
-// 抜けた人の user_tokens が古い世帯を指したままだと、残った側からはまだ相手の
-// カレンダーが見えてしまう。ここで household_id と Google トークンごと消す。
+// 抜けた人の user_tokens を新しい世帯に付け替えて、古い世帯から引けないようにする。
 
 export async function POST() {
   const supabase = await createClient();
@@ -34,12 +36,12 @@ export async function POST() {
   if (!membership?.household_id) {
     return NextResponse.json({ error: "not in a household" }, { status: 400 });
   }
-  const householdId = membership.household_id as string;
+  const oldHouseholdId = membership.household_id as string;
 
   const { data: members } = await admin
     .from("household_members")
     .select("user_id, joined_at")
-    .eq("household_id", householdId)
+    .eq("household_id", oldHouseholdId)
     .order("joined_at", { ascending: true });
 
   const rows = members ?? [];
@@ -47,31 +49,65 @@ export async function POST() {
     return NextResponse.json({ error: "already solo" }, { status: 400 });
   }
 
-  // 先頭 = 世帯を作った人。残るのはこの人。
+  // 先頭 = 世帯を作った人。共有データはこの人に残る。
   const ownerId = rows[0].user_id as string;
   const leaving = rows.filter((m) => m.user_id !== ownerId).map((m) => m.user_id as string);
 
-  const { error: memberError } = await admin
-    .from("household_members")
-    .delete()
-    .eq("household_id", householdId)
-    .in("user_id", leaving);
-  if (memberError) {
-    return NextResponse.json({ error: memberError.message }, { status: 500 });
-  }
+  for (const leaverId of leaving) {
+    const { data: household, error: createError } = await admin
+      .from("households")
+      .insert({ name: "my home" })
+      .select()
+      .single();
+    if (createError || !household) {
+      return NextResponse.json({ error: createError?.message ?? "failed to create household" }, { status: 500 });
+    }
+    const newHouseholdId = household.id as string;
 
-  // 抜けた人のカレンダーを、残った側から引けないようにする。
-  const { error: tokenError } = await admin
-    .from("user_tokens")
-    .update({
-      household_id: null,
-      google_access_token: "",
-      google_refresh_token: "",
-      updated_at: new Date().toISOString(),
-    })
-    .in("user_id", leaving);
-  if (tokenError) {
-    return NextResponse.json({ error: tokenError.message }, { status: 500 });
+    await admin.from("calendar_settings").insert({
+      household_id: newHouseholdId,
+      selected_colors: [],
+      start_date: new Date().toISOString().split("T")[0],
+    });
+
+    // 世帯の移動は「抜けてから入る」順で行う。逆にすると一瞬2世帯に所属し、
+    // 所属世帯を maybeSingle() で引いている箇所が複数行エラーになる。
+    const { error: leaveError } = await admin
+      .from("household_members")
+      .delete()
+      .eq("household_id", oldHouseholdId)
+      .eq("user_id", leaverId);
+    if (leaveError) {
+      return NextResponse.json({ error: leaveError.message }, { status: 500 });
+    }
+
+    const { error: joinError } = await admin
+      .from("household_members")
+      .insert({ household_id: newHouseholdId, user_id: leaverId });
+    if (joinError) {
+      return NextResponse.json({ error: joinError.message }, { status: 500 });
+    }
+
+    // 本人にしか見えない買い物アイテム（user_id が入っているもの）を持っていく。
+    // 共有アイテム（user_id が null）は2人で使っていたものなので古い世帯に残す。
+    const { error: moveError } = await admin
+      .from("shopping_items")
+      .update({ household_id: newHouseholdId })
+      .eq("household_id", oldHouseholdId)
+      .eq("user_id", leaverId);
+    if (moveError) {
+      return NextResponse.json({ error: moveError.message }, { status: 500 });
+    }
+
+    // Google の鍵を新しい世帯に付け替える。これをしないと、残った側からは
+    // 抜けた人のカレンダーが見えたままになる。
+    const { error: tokenError } = await admin
+      .from("user_tokens")
+      .update({ household_id: newHouseholdId, updated_at: new Date().toISOString() })
+      .eq("user_id", leaverId);
+    if (tokenError) {
+      return NextResponse.json({ error: tokenError.message }, { status: 500 });
+    }
   }
 
   return NextResponse.json({ ok: true, left: leaving.includes(user.id) });

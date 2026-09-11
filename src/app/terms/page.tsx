@@ -31,6 +31,7 @@ export default function TermsPage() {
         <p className="text-[12px] text-muted-foreground leading-relaxed">
           共有の解除（グループの解散）は、招待した側・された側のどちらからでも行えます。
           解散すると、共有していたデータは世帯を作成した側に残り、もう一方は1人での利用に戻ります。
+          本人だけに表示される非公開の買い物リストは、解散後もそれぞれの利用者に引き継がれます。
         </p>
       </section>
 
