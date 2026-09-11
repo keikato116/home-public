@@ -48,6 +48,7 @@ export default function PrivacyPage() {
         <h2 className="text-[13px] tracking-wide">データの削除</h2>
         <p className="text-[12px] text-muted-foreground leading-relaxed">
           アプリの「設定 → アカウントを削除」から、アカウントと保存データを削除できます。
+          世帯にもう1人いる場合は、共有していたデータを相手に引き継ぐかどうかを削除時に選べます。
           削除後の復元はできません。
         </p>
       </section>
