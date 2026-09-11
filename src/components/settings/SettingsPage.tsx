@@ -5,6 +5,7 @@ import { useAuthStore } from "@/store/authStore";
 import { useSettingsStore } from "@/store/settingsStore";
 import { CalendarSettings } from "./CalendarSettings";
 import { WeeklyChoresSettings } from "./WeeklyChoresSettings";
+import { SubscriptionSettings } from "./SubscriptionSettings";
 import { X, LogOut } from "lucide-react";
 
 export function SettingsPage() {
@@ -40,7 +41,11 @@ export function SettingsPage() {
           </div>
         )}
 
-        <WeeklyChoresSettings />
+        <SubscriptionSettings />
+
+        <div className="border-t border-border pt-6">
+          <WeeklyChoresSettings />
+        </div>
 
         <div className="border-t border-border pt-6">
           <CalendarSettings />

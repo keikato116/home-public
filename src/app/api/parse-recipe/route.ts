@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
+import { requireEntitled } from "@/lib/server/entitlement";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -50,6 +51,11 @@ function parseJson(raw: string) {
 }
 
 export async function POST(req: Request) {
+  // レシピ取り込みは有料機能。1回ごとに Anthropic の課金が発生するので、
+  // 認証と課金の両方をここで確かめる。
+  const denied = await requireEntitled();
+  if (denied) return denied;
+
   const body = await req.json();
 
   try {

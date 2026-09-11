@@ -1,6 +1,8 @@
 "use client";
 
 import { useAuthStore } from "@/store/authStore";
+import { useSubscriptionStore } from "@/store/subscriptionStore";
+import { PREMIUM_TABS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import {
   Home, Calendar, ChefHat,
@@ -18,6 +20,13 @@ const TABS = [
 
 export function BottomTabBar() {
   const { activeTab, setActiveTab, setSettingsOpen, bumpCalendarView } = useAuthStore();
+  const entitled = useSubscriptionStore((s) => s.entitled);
+
+  // 判定が終わるまで（null）はプレミアムタブを出さない。先に出してから消すと
+  // 起動のたびにタブがちらついて、購入済みユーザーには不具合に見える。
+  const tabs = entitled
+    ? TABS
+    : TABS.filter((t) => !(PREMIUM_TABS as readonly string[]).includes(t.id));
 
   return (
     <nav
@@ -25,7 +34,7 @@ export function BottomTabBar() {
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
       <div className="flex flex-1 items-center justify-evenly">
-        {TABS.map(({ id, icon: Icon }) => {
+        {tabs.map(({ id, icon: Icon }) => {
           const active = activeTab === id;
           return (
             <button

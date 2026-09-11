@@ -6,7 +6,9 @@ import { createClient, setJwt } from "@/lib/supabase/client";
 import {
   LS_GOOGLE_TOKEN, LS_GOOGLE_TOKEN_EXPIRY, LS_GOOGLE_REFRESH,
   LS_CACHED_USER, LS_CACHED_HOUSEHOLD, LS_CACHED_INVITE, LS_CACHED_IS_OWNER,
+  LS_ENTITLED_CACHE,
 } from "@/lib/constants";
+import { logOutPurchases } from "@/lib/purchases";
 import {
   storeAccessToken, upsertUserToken, refreshAccessToken,
   ensureValidAccessToken, startGoogleOAuth,
@@ -190,6 +192,9 @@ export const useAuthStore = create<AuthState>((set) => ({
           localStorage.removeItem(LS_CACHED_HOUSEHOLD);
           localStorage.removeItem(LS_CACHED_INVITE);
           localStorage.removeItem(LS_CACHED_IS_OWNER);
+          // 課金判定のキャッシュは持ち越さない。別アカウントでログインした人に
+          // 前の人の権利が一瞬見えてしまう。
+          localStorage.removeItem(LS_ENTITLED_CACHE);
           set({ user: null, householdId: null, inviteCode: null, accessToken: null, isOwner: false });
         } else {
           const { data: { session: recovered } } = await supabase.auth.refreshSession();
@@ -217,6 +222,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   signOut: async () => {
     if (periodicRefreshInterval) { clearInterval(periodicRefreshInterval); periodicRefreshInterval = null; }
     isSigningOut = true;
+    await logOutPurchases();
     const supabase = createClient();
     await supabase.auth.signOut();
   },

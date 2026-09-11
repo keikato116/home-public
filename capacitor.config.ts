@@ -8,7 +8,10 @@ import type { CapacitorConfig } from "@capacitor/cli";
 const serverUrl = process.env.CAP_SERVER_URL;
 
 const config: CapacitorConfig = {
-  appId: "com.keikato.home",
+  // App Store 公開版の Bundle ID。TestFlight で配っている内輪版（com.keikato.home）とは
+  // 別のアプリとして登録するため、意図的に別 ID にしている。
+  // App Store Connect 側の App ID とここは必ず一致させること。
+  appId: "com.keikato.homeapp",
   appName: "home",
   webDir: "public",
   server: serverUrl

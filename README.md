@@ -1,36 +1,48 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# home（App Store 公開版）
 
-## Getting Started
+2人暮らしの家事・予定・食事をまとめる iOS アプリ。
+内輪用の [home](https://github.com/keikato116/Home) をベースに、App Store 公開向けに分けたリポジトリ。
 
-First, run the development server:
+内輪版との違い:
+
+- **レシピ機能と献立カレンダーが月額サブスク対象**（未購入だとタブごと出ない）
+- RevenueCat 経由の App Store 課金と、Supabase 側での課金判定
+- 利用規約 / プライバシーポリシーのページ
+- Bundle ID が別（`com.keikato.homeapp`）
+
+## 構成
+
+- Next.js 14（App Router）+ TypeScript + Tailwind
+- Supabase（認証・DB・Storage）
+- Capacitor — ネイティブシェルが Vercel 上の Web アプリを WebView で読む
+- RevenueCat — App Store 課金
+
+Web を直せば `git push` だけでアプリに反映される。Xcode の再ビルドが要るのは
+ネイティブ側（プラグイン追加など）を触ったときだけ。
+
+## 開発
 
 ```bash
+npm install
+cp .env.local.example .env.local   # 値を埋める
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+| コマンド | 内容 |
+|---|---|
+| `npm run dev` | 開発サーバー |
+| `npm run build` | 本番ビルド |
+| `npm run lint` | ESLint |
+| `npm test` | Vitest |
+| `npm run ios:sync` / `ios:open` | Capacitor 同期 / Xcode を開く |
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## ドキュメント
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- [docs/app-store.md](docs/app-store.md) — 課金の仕組み、RevenueCat と App Store Connect の設定、審査までの残作業
+- [docs/ios-app.md](docs/ios-app.md) — iOS アプリ化とウィジェット
+- [REFACTORING_PLAN.md](REFACTORING_PLAN.md) — リファクタ計画
 
-## Learn More
+## DB
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+`supabase/schema.sql` を実行したあと、`supabase/migrations/` を日付順に適用する。
+課金まわりは `2026-09-11_subscriptions.sql`。
