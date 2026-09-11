@@ -29,9 +29,11 @@ function MainApp() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // user はトークン更新のたびに新しいオブジェクトになるので、id で見張る
+  const userId = user?.id;
   useEffect(() => {
-    if (user) useSubscriptionStore.getState().init(user.id);
-  }, [user]);
+    if (userId) useSubscriptionStore.getState().init(userId);
+  }, [userId]);
 
   // 課金が切れた（解約・支払い失敗）状態でプレミアムタブに留まらないよう home に戻す。
   // タブ自体は BottomTabBar 側で消えているので、ここは表示の後始末。
