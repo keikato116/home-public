@@ -55,6 +55,47 @@ SQL Editor で、この2本をこの順に実行する。
 2 本目を流さないと、アカウント削除が外部キー違反で失敗する。
 流したあと、末尾のコメントにある確認クエリが 0 件になることを見ておくとよい。
 
+#### 適用できたかの確認
+
+`account_deletion` の方は該当がなければ黙って何もせず終わるので、結果を見ておく。
+
+```sql
+-- 1) 課金判定の関数がある
+select proname from pg_proc where proname = 'household_entitled';
+
+-- 2) 有料機能の書き込み制限が入っている（4行返る）
+select tablename, policyname from pg_policies
+where policyname like 'premium required%';
+
+-- 3) auth.users を参照する外部キーに、未対応（NO ACTION / RESTRICT）が残っていない
+--    → 0 件ならアカウント削除が通る
+select cl.relname as table_name, att.attname as column_name
+from pg_constraint con
+join pg_class cl      on cl.oid = con.conrelid
+join pg_class rf      on rf.oid = con.confrelid
+join lateral unnest(con.conkey) as k(attnum) on true
+join pg_attribute att on att.attrelid = cl.oid and att.attnum = k.attnum
+where con.contype = 'f' and rf.relname = 'users' and con.confdeltype in ('a','r');
+```
+
+#### 自分（と審査員）を課金済みにする
+
+**既存の Supabase プロジェクトにそのまま流した場合、この作業は必須。**
+`premium required%` のポリシーは全ユーザーに効くので、`subscriptions` に行が無いと
+レシピと献立が保存できなくなる（今まで使っていた人も含めて）。
+
+```sql
+-- メールアドレスから user_id を引いて、期限なしの有効な行を入れる
+insert into public.subscriptions (user_id, product_id, status, expires_at, environment)
+select id, 'manual_grant', 'active', null, 'MANUAL'
+from auth.users
+where email in ('自分のメールアドレス', '審査用アカウントのメールアドレス')
+on conflict (user_id) do update
+  set status = 'active', expires_at = null, product_id = 'manual_grant';
+```
+
+`expires_at` が null なので期限切れにならない。取り消すときはその行を削除する。
+
 ### 2. App Store Connect
 
 1. 新規 App を作成（Bundle ID: `com.keikato.homeapp` — `capacitor.config.ts` と一致させる）
