@@ -18,7 +18,6 @@
 | `toDateStr` / `isSameDay` 等の日付ヘルパー重複 | 6ファイル |
 | 巨大コンポーネント | SplitTab 756行 / CookTab 641行 / CalendarTab 617行 |
 | API route の重複 | calendar と partner-calendar が約90%同一 |
-| Strava トークンリフレッシュの重複 | 2 route で同一実装 |
 | store ごとにバラバラなパターン | リトライ・楽観更新・エラー処理が10 storeで不統一 |
 | realtime購読の重複 | shoppingStore / diaryStore で同一実装 |
 | マジックストリング | localStorage キー、テーブル名、OAuth スコープ、本番URL が直書き |
@@ -68,7 +67,6 @@
 
 - localStorage キー: `google_access_token`, `cached_user`, `gacha_history`, `cal_cache_` など全部
 - OAuth スコープ URL（authStore に3回直書き）
-- `STRAVA_REDIRECT_URI`（WorkoutTab と API route で重複直書き → 環境変数 or 共通定数に）
 - `RECIPE_CATEGORIES`（recipeStore と parse-recipe route で重複）
 
 ### 1-3. `src/lib/storage.ts` を新設
@@ -129,12 +127,7 @@ catch { set({ loading: false, error: ... }); }
   - AbortController タイムアウト（12秒）も共通化
 - token refresh ロジック（partner-calendar 内）と `/api/refresh-token` の重複も同ファイルに集約
 
-### 3-2. Strava token refresh の共通化
-
-- `/api/strava/callback` と `/api/strava/activities` の同一 `refreshStravaToken()` を `src/lib/server/strava.ts` に抽出
-- `any` キャスト（activities route）も型を付けて解消
-
-完了条件: 自分のカレンダー・パートナーのカレンダー・Strava 同期がそれぞれ動くことを実機確認。
+完了条件: 自分のカレンダー・パートナーのカレンダーがそれぞれ動くことを実機確認。
 リスク: 中。外部API連携なので実機確認必須。
 
 ---
@@ -191,7 +184,7 @@ src/components/calendar/
 1. **`<BottomSheet>`** — EditSheet / ReceiptSheet の backdrop + シート構造を共通化
 2. **`<Dot>` / `<Pill>`** — 食事ドット、run/ride 表示、all-day イベントピルの統一
 3. **色の定数化** — `rgba(251,146,60,0.06)` 等の直書きを `src/lib/colors.ts`（または Tailwind theme）へ。run=orange / ride=cyan / free=blue / dinner=purple / lunch=amber を1箇所で定義
-4. **エラー表示の統一** — store に `error` があるのに表示されないタブ（strava 等）に共通のエラーバナーを表示
+4. **エラー表示の統一** — store に `error` があるのに表示されないタブに共通のエラーバナーを表示
 
 完了条件: 見た目が変わらないこと（色の定数化は値そのまま移動）。
 リスク: 低。
