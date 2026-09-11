@@ -8,13 +8,32 @@ import { createAdminClient } from "@/lib/supabase/admin";
 // 買い物リスト・やること・レシピ・献立）は世帯を作った人に残る。結果が押した人に
 // 依存しないので、「先に押したほうがデータを持っていく」早い者勝ちにならない。
 //
-// 抜ける人には新しい1人用の世帯をここで作り、**自分にしか見えなかったデータは
-// そちらへ持っていく**。持ち主にしか見えないものを共有側に置いていく理由はないし、
-// 置いていくと本人からも見えなくなる（RLS が「世帯メンバーであること」も見るため）。
+// 抜ける人には新しい1人用の世帯をここで作り、暮らしの土台になるものを持たせる。
+//   移す  : 自分にしか見えない買い物アイテム（置いていくと本人からも見えなくなる）
+//   複製  : レシピ・家事ルーティン・やること・献立（2人で作ったものなので両方が持つ）
+//   残す  : 割り勘・共有の買い物リスト（相手との記録。部屋が変わるので表示もされない）
 //
 // カレンダーが見えなくなるのは household_members を消すだけでは不十分。
 // /api/partner-calendar は service role で user_tokens を household_id で引くので、
 // 抜けた人の user_tokens を新しい世帯に付け替えて、古い世帯から引けないようにする。
+
+type Row = Record<string, unknown>;
+
+/**
+ * 世帯のデータを、抜ける人の新しい世帯に複製する。
+ *
+ * id は呼び出し側で振り直す。DB 任せにすると、元の行と新しい行の対応が取れず
+ * 献立からレシピへの参照を張り替えられない（複数行 insert の戻り順は保証がない）。
+ */
+function copyRows(rows: Row[], householdId: string): { rows: Row[]; idMap: Map<string, string> } {
+  const idMap = new Map<string, string>();
+  const copied = rows.map((r) => {
+    const newId = crypto.randomUUID();
+    idMap.set(r.id as string, newId);
+    return { ...r, id: newId, household_id: householdId };
+  });
+  return { rows: copied, idMap };
+}
 
 export async function POST() {
   const supabase = await createClient();
@@ -97,6 +116,60 @@ export async function POST() {
       .eq("user_id", leaverId);
     if (moveError) {
       return NextResponse.json({ error: moveError.message }, { status: 500 });
+    }
+
+    // --- 暮らしの土台になるものを複製する ---
+    // 2人で作ったものなので、抜ける側にも残る側にも同じものが残る。
+
+    const { data: recipes } = await admin.from("recipes").select("*").eq("household_id", oldHouseholdId);
+    const recipeCopy = copyRows((recipes ?? []) as Row[], newHouseholdId);
+    if (recipeCopy.rows.length > 0) {
+      // 作成者は自分の分だけ残す。相手のIDを持ち出すと、抜けた先で
+      // 名前が引けない幽霊の作成者になる。
+      const rows = recipeCopy.rows.map((r) => ({
+        ...r,
+        created_by: r.created_by === leaverId ? leaverId : null,
+      }));
+      const { error } = await admin.from("recipes").insert(rows);
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    const { data: routines } = await admin
+      .from("routine_definitions").select("*").eq("household_id", oldHouseholdId);
+    const routineCopy = copyRows((routines ?? []) as Row[], newHouseholdId);
+    if (routineCopy.rows.length > 0) {
+      // 担当も同様。相手が担当だった家事は担当なしに戻す。
+      const rows = routineCopy.rows.map((r) => ({
+        ...r,
+        user_id: r.user_id === leaverId ? leaverId : null,
+      }));
+      const { error } = await admin.from("routine_definitions").insert(rows);
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    const { data: todos } = await admin
+      .from("shared_todos").select("*").eq("household_id", oldHouseholdId);
+    const todoCopy = copyRows((todos ?? []) as Row[], newHouseholdId);
+    if (todoCopy.rows.length > 0) {
+      const rows = todoCopy.rows.map((r) => ({
+        ...r,
+        created_by: r.created_by === leaverId ? leaverId : null,
+      }));
+      const { error } = await admin.from("shared_todos").insert(rows);
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    const { data: plans } = await admin
+      .from("meal_plans").select("*").eq("household_id", oldHouseholdId);
+    const planCopy = copyRows((plans ?? []) as Row[], newHouseholdId);
+    if (planCopy.rows.length > 0) {
+      // 献立が指しているレシピを、複製したレシピのほうに向け直す。
+      const rows = planCopy.rows.map((r) => ({
+        ...r,
+        recipe_id: r.recipe_id ? recipeCopy.idMap.get(r.recipe_id as string) ?? null : null,
+      }));
+      const { error } = await admin.from("meal_plans").insert(rows);
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     // Google の鍵を新しい世帯に付け替える。これをしないと、残った側からは
