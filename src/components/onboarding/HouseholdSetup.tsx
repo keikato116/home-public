@@ -11,8 +11,13 @@ export function HouseholdSetup() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [createdCode, setCreatedCode] = useState("");
+  // ペアで作った場合は、招待コードを見せてから本人が「はじめる」を押すまで
+  // setHouseholdId を待つ。先に呼ぶとこの画面ごと消えてコードが見えない。
+  const [createdId, setCreatedId] = useState("");
 
-  const createHousehold = async () => {
+  // 1人でも成立するアプリなので、世帯 = 1人で始められる。
+  // あとから招待コードを渡せばペアになるし、外せばソロに戻る。
+  const createHousehold = async (pair: boolean) => {
     if (!user) return;
     setLoading(true);
     setError("");
@@ -21,7 +26,7 @@ export function HouseholdSetup() {
 
       const { data: household, error: hErr } = await supabase
         .from("households")
-        .insert({ name: "our home" })
+        .insert({ name: pair ? "our home" : "my home" })
         .select()
         .single();
       if (hErr || !household) throw new Error(hErr?.message ?? "failed to create household");
@@ -37,8 +42,12 @@ export function HouseholdSetup() {
         start_date: new Date().toISOString().split("T")[0],
       });
 
-      setCreatedCode(household.invite_code);
-      setHouseholdId(household.id, household.invite_code);
+      if (pair) {
+        setCreatedId(household.id);
+        setCreatedCode(household.invite_code);
+      } else {
+        setHouseholdId(household.id, household.invite_code);
+      }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "something went wrong");
     }
@@ -83,16 +92,24 @@ export function HouseholdSetup() {
         {mode === "select" && (
           <div className="space-y-3">
             <button
-              onClick={() => { setMode("create"); createHousehold(); }}
-              className="w-full border border-border rounded px-4 py-3 text-[12px] tracking-wider hover:bg-muted transition-colors text-left"
+              onClick={() => { setMode("create"); createHousehold(false); }}
+              className="w-full border border-border rounded px-4 py-3 hover:bg-muted transition-colors text-left"
             >
-              create a new household
+              <span className="block text-[12px] tracking-wider">1人で使う</span>
+              <span className="block text-[10px] text-muted-foreground mt-0.5">あとから2人に切り替えられます</span>
+            </button>
+            <button
+              onClick={() => { setMode("create"); createHousehold(true); }}
+              className="w-full border border-border rounded px-4 py-3 hover:bg-muted transition-colors text-left"
+            >
+              <span className="block text-[12px] tracking-wider">2人で使う</span>
+              <span className="block text-[10px] text-muted-foreground mt-0.5">招待コードを相手に渡します</span>
             </button>
             <button
               onClick={() => setMode("join")}
               className="w-full border border-border rounded px-4 py-3 text-[12px] tracking-wider hover:bg-muted transition-colors text-left"
             >
-              join with invite code
+              招待コードで参加する
             </button>
           </div>
         )}
@@ -101,13 +118,33 @@ export function HouseholdSetup() {
           <div className="space-y-4">
             {loading && <p className="text-[11px] text-muted-foreground">creating...</p>}
             {createdCode && (
-              <div className="space-y-2">
-                <p className="text-[10px] tracking-widest text-muted-foreground uppercase">invite code</p>
-                <p className="text-2xl tracking-widest font-medium">{createdCode}</p>
-                <p className="text-[11px] text-muted-foreground">share this code with your partner</p>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <p className="text-[10px] tracking-widest text-muted-foreground uppercase">invite code</p>
+                  <p className="text-2xl tracking-widest font-medium">{createdCode}</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    このコードを相手に渡してください。あとで設定からも確認できます。
+                  </p>
+                </div>
+                <button
+                  onClick={() => setHouseholdId(createdId, createdCode)}
+                  className="w-full bg-foreground text-background rounded px-4 py-3 text-[12px] tracking-wider"
+                >
+                  はじめる
+                </button>
               </div>
             )}
-            {error && <p className="text-[11px] text-red-500">{error}</p>}
+            {error && (
+              <>
+                <p className="text-[11px] text-red-500">{error}</p>
+                <button
+                  onClick={() => { setError(""); setMode("select"); }}
+                  className="w-full text-[11px] text-muted-foreground hover:text-foreground"
+                >
+                  back
+                </button>
+              </>
+            )}
           </div>
         )}
 

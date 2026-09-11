@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 // RevenueCat webhook → subscriptions テーブル。
 // 課金状態の唯一の正はこのテーブル。クライアントの customerInfo は表示の先読みにしか使わない
@@ -53,8 +53,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!serviceKey) {
+  const supabase = createAdminClient();
+  if (!supabase) {
     return NextResponse.json({ error: "SUPABASE_SERVICE_ROLE_KEY not configured" }, { status: 503 });
   }
 
@@ -81,12 +81,6 @@ export async function POST(req: NextRequest) {
   if (!/^[0-9a-f-]{36}$/i.test(userId)) {
     return NextResponse.json({ ok: true, skipped: "anonymous app_user_id" });
   }
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    serviceKey,
-    { cookies: { getAll: () => [], setAll: () => {} } }
-  );
 
   const { error } = await supabase.from("subscriptions").upsert(
     {

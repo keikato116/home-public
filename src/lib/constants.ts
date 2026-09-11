@@ -11,6 +11,7 @@ export const LS_SPLIT_CLOSING_DAY = "split_closing_day";
 export const LS_SPLIT_RATIO = "split_ratio";
 export const LS_CAL_CACHE_PREFIX = "cal_cache_";
 export const LS_ENTITLED_CACHE = "entitled";
+export const LS_CACHED_MEMBER_COUNT = "cached_member_count";
 
 // OAuth
 export const GOOGLE_CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.readonly";
@@ -20,6 +21,8 @@ export const GOOGLE_CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.r
 export const RC_ENTITLEMENT_ID = "premium";
 // 課金しないと使えないタブ。BottomTabBar と page.tsx の両方がこれを見る。
 export const PREMIUM_TABS = ["cook", "recipe"] as const;
+// 1人世帯では成立しないタブ（割り勘は him/her の2人前提）。
+export const PAIR_ONLY_TABS = ["split"] as const;
 // 審査・サポート用の公開ページ。App Store Connect には
 // https://<デプロイ先>/terms · /privacy という絶対URLで登録する。
 export const TERMS_URL = "/terms";

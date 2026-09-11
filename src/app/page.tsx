@@ -15,10 +15,10 @@ import { CookTab } from "@/components/cook/CookTab";
 import { SplitTab } from "@/components/split/SplitTab";
 import { SettingsPage } from "@/components/settings/SettingsPage";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
-import { PREMIUM_TABS } from "@/lib/constants";
+import { PREMIUM_TABS, PAIR_ONLY_TABS } from "@/lib/constants";
 
 function MainApp() {
-  const { activeTab, settingsOpen, householdId, accessToken, user, setActiveTab } = useAuthStore();
+  const { activeTab, settingsOpen, householdId, accessToken, user, setActiveTab, memberCount } = useAuthStore();
   const entitled = useSubscriptionStore((s) => s.entitled);
 
   // Prefetch slow data sources immediately on app load, before tabs are opened
@@ -35,15 +35,18 @@ function MainApp() {
     if (userId) useSubscriptionStore.getState().init(userId);
   }, [userId]);
 
-  // 課金が切れた（解約・支払い失敗）状態でプレミアムタブに留まらないよう home に戻す。
-  // タブ自体は BottomTabBar 側で消えているので、ここは表示の後始末。
-  useEffect(() => {
-    if (entitled === false && (PREMIUM_TABS as readonly string[]).includes(activeTab)) {
-      setActiveTab("home");
-    }
-  }, [entitled, activeTab, setActiveTab]);
-
   const premium = entitled === true;
+  const solo = memberCount !== null && memberCount <= 1;
+
+  // 課金が切れた（解約・支払い失敗）／パートナーが抜けた状態で、消えたタブに
+  // 留まったままにしない。タブ自体は BottomTabBar 側で消えているので、ここは表示の後始末。
+  useEffect(() => {
+    // entitled === null は「判定中」。確定するまで追い出さない。
+    const gone =
+      (entitled === false && (PREMIUM_TABS as readonly string[]).includes(activeTab)) ||
+      (solo && (PAIR_ONLY_TABS as readonly string[]).includes(activeTab));
+    if (gone) setActiveTab("home");
+  }, [entitled, solo, activeTab, setActiveTab]);
 
   return (
     <div className="relative flex flex-col h-screen max-w-xl mx-auto">
@@ -56,7 +59,7 @@ function MainApp() {
         {activeTab === "cook" && premium && <CookTab />}
         {activeTab === "recipe" && premium && <RecipeTab />}
         {activeTab === "shopping" && <ShoppingTab />}
-        {activeTab === "split" && <SplitTab />}
+        {activeTab === "split" && !solo && <SplitTab />}
       </main>
 
       <BottomTabBar />

@@ -6,13 +6,44 @@ import { createClient, setJwt } from "@/lib/supabase/client";
 import {
   LS_GOOGLE_TOKEN, LS_GOOGLE_TOKEN_EXPIRY, LS_GOOGLE_REFRESH,
   LS_CACHED_USER, LS_CACHED_HOUSEHOLD, LS_CACHED_INVITE, LS_CACHED_IS_OWNER,
-  LS_ENTITLED_CACHE,
+  LS_ENTITLED_CACHE, LS_CACHED_MEMBER_COUNT,
 } from "@/lib/constants";
 import { logOutPurchases } from "@/lib/purchases";
 import {
   storeAccessToken, upsertUserToken, refreshAccessToken,
   ensureValidAccessToken, startGoogleOAuth,
 } from "@/lib/googleToken";
+
+export interface HouseholdMember {
+  userId: string;
+  displayName: string;
+}
+
+/**
+ * 世帯のメンバーを、参加順（= 先頭が世帯を作った人）で返す。
+ * 表示名は user_tokens にしかないので、Google 連携前のメンバーは空文字になる。
+ */
+async function fetchMembers(
+  supabase: ReturnType<typeof createClient>,
+  householdId: string
+): Promise<HouseholdMember[]> {
+  const { data } = await supabase
+    .from("household_members")
+    .select("user_id, joined_at")
+    .eq("household_id", householdId)
+    .order("joined_at", { ascending: true });
+
+  const ids = (data ?? []).map((m) => m.user_id as string);
+  if (ids.length === 0) return [];
+
+  const { data: tokens } = await supabase
+    .from("user_tokens")
+    .select("user_id, display_name")
+    .in("user_id", ids);
+  const nameById = new Map((tokens ?? []).map((t) => [t.user_id as string, t.display_name as string]));
+
+  return ids.map((id) => ({ userId: id, displayName: nameById.get(id) ?? "" }));
+}
 
 interface AuthState {
   user: User | null;
@@ -24,6 +55,10 @@ interface AuthState {
   activeTab: string;
   calendarViewSignal: number;
   isOwner: boolean;
+  members: HouseholdMember[];
+  /** null = 未取得。ソロ判定はこれが 1 以下かどうかで行う。 */
+  memberCount: number | null;
+  refreshMembers: () => Promise<void>;
   setHouseholdId: (id: string, inviteCode?: string) => void;
   setSettingsOpen: (open: boolean) => void;
   setActiveTab: (tab: string) => void;
@@ -46,6 +81,20 @@ export const useAuthStore = create<AuthState>((set) => ({
   activeTab: "home",
   calendarViewSignal: 0,
   isOwner: false,
+  members: [],
+  memberCount: null,
+
+  refreshMembers: async () => {
+    const { householdId, user } = useAuthStore.getState();
+    if (!householdId) return;
+    const members = await fetchMembers(createClient(), householdId);
+    localStorage.setItem(LS_CACHED_MEMBER_COUNT, String(members.length));
+    set({
+      members,
+      memberCount: members.length,
+      isOwner: members[0]?.userId === user?.id,
+    });
+  },
 
   setHouseholdId: (id, inviteCode) => set({ householdId: id, inviteCode: inviteCode ?? null }),
   setSettingsOpen: (open) => set({ settingsOpen: open }),
@@ -59,6 +108,8 @@ export const useAuthStore = create<AuthState>((set) => ({
     const cachedHouseholdId = localStorage.getItem(LS_CACHED_HOUSEHOLD);
     const cachedInviteCode = localStorage.getItem(LS_CACHED_INVITE);
     const cachedIsOwner = localStorage.getItem(LS_CACHED_IS_OWNER) === "true";
+    const cachedMemberCountRaw = localStorage.getItem(LS_CACHED_MEMBER_COUNT);
+    const cachedMemberCount = cachedMemberCountRaw ? Number(cachedMemberCountRaw) : null;
 
     try {
       if (cachedUser) {
@@ -69,6 +120,7 @@ export const useAuthStore = create<AuthState>((set) => ({
           inviteCode: cachedInviteCode,
           accessToken: localStorage.getItem(LS_GOOGLE_TOKEN),
           isOwner: cachedIsOwner,
+          memberCount: cachedMemberCount,
           loading: false,
         });
         // Proactively refresh in the background so the cached token is fresh
@@ -108,24 +160,19 @@ export const useAuthStore = create<AuthState>((set) => ({
         const hid = member?.household_id ?? null;
         const ic = (member?.households as { invite_code?: string } | null)?.invite_code ?? null;
 
-        let isOwner = false;
-        if (hid) {
-          const { data: firstMember } = await supabase
-            .from("household_members")
-            .select("user_id")
-            .eq("household_id", hid)
-            .order("joined_at", { ascending: true })
-            .limit(1)
-            .single();
-          isOwner = firstMember?.user_id === session.user.id;
-        }
+        const members = hid ? await fetchMembers(supabase, hid) : [];
+        const isOwner = members[0]?.userId === session.user.id;
 
         localStorage.setItem(LS_CACHED_USER, JSON.stringify(session.user));
         localStorage.setItem(LS_CACHED_HOUSEHOLD, hid ?? "");
         localStorage.setItem(LS_CACHED_INVITE, ic ?? "");
         localStorage.setItem(LS_CACHED_IS_OWNER, String(isOwner));
+        localStorage.setItem(LS_CACHED_MEMBER_COUNT, String(members.length));
 
-        set({ user: session.user, householdId: hid, inviteCode: ic, accessToken: token, isOwner, loading: false });
+        set({
+          user: session.user, householdId: hid, inviteCode: ic, accessToken: token,
+          isOwner, members, memberCount: hid ? members.length : null, loading: false,
+        });
 
         if (hid && token) {
           const displayName = session.user.user_metadata?.full_name ?? session.user.email ?? "";
@@ -195,7 +242,11 @@ export const useAuthStore = create<AuthState>((set) => ({
           // 課金判定のキャッシュは持ち越さない。別アカウントでログインした人に
           // 前の人の権利が一瞬見えてしまう。
           localStorage.removeItem(LS_ENTITLED_CACHE);
-          set({ user: null, householdId: null, inviteCode: null, accessToken: null, isOwner: false });
+          localStorage.removeItem(LS_CACHED_MEMBER_COUNT);
+          set({
+            user: null, householdId: null, inviteCode: null, accessToken: null,
+            isOwner: false, members: [], memberCount: null,
+          });
         } else {
           const { data: { session: recovered } } = await supabase.auth.refreshSession();
           if (recovered) {

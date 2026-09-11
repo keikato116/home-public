@@ -6,10 +6,12 @@ import { useSettingsStore } from "@/store/settingsStore";
 import { CalendarSettings } from "./CalendarSettings";
 import { WeeklyChoresSettings } from "./WeeklyChoresSettings";
 import { SubscriptionSettings } from "./SubscriptionSettings";
+import { HouseholdSettings } from "./HouseholdSettings";
+import { DeleteAccount } from "./DeleteAccount";
 import { X, LogOut } from "lucide-react";
 
 export function SettingsPage() {
-  const { householdId, inviteCode, setSettingsOpen, signOut } = useAuthStore();
+  const { householdId, setSettingsOpen, signOut } = useAuthStore();
   const { load } = useSettingsStore();
 
   useEffect(() => {
@@ -33,15 +35,11 @@ export function SettingsPage() {
           </button>
         </div>
 
-        {inviteCode && (
-          <div className="space-y-2">
-            <p className="text-[10px] tracking-widest text-muted-foreground uppercase">invite code</p>
-            <p className="text-xl tracking-widest font-medium">{inviteCode}</p>
-            <p className="text-[11px] text-muted-foreground">share this code with your partner</p>
-          </div>
-        )}
+        <HouseholdSettings />
 
-        <SubscriptionSettings />
+        <div className="border-t border-border pt-6">
+          <SubscriptionSettings />
+        </div>
 
         <div className="border-t border-border pt-6">
           <WeeklyChoresSettings />
@@ -51,7 +49,7 @@ export function SettingsPage() {
           <CalendarSettings />
         </div>
 
-        <div className="border-t border-border pt-6">
+        <div className="border-t border-border pt-6 space-y-6">
           <button
             onClick={signOut}
             className="flex items-center gap-2 text-[11px] text-muted-foreground hover:text-foreground transition-colors tracking-wider"
@@ -59,6 +57,8 @@ export function SettingsPage() {
             <LogOut size={12} />
             sign out
           </button>
+
+          <DeleteAccount />
         </div>
       </div>
     </div>
