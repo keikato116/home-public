@@ -7,33 +7,26 @@ import { createAdminClient } from "@/lib/supabase/admin";
 // 世帯に自分しかいなければ、世帯ごと消す（households の on delete cascade で
 // やること・買い物・レシピ・献立などがまとめて消える）。
 //
-// パートナーが残っている場合は世帯そのものは残るので、2人で貯めてきた
-// 共有データを相手に引き継ぐかどうかを選べる。引き継がない指定をしたものは
-// ここで消す。共有データには作成者の記録が無い（shopping_items も split 系も
-// 世帯単位）ので、カテゴリ単位で全部残すか全部消すかの二択になる。
+// パートナーが残る場合、レシピだけは引き継ぐかどうかを選べる。
+// レシピは部屋（ペアの期間）をまたいで残る唯一の共有データなので、
+// 明示的に消せないと「別れた相手に自分のレシピが残り続ける」ことになる。
+//
+// 割り勘と共有の買い物リストは選択の対象にしていない。
+// 相手は1人に戻り、部屋が変わった時点で表示されなくなるため
+// （supabase/migrations/2026-09-11_pairing_scope.sql）。
 //
 // 自分の個人データ（非公開の買い物アイテム等）は、指定によらず
 // auth.users の削除に張り直した外部キー経由で必ず消える
 // （supabase/migrations/2026-09-11_account_deletion.sql）。
 
-type HandOver = { recipes: boolean; split: boolean; shopping: boolean };
-
-const HAND_OVER_ALL: HandOver = { recipes: true, split: true, shopping: true };
-
-async function parseHandOver(req: NextRequest): Promise<HandOver> {
+async function parseHandOverRecipes(req: NextRequest): Promise<boolean> {
   try {
     const body = await req.json();
-    const h = body?.handOver;
-    if (!h) return HAND_OVER_ALL;
-    // 指定が無いものは「引き継ぐ」に倒す。消すほうを既定にすると、
+    // 指定が無ければ「引き継ぐ」に倒す。消すほうを既定にすると、
     // 通信の食い違いでデータが消える事故が起きる。
-    return {
-      recipes: h.recipes !== false,
-      split: h.split !== false,
-      shopping: h.shopping !== false,
-    };
+    return body?.handOver?.recipes !== false;
   } catch {
-    return HAND_OVER_ALL;
+    return true;
   }
 }
 
@@ -49,7 +42,7 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: "SUPABASE_SERVICE_ROLE_KEY not configured" }, { status: 503 });
   }
 
-  const handOver = await parseHandOver(req);
+  const handOverRecipes = await parseHandOverRecipes(req);
 
   const { data: membership } = await admin
     .from("household_members")
@@ -74,7 +67,7 @@ export async function DELETE(req: NextRequest) {
         return NextResponse.json({ error: error.message }, { status: 500 });
       }
     } else {
-      if (!handOver.recipes) {
+      if (!handOverRecipes) {
         // 献立がレシピを参照しているので、先に参照を外してから消す。
         // 外部キーの on delete 指定に関係なく安全にするため。
         const { error: planError } = await admin
@@ -86,27 +79,6 @@ export async function DELETE(req: NextRequest) {
           return NextResponse.json({ error: planError.message }, { status: 500 });
         }
         const { error } = await admin.from("recipes").delete().eq("household_id", householdId);
-        if (error) {
-          return NextResponse.json({ error: error.message }, { status: 500 });
-        }
-      }
-
-      if (!handOver.split) {
-        for (const table of ["split_sessions", "split_subscriptions", "family_card_totals"]) {
-          const { error } = await admin.from(table).delete().eq("household_id", householdId);
-          if (error) {
-            return NextResponse.json({ error: error.message }, { status: 500 });
-          }
-        }
-      }
-
-      if (!handOver.shopping) {
-        // 共有アイテムだけ。非公開アイテムは user 削除で必ず消えるので触らない。
-        const { error } = await admin
-          .from("shopping_items")
-          .delete()
-          .eq("household_id", householdId)
-          .is("user_id", null);
         if (error) {
           return NextResponse.json({ error: error.message }, { status: 500 });
         }

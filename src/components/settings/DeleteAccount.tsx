@@ -18,14 +18,6 @@ import {
 // 黙って削除させると請求だけが残るので、課金中の人には解約画面を開くボタンを
 // 先に踏ませ、済ませたことを確認してから削除させる。
 
-const HAND_OVER_ITEMS = [
-  { key: "recipes", label: "レシピ" },
-  { key: "split", label: "割り勘の記録" },
-  { key: "shopping", label: "共有の買い物リスト" },
-] as const;
-
-type HandOverKey = typeof HAND_OVER_ITEMS[number]["key"];
-
 export function DeleteAccount() {
   const { user, members, memberCount, signOut } = useAuthStore();
   const entitled = useSubscriptionStore((s) => s.entitled);
@@ -34,10 +26,8 @@ export function DeleteAccount() {
   const [working, setWorking] = useState(false);
   const [error, setError] = useState("");
   // 既定は「引き継ぐ」。消すほうを既定にすると、よく読まずに進んだ人が
-  // 相手のデータまで消してしまう。
-  const [handOver, setHandOver] = useState<Record<HandOverKey, boolean>>({
-    recipes: true, split: true, shopping: true,
-  });
+  // 相手のレシピまで消してしまう。
+  const [handOverRecipes, setHandOverRecipes] = useState(true);
 
   const solo = memberCount !== null && memberCount <= 1;
   const partnerName = members.find((m) => m.userId !== user?.id)?.displayName || "相手";
@@ -51,7 +41,7 @@ export function DeleteAccount() {
       const res = await fetch("/api/account", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ handOver }),
+        body: JSON.stringify({ handOver: { recipes: handOverRecipes } }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -106,26 +96,22 @@ export function DeleteAccount() {
 
       {!solo && (
         <div className="space-y-2 border border-border rounded-2xl p-4">
-          <p className="text-[12px]">{partnerName} に引き継ぐもの</p>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={handOverRecipes}
+              onChange={(e) => setHandOverRecipes(e.target.checked)}
+            />
+            <span className="text-[12px]">レシピを {partnerName} に引き継ぐ</span>
+          </label>
           <p className="text-[11px] text-muted-foreground leading-relaxed">
-            チェックを外したものは削除されます。2人で使っていたデータなので、
-            {partnerName} の画面からも消えます。
+            {handOverRecipes
+              ? `2人で貯めたレシピが ${partnerName} に残ります。`
+              : `レシピをすべて削除します。${partnerName} が追加したレシピも消え、献立で選んでいたレシピも空になります。`}
           </p>
-          {HAND_OVER_ITEMS.map(({ key, label }) => (
-            <label key={key} className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={handOver[key]}
-                onChange={(e) => setHandOver((h) => ({ ...h, [key]: e.target.checked }))}
-              />
-              <span className="text-[12px]">{label}</span>
-            </label>
-          ))}
-          {!handOver.recipes && (
-            <p className="text-[11px] text-muted-foreground leading-relaxed">
-              レシピを削除すると、献立カレンダーで選んでいたレシピも空になります。
-            </p>
-          )}
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
+            割り勘の記録と共有の買い物リストは、{partnerName} が1人に戻るため表示されなくなります。
+          </p>
         </div>
       )}
 

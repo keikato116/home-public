@@ -118,7 +118,12 @@ export const useSplitStore = create<SplitState>((set) => ({
     await ensureSession();
     const { data: row } = await supabase
       .from("family_card_totals")
-      .upsert({ household_id: householdId, year, month: month + 1, total }, { onConflict: "household_id,year,month" })
+      // created_at も更新する。前の部屋で作られた行が残っていると、
+      // 更新しても「いまの部屋の行」にならず表示されないため。
+      .upsert(
+        { household_id: householdId, year, month: month + 1, total, created_at: new Date().toISOString() },
+        { onConflict: "household_id,year,month" }
+      )
       .select()
       .single();
     if (row) set({ familyTotal: row as FamilyCardTotal });
