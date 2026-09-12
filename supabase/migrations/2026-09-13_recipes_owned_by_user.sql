@@ -51,6 +51,11 @@ alter table public.recipes alter column owner_id set not null;
 -- ------------------------------------------------------------
 -- household_id には on delete cascade が付いている。持ち主が世帯を
 -- 移ったり、空になった世帯が消えたりするとレシピまで消えてしまうので外す。
+--
+-- 古いポリシーが household_id を参照しているので、列より先に落とす。
+-- 残したまま drop column すると 2BP01 で止まる。
+
+drop policy if exists "household members can manage recipes" on public.recipes;
 
 alter table public.recipes drop column if exists household_id;
 
@@ -87,7 +92,6 @@ grant execute on function public.shares_household_with(uuid) to authenticated;
 -- 4. ポリシーを貼り直す
 -- ------------------------------------------------------------
 
-drop policy if exists "household members can manage recipes" on public.recipes;
 drop policy if exists "owner or partner can read recipes" on public.recipes;
 drop policy if exists "owner can insert recipes" on public.recipes;
 drop policy if exists "owner or partner can update recipes" on public.recipes;
