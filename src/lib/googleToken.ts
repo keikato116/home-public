@@ -30,6 +30,38 @@ export function startGoogleOAuth(supabase: ReturnType<typeof createClient>) {
   });
 }
 
+/**
+ * カレンダーを繋ぐ。Apple でログインした人にも効くようにしてある。
+ *
+ * signInWithOAuth をそのまま呼ぶと「Google としてログインし直す」意味になるので、
+ * Apple で登録した人が押すと別のアカウントに化けてしまう。すでにログイン済みで
+ * Google の identity を持っていない場合は linkIdentity で今のアカウントに紐付ける。
+ *
+ * linkIdentity は Supabase の Authentication 設定で Manual linking が有効なときだけ動く。
+ * 無効なら例外になるので、そのときは従来どおりの再ログインに落とす。
+ */
+export async function connectGoogleCalendar(supabase: ReturnType<typeof createClient>) {
+  const { data: { user } } = await supabase.auth.getUser();
+  const hasGoogle = user?.identities?.some((i) => i.provider === "google") ?? false;
+
+  // 未ログイン、または既に Google 連携済み（＝トークンの取り直し）は従来どおり
+  if (!user || hasGoogle) return startGoogleOAuth(supabase);
+
+  try {
+    const { error } = await supabase.auth.linkIdentity({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+        scopes: GOOGLE_CALENDAR_SCOPE,
+        queryParams: { access_type: "offline", prompt: "consent" },
+      },
+    });
+    if (error) throw error;
+  } catch {
+    return startGoogleOAuth(supabase);
+  }
+}
+
 export async function upsertUserToken(
   supabase: ReturnType<typeof createClient>,
   userId: string,

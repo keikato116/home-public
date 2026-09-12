@@ -102,15 +102,34 @@ App プライバシー申告で通知に関して申告するものは無い。
 | アカウント削除（5.1.1(v)） | ✅ 実装済み |
 | ソロモード（4.2） | ✅ 実装済み |
 | 利用規約・プライバシーポリシー | ⚠️ ドラフト。**法的レビュー未実施**。上記3章の外部送信が書けているか要確認 |
-| **ログイン方法（4.8）** | ❌ **未対応。下記参照** |
+| **ログイン方法（4.8）** | ⚠️ コードは対応済み。**Apple Developer と Supabase の設定が残っている**（下記） |
 | **Google OAuth の審査** | ❌ **未対応。下記参照** |
 | App プライバシー申告 | ❌ 未着手（3章がそのまま材料になる） |
 | スクリーンショット2サイズ | ❌ 未着手 |
 | サポートURL | ❌ 未着手 |
 
-### ⚠️ Guideline 4.8: ログイン方法が Google だけ
+### Guideline 4.8: Sign in with Apple（コードは対応済み・設定が残っている）
 
-`AuthGate.tsx` は `signInWithOAuth({ provider: "google" })` のみ。
+`AuthGate.tsx` に Sign in with Apple を追加した（2026-09-12）。残っているのは設定作業:
+
+1. **Apple Developer**
+   - Identifiers で **Services ID** を作る（例 `com.keikato.homeapp.signin`）
+   - Return URL に `https://<ref>.supabase.co/auth/v1/callback`
+   - Keys で **Sign in with Apple 用の鍵（.p8）** を作り、Key ID と Team ID を控える
+2. **Supabase** → Authentication → Providers → Apple を有効化し、
+   Services ID・Team ID・Key ID・.p8 の中身を入れる
+3. **Supabase** → Authentication → Manual linking を有効にする
+   → Apple で入った人が後から Google カレンダーを繋ぐときに使う。
+   　無効でも動くが、その場合は Google での再ログインに落ちる
+
+**Apple で入った人は Google のトークンを持たない。** カレンダーは手入力の予定だけになり、
+calendar タブに「connect google calendar」が出る。そこから `connectGoogleCalendar()` が
+linkIdentity で今のアカウントに Google を紐付ける（signInWithOAuth をそのまま呼ぶと
+別アカウントに化けるため、識別子の有無で分岐している）。
+
+以下は、なぜ必要だったかの記録:
+
+`AuthGate.tsx` は `signInWithOAuth({ provider: "google" })` のみだった。
 
 Apple のガイドライン 4.8 は、サードパーティのログインを主たるアカウント作成手段に
 使う場合、**次の3条件を満たす別のログイン手段も用意すること**を求めている。
