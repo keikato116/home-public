@@ -12,6 +12,8 @@ export const LS_SPLIT_RATIO = "split_ratio";
 export const LS_CAL_CACHE_PREFIX = "cal_cache_";
 export const LS_ENTITLED_CACHE = "entitled";
 export const LS_CACHED_MEMBER_COUNT = "cached_member_count";
+// 「今日の家事」のローカル通知の設定（端末ごと。世帯では共有しない）
+export const LS_CHORE_NOTIFY = "chore_notify";
 
 // OAuth
 export const GOOGLE_CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.readonly";
