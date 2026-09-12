@@ -19,15 +19,10 @@ import { LS_CHORE_NOTIFY } from "@/lib/constants";
 /** 通知の設定。端末ごとの設定なので localStorage に置く（世帯では共有しない）。 */
 export interface ChoreNotifySetting {
   enabled: boolean;
-  /** 0-23。既定は朝8時。 */
-  hour: number;
-  minute: number;
 }
 
 export const DEFAULT_CHORE_NOTIFY: ChoreNotifySetting = {
   enabled: false,
-  hour: 8,
-  minute: 0,
 };
 
 /** 予約しておく日数。アプリを開かなくてもこの日数ぶんは鳴り続ける。 */
@@ -116,8 +111,9 @@ export function parseNotifyAt(value: string | null | undefined): number | null {
  * ここだけ切り出してあるのは、プラグインを起動せずにテストできるようにするため。
  * 実際の予約は syncChoreNotifications が行う。
  *
- * 家事ごとに notify_at を持てる（朝やる家事と夜やる家事を分けるため）。
- * 設定が無い家事は、端末側の既定の時刻にまとめて鳴らす。
+ * 時刻は家事ごとに持つ（朝やる家事と夜やる家事を分けるため）。
+ * **時刻が設定されていない家事は通知しない。** 既定の時刻へのフォールバックは置かない。
+ * 家事を追加しただけで勝手に通知が増えるほうが、鳴らないより困るため。
  * 同じ時刻の家事は1件の通知にまとめる。
  */
 export function planChoreNotifications(
@@ -128,7 +124,6 @@ export function planChoreNotifications(
 ): PlannedNotification[] {
   if (!setting.enabled) return [];
 
-  const fallback = setting.hour * 60 + setting.minute;
   const planned: PlannedNotification[] = [];
 
   for (let i = 0; i < DAYS_AHEAD; i++) {
@@ -138,7 +133,9 @@ export function planChoreNotifications(
     // その日の家事を、鳴らす時刻ごとにまとめる
     const byTime = new Map<number, string[]>();
     for (const def of getTodaysRoutines(definitions, day)) {
-      const at = parseNotifyAt(def.notify_at) ?? fallback;
+      const at = parseNotifyAt(def.notify_at);
+      // 時刻が未設定の家事は通知しない
+      if (at === null) continue;
       const labels = byTime.get(at);
       if (labels) labels.push(def.label);
       else byTime.set(at, [def.label]);
@@ -204,14 +201,4 @@ export async function setChoreNotifyEnabled(
   saveChoreNotifySetting({ ...getChoreNotifySetting(), enabled });
   await syncChoreNotifications(definitions);
   return enabled;
-}
-
-/** 時刻を変えたときに呼ぶ。 */
-export async function setChoreNotifyTime(
-  hour: number,
-  minute: number,
-  definitions: RoutineDefinition[]
-): Promise<void> {
-  saveChoreNotifySetting({ ...getChoreNotifySetting(), hour, minute });
-  await syncChoreNotifications(definitions);
 }

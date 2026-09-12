@@ -5,14 +5,16 @@ import { useSettingsStore } from "@/store/settingsStore";
 import { useTodoStore } from "@/store/todoStore";
 import {
   notificationsAvailable, getChoreNotifySetting,
-  setChoreNotifyEnabled, setChoreNotifyTime,
-  syncChoreNotifications, parseNotifyAt,
+  setChoreNotifyEnabled, syncChoreNotifications, parseNotifyAt,
 } from "@/lib/notifications";
 
 // 「今日の家事」の通知設定。ブラウザではローカル通知が使えないので iOS のときだけ出す。
 //
-// 既定の時刻は端末ごと（localStorage）。家事ごとの時刻は世帯で共有する（DB の notify_at）。
-// 「ゴミ出しは朝7時」は2人にとって同じであるべきなので、片方だけずれないようにしている。
+// 時刻は家事ごとに設定する（DB の notify_at）。世帯で共有する値にしているのは、
+// 「ゴミ出しは朝7時」が2人にとって同じであるべきだから。オン・オフだけ端末ごと。
+//
+// 時刻が空の家事は通知しない。家事を足しただけで通知が勝手に増えるより、
+// 鳴らしたいものを選んでもらうほうが、通知を切られにくい。
 
 const DAY_LABEL = ["日", "月", "火", "水", "木", "金", "土"];
 
@@ -23,7 +25,7 @@ function whenLabel(r: { frequency: string; day_of_week: number | null; day_of_mo
   return "一度だけ";
 }
 
-/** "HH:MM:SS" → "HH:MM"（time 入力が読める形）。設定が無ければ空。 */
+/** "HH:MM:SS" → "HH:MM"（time 入力が読める形）。未設定なら空＝通知しない。 */
 function toInputValue(notifyAt: string | null): string {
   const mins = parseNotifyAt(notifyAt);
   if (mins === null) return "";
@@ -36,19 +38,14 @@ export function NotificationSettings() {
   const todoRoutines = useTodoStore((s) => s.routineDefinitions);
 
   const [enabled, setEnabled] = useState(false);
-  const [hour, setHour] = useState(8);
-  const [minute, setMinute] = useState(0);
   const [denied, setDenied] = useState(false);
 
   // localStorage を読むので、描画後に反映する（SSR とズレないように）
   useEffect(() => {
-    const s = getChoreNotifySetting();
-    setEnabled(s.enabled);
-    setHour(s.hour);
-    setMinute(s.minute);
+    setEnabled(getChoreNotifySetting().enabled);
   }, []);
 
-  // 時刻の早い順に並べる。時刻未設定（＝既定）は最後にまとめる。
+  // 時刻の早い順に並べる。未設定（＝通知しない）は最後にまとめる。
   const sorted = useMemo(() => {
     return [...routineDefinitions].sort((a, b) => {
       const am = parseNotifyAt(a.notify_at);
@@ -62,8 +59,6 @@ export function NotificationSettings() {
 
   if (!notificationsAvailable()) return null;
 
-  const defaultValue = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
-
   const toggle = async () => {
     const next = !enabled;
     const ok = await setChoreNotifyEnabled(next, todoRoutines);
@@ -72,16 +67,8 @@ export function NotificationSettings() {
     setDenied(next && !ok);
   };
 
-  const changeDefaultTime = async (value: string) => {
-    const [h, m] = value.split(":").map(Number);
-    if (Number.isNaN(h) || Number.isNaN(m)) return;
-    setHour(h);
-    setMinute(m);
-    await setChoreNotifyTime(h, m, todoRoutines);
-  };
-
   const changeChoreTime = async (id: string, value: string) => {
-    // 空にしたら既定の時刻に戻す
+    // 空にしたら、その家事は通知しない
     await setRoutineNotifyAt(id, value ? `${value}:00` : null);
     await syncChoreNotifications(
       todoRoutines.map((r) => (r.id === id ? { ...r, notify_at: value ? `${value}:00` : null } : r))
@@ -110,20 +97,10 @@ export function NotificationSettings() {
 
       {enabled && (
         <>
-          <div className="flex items-center gap-2 pl-6">
-            <span className="text-[11px] text-muted-foreground">既定</span>
-            <input
-              type="time"
-              value={defaultValue}
-              onChange={(e) => changeDefaultTime(e.target.value)}
-              className="bg-background border border-border rounded px-2 py-1 text-[12px]"
-            />
-          </div>
-
           {sorted.length > 0 && (
             <div className="pl-6 pt-1 space-y-1.5">
               <p className="text-[10px] text-muted-foreground/70 leading-relaxed">
-                家事ごとに時刻を変えられます。空にすると既定の時刻になります。
+                知らせてほしい家事に時刻を入れてください。空のままなら通知しません。
               </p>
               {sorted.map((r) => (
                 <div key={r.id} className="flex items-center gap-2">
@@ -143,7 +120,8 @@ export function NotificationSettings() {
           )}
 
           <p className="text-[11px] text-muted-foreground leading-relaxed">
-            その日の家事があるときだけ鳴ります。同じ時刻の家事はまとめて1回で届きます。
+            時刻を入れた家事が、その日にあるときだけ鳴ります。
+            同じ時刻の家事はまとめて1回で届きます。
           </p>
         </>
       )}

@@ -58,7 +58,7 @@ create table public.routine_definitions (
   day_of_month integer check (day_of_month between 1 and 31),
   due_date     date,
   user_id      uuid references auth.users(id) on delete cascade,
-  -- 通知する時刻。null なら端末側で設定した既定の時刻を使う
+  -- 通知する時刻。null ならその家事は通知しない
   notify_at    time,
   "order"      integer not null default 0,
   created_at   timestamptz default now()
