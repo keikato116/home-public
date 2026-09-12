@@ -37,12 +37,25 @@
 | 献立 | meal_plans | 世帯（部屋をまたぐ） |
 | 予定 | local_calendar_events, calendar_settings | 世帯（user_id は作成者） |
 | 割り勘 | split_sessions, split_subscriptions, family_card_totals | 世帯 + **現在の部屋のみ** |
-| 日記 | diary_entries | **本人のみ** |
+| ~~日記~~ | diary_entries | **到達不可**（下記） |
 | Google トークン | user_tokens | 本人 + 同世帯のメンバー |
 | 課金状態 | subscriptions | 本人（初回リリースでは空のまま） |
 
 画像（レシピ写真）は Supabase Storage の `recipes` バケット。**公開URLで配信される**ため、
 URL を知っていれば誰でも見られる。推測は困難だが、秘密ではない。
+
+### diary_entries は使われていない
+
+`DiaryTab.tsx` と `diaryStore.ts` は残っているが、**どこからも呼ばれていない**。
+タブ定義（`BottomTabBar.tsx` の `TABS`）にも `page.tsx` の描画にも `diary` は無く、
+`DiaryTab` を import しているファイルは1つもない。つまり利用者は日記に到達できない。
+
+公開版に日記を載せないなら、**テーブルごと落としたほうがよい**。
+自由記述の個人的な文章を置く表が残っていると、App プライバシー申告で
+「保存しているのに機能が無い」ものを申告することになり、説明が面倒になる。
+
+判断待ち。載せるならタブに追加する、載せないなら
+`src/components/diary/` と `src/store/diaryStore.ts` と `diary_entries` を消す。
 
 ### 「部屋」による区切り
 
