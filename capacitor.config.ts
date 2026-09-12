@@ -1,4 +1,10 @@
 import type { CapacitorConfig } from "@capacitor/cli";
+import { config as loadEnv } from "dotenv";
+
+// cap コマンドは Next.js とは別のプロセスなので、.env.local を自分では読まない。
+// ここで読んでおかないと CAP_SERVER_URL が undefined のままになり、
+// アプリが Vercel を見に行かず、capacitor-shell の「設定が足りません」が出る。
+loadEnv({ path: ".env.local" });
 
 // The app has server-side API routes (/api/parse-recipe, /api/calendar, …), so it cannot
 // be exported as static files. Instead the native shell loads the deployed Next.js app.

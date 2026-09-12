@@ -87,7 +87,8 @@ cd home-public
 npm install
 
 cp .env.local.example .env.local
-# CAP_SERVER_URL=https://home-public.vercel.app を書く（これが無いと真っ白になる）
+# CAP_SERVER_URL=https://home-public.vercel.app を書く
+# （capacitor.config.ts が dotenv で .env.local を読む。書き換えたら ios:sync をやり直す）
 
 npm run build
 npm run ios:add      # 初回のみ。ios/ が生成される
@@ -118,7 +119,7 @@ npm run ios:open     # Xcode が開く
 | 通知 | 設定に **notification 欄が出る**（ブラウザでは出ない）。家事に時刻を入れて翌朝鳴るか |
 | セーフエリア | 下タブがホームインジケータに被っていないか |
 | 外部リンク | レシピの URL などが Safari で開くか（WebView 内で開くと戻れない） |
-| 初回起動 | `CAP_SERVER_URL` が正しいか。白画面ならここ |
+| 初回起動 | 「設定が足りません」が出たら `CAP_SERVER_URL` の設定漏れ。直したら **npm run ios:sync をやり直す**（ビルドし直すだけでは反映されない） |
 
 ### F. App Store Connect
 
