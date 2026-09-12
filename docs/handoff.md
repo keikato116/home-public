@@ -75,6 +75,74 @@ Vercel にデプロイし（`https://home-public.vercel.app`）、公開版専�
   エンドポイントが無い。削除画面で解約画面に誘導し、チェックを入れさせてから
   削除させている。「自動で止める」実装は不可能なので試さないこと。
 
+## 明日ここから（2026-09-12 時点）
+
+### いまどこまで来たか
+
+- ✅ 公開版専用の Supabase（新 organization + プロジェクト）。マイグレーション適用済み
+- ✅ Vercel にデプロイ済み（`https://home-public.vercel.app`）。**ブラウザでログインして動くところまで確認**
+- ✅ Vercel の環境変数に Supabase 3つ + `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`
+- ✅ Supabase の Redirect URLs に `com.keikato.homeapp://auth/callback`
+- 🔄 **Mac で iOS 化の途中。Xcode の iOS 26.5 コンポーネント（8.5GB）をダウンロード中**
+
+### 明日の最初の一手
+
+ダウンロードが終わっていれば:
+
+1. Xcode を再起動 → iPhone を接続（ロック解除した状態で）
+2. デバイス選択に iPhone が出る → ▶
+3. **「Developer Mode disabled」で止まる** ← これが正常
+4. iPhone の 設定 → プライバシーとセキュリティ → **デベロッパモード**が出現 → オン → 再起動
+5. もう一度 ▶
+
+**Xcode 側でまだやっていない設定:**
+
+- Signing & Capabilities → Team（無料 Apple ID でも Personal Team が選べる）
+- **Info → URL Types → URL Schemes に `com.keikato.homeapp`**
+  → これが無いと Safari からアプリに戻れずログインできない
+- Sign in with Apple の capability（Personal Team では追加できないことがある。その場合は後回しでよい）
+
+### 実機で最初に見るところ
+
+| | |
+|---|---|
+| 「設定が足りません」と出る | `CAP_SERVER_URL` の設定漏れ |
+| **sign in with google** | **Safari が開く**（WebView 内で開いたら失敗）→ 認証 → **アプリに戻る** |
+| 戻ってこない | URL Types か Supabase の Redirect URLs の登録漏れ |
+| 設定を開く | **notification 欄が出る**（ブラウザでは出ない） |
+
+### Apple 待ちの状況
+
+- **Developer Program の購入ページに進めない。** 9/12 は iPhone 18 Pro の予約で Apple Store が
+  メンテナンス中だった。翌日以降に再試行する。
+  それでも駄目なら、2026年に入ってから報告が続いている加入処理の詰まり
+  （「Enroll Now が出ない」「購入が処理されない」）の可能性。
+  iPhone の **Apple Developer アプリ**からの加入は別系統なので、そちらも試す。
+- **無料 Apple ID でも実機に入れられる**（署名が7日で失効）。
+  今日の目的である「WebView の Google ログインが直ったか」の確認はこれで足りる。
+
+### 決まっていること
+
+- **配信は日本のみ**（EU に出すと住所と電話番号が公開されるため）
+- **本名が販売元として公開されるのは許容**
+- 初回リリースは**課金なし**。レシピと献立は全員に非表示
+- **レシートの撮影読み取りは削除**（割り勘は手入力）。レシピの読み取りは残す
+- アプリ名は未定。候補は `Tovine` / `Milune` / `Dubase`
+  （**App Store Connect に登録する前に決めること。Bundle ID は以後変更できない**）
+
+### 残っている審査ブロッカー
+
+| | |
+|---|---|
+| Google OAuth の審査 | ❌ **独自ドメインが必要**。審査に数週間かかるので最優先 |
+| Sign in with Apple | ⚠️ コードは入った。Apple の Services ID / 鍵と Supabase の設定が残り |
+| 利用規約・プライバシーポリシー | ⚠️ 実装に合わせて書き直した（9/12）が、**法的レビューは未実施** |
+| アプリの説明ページ | ❌ 未着手。Google の審査で「何のアプリか分かる場所」として要る |
+| スクリーンショット2サイズ | ❌ |
+| App プライバシー申告 | ❌（`docs/data-and-privacy.md` が材料） |
+
+---
+
 ## 次にやること（順番どおり）
 
 ### 1. Supabase を公開版専用プロジェクトに分ける（✅ 2026-09-12 完了）
