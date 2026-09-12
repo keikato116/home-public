@@ -80,9 +80,9 @@ export default function PrivacyPage() {
             ・<strong>Google</strong> — サインイン、およびカレンダーの読み取り
           </li>
           <li>
-            ・<strong>Anthropic</strong> — レシピの取り込みとレシートの読み取り。
-            この機能を使ったときにかぎり、<strong>取り込み先のページの内容、または撮影したレシートの画像そのもの</strong>が
-            解析のために送信されます。レシートには店名・品目・金額・日時が含まれます。
+            ・<strong>Anthropic</strong> — レシピの取り込み。
+            URL または写真からレシピを取り込む機能を使ったときにかぎり、
+            <strong>取り込み先のページの内容、または選択した写真</strong>が解析のために送信されます。
             使用しないかぎり送信は発生しません。
           </li>
           <li>

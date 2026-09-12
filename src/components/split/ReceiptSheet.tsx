@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { SplitItem } from "@/types";
-import { Camera, X } from "lucide-react";
+import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDateShort, fmtYen, inputStyle } from "./lib";
 
@@ -62,11 +62,9 @@ export function ReceiptSheet({ defaultDate, defaultHerRatio, onSave, onClose }: 
   const [card, setCard] = useState<"mine" | "family">("mine");
   const [amount, setAmount] = useState("");
   const [herRatio, setHerRatio] = useState(defaultHerRatio);
-  const [scanning, setScanning] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [vpHeight, setVpHeight] = useState<number | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const scrollY = window.scrollY;
@@ -104,36 +102,6 @@ export function ReceiptSheet({ defaultDate, defaultHerRatio, onSave, onClose }: 
   const n = parseInt(amount, 10) || 0;
   const herOwed = Math.round(n * herRatio);
 
-  const handleScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setScanning(true);
-    setError("");
-    try {
-      const reader = new FileReader();
-      const base64 = await new Promise<string>((res, rej) => {
-        reader.onload = () => res((reader.result as string).split(",")[1]);
-        reader.onerror = rej;
-        reader.readAsDataURL(file);
-      });
-      const resp = await fetch("/api/parse-receipt", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageBase64: base64, mediaType: file.type }),
-      });
-      if (!resp.ok) throw new Error();
-      const parsed = await resp.json();
-      if (parsed.store) setStore(parsed.store);
-      if (parsed.date) setDate(parsed.date);
-      if (parsed.total) setAmount(String(parsed.total));
-    } catch {
-      setError("scan failed — enter manually");
-    } finally {
-      setScanning(false);
-      if (fileRef.current) fileRef.current.value = "";
-    }
-  };
-
   const handleSave = async () => {
     if (n <= 0) return;
     setSaving(true);
@@ -161,16 +129,9 @@ export function ReceiptSheet({ defaultDate, defaultHerRatio, onSave, onClose }: 
           <X size={16} />
         </button>
         <p className="text-[11px] tracking-widest text-muted-foreground uppercase">add receipt</p>
-        <button
-          onClick={() => fileRef.current?.click()}
-          disabled={scanning}
-          className="flex items-center gap-1.5 text-[11px] text-muted-foreground disabled:opacity-40"
-        >
-          <Camera size={13} />
-          {scanning ? "scanning..." : "scan"}
-        </button>
+        {/* 左の閉じるボタンと釣り合う幅。見出しを中央に保つためのもの */}
+        <div className="w-6" />
       </div>
-      <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleScan} />
       <div className="flex-1 px-5 py-6 space-y-4">
 
         {/* Date + card */}
