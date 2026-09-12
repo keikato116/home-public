@@ -155,7 +155,27 @@ export const useAuthStore = create<AuthState>((set) => ({
         }
 
         const hid = member?.household_id ?? null;
-        const ic = (member?.households as { invite_code?: string } | null)?.invite_code ?? null;
+
+        // 埋め込みの households は、PostgREST の関連の見え方によって
+        // オブジェクトでも配列でも返りうる。どちらでも拾えるようにしておく。
+        const embedded = member?.households as
+          | { invite_code?: string }
+          | { invite_code?: string }[]
+          | null
+          | undefined;
+        let ic =
+          (Array.isArray(embedded) ? embedded[0]?.invite_code : embedded?.invite_code) ?? null;
+
+        // それでも取れなければ直接引く。招待コードが無いと相手を呼べず、
+        // 1人から2人になる道が塞がるので、ここは落とせない。
+        if (hid && !ic) {
+          const { data: household } = await supabase
+            .from("households")
+            .select("invite_code")
+            .eq("id", hid)
+            .maybeSingle();
+          ic = (household?.invite_code as string | undefined) ?? null;
+        }
 
         const members = hid ? await fetchMembers(supabase, hid) : [];
         const isOwner = members[0]?.userId === session.user.id;

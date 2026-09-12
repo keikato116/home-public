@@ -85,6 +85,34 @@ Vercel にデプロイし（`https://home-public.vercel.app`）、公開版専�
 - ✅ Supabase の Redirect URLs に `com.keikato.homeapp://auth/callback`
 - 🔄 **Mac で iOS 化の途中。Xcode の iOS 26.5 コンポーネント（8.5GB）をダウンロード中**
 
+### 見つかった不具合（2026-09-13 修正）
+
+実機で「ソロのまま共有できない・招待コードが出ない」と分かって判明したもの。
+
+**① 2人になってもソロ扱いのままだった（重大）**
+
+`household_members` の select ポリシーが `user_id = auth.uid()` だけで、
+**自分の所属行しか読めなかった。** household_id で引いても1行しか返らないので、
+人数が常に1人と判定されていた。公開版はモードを人数から導いているため:
+
+- 相手が参加しても「1人で使用中」のまま
+- **割り勘タブが永久に出ない**
+- 相手の名前も解散ボタンも出ない
+
+個人版には人数による出し分けが無かったので、表面化していなかった。
+
+`is_household_member()`（security definer）を挟んで、同じ世帯のメンバーどうしが
+お互いの行を見られるようにした。ポリシー内で household_members を引くと
+再帰するため、関数で RLS を迂回している。
+
+→ **`supabase/migrations/2026-09-13_household_members_visibility.sql` を流すこと。**
+
+**② 招待コードが表示されなかった**
+
+`households(invite_code)` の埋め込みが期待した形で返っていなかった。
+配列でもオブジェクトでも拾えるようにし、それでも取れない場合は
+`households` を直接引く保険を入れた（`authStore.init`）。
+
 ### 明日の最初の一手
 
 ダウンロードが終わっていれば:

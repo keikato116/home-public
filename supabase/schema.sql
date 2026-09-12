@@ -262,9 +262,33 @@ create policy "authenticated users can create household"
   with check (auth.uid() is not null);
 
 -- メンバー
+-- 同じ世帯のメンバーどうしが、お互いの所属行を見られるようにする。
+-- 自分の行だけにすると、household_id で引いても1行しか返らず、
+-- 人数が常に1人と判定されてソロ扱いから抜けられなくなる。
+--
+-- ポリシーの中で household_members を引くと再帰するので、
+-- security definer の関数に包んで RLS を迂回する。
+create or replace function public.is_household_member(hid uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1
+    from public.household_members
+    where household_id = hid
+      and user_id = auth.uid()
+  );
+$$;
+
+revoke all on function public.is_household_member(uuid) from public;
+grant execute on function public.is_household_member(uuid) to authenticated;
+
 create policy "member can read memberships"
   on public.household_members for select
-  using (user_id = auth.uid());
+  using (public.is_household_member(household_id));
 
 create policy "user can insert own membership"
   on public.household_members for insert
