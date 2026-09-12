@@ -6,7 +6,7 @@
 --
 -- 【重要】このファイルは、稼働中のデータベースから実際の構造を
 -- 吸い出して作り直したもの。以前の版は meal_plans / split_sessions /
--- split_subscriptions / family_card_totals / diary_entries の5テーブルと、
+-- split_subscriptions / family_card_totals の4テーブルと、
 -- shopping_items.user_id・split_sessions.her_ratio 等の列が欠けていた。
 -- 手で編集するときは、実データベースとのズレを作らないよう注意する。
 -- ============================================================
@@ -204,20 +204,6 @@ create table public.family_card_totals (
   unique (household_id, year, month)
 );
 
--- ------------------------------------------------------------
--- 日記（本人だけが読み書きする）
--- ------------------------------------------------------------
-
-create table public.diary_entries (
-  id           uuid primary key default gen_random_uuid(),
-  household_id uuid not null references public.households(id) on delete cascade,
-  user_id      uuid references auth.users(id) on delete set null,
-  entry_date   date not null default current_date,
-  author_name  text,
-  content      text not null,
-  created_at   timestamptz not null default now()
-);
-
 -- ============================================================
 -- RLS（Row Level Security）の有効化
 -- ============================================================
@@ -236,7 +222,6 @@ alter table public.user_tokens           enable row level security;
 alter table public.split_sessions        enable row level security;
 alter table public.split_subscriptions   enable row level security;
 alter table public.family_card_totals    enable row level security;
-alter table public.diary_entries         enable row level security;
 
 -- ============================================================
 -- ポリシー
@@ -411,19 +396,6 @@ create policy "household members can read tokens"
       where hm1.user_id = auth.uid() and hm2.user_id = user_tokens.user_id
     )
   );
-
--- 日記は本人だけ
-create policy "users can view own diary entries"
-  on public.diary_entries for select
-  using (user_id = auth.uid());
-
-create policy "users can insert own diary entries"
-  on public.diary_entries for insert
-  with check (user_id = auth.uid());
-
-create policy "users can delete own diary entries"
-  on public.diary_entries for delete
-  using (user_id = auth.uid());
 
 -- ============================================================
 -- Data API への権限付与
