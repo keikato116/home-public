@@ -26,7 +26,7 @@ export function RecipeTab() {
 
   useEffect(() => {
     if (!householdId) return;
-    load(householdId);
+    load();
   }, [householdId, load]);
 
   const subcategories = SUBCATEGORIES[activeCategory];
@@ -57,7 +57,7 @@ export function RecipeTab() {
       <div className="flex items-center justify-between mb-4 px-7">
         <div className="flex items-center gap-2">
           <button
-            onClick={() => householdId && user && loadPreset(householdId, user.id)}
+            onClick={() => householdId && user && loadPreset(user.id)}
             disabled={loadingPreset}
             className="text-[10px] text-muted-foreground border border-border rounded px-2.5 py-1 hover:text-foreground transition-colors disabled:opacity-40"
           >

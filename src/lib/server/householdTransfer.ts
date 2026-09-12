@@ -4,8 +4,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 // 解散（/api/household/dissolve）と参加（/api/household/join）の両方が使う。
 //
 // 移し方は2種類ある。
-//   複製 : レシピ・家事ルーティン・やること・献立
+//   複製 : 家事ルーティン・やること・献立
 //          暮らしの土台なので、どちらの世帯にも同じものが残るようにする
+//
+// レシピは動かさない。持ち主が人なので、世帯を移っても自動でついてくる。
+// 複製すると解散のたびに行が倍になり、写真の参照も元の世帯のファイルを
+// 指したままになる（元を消すと複製から写真が消える）。
 //   移動 : 本人にしか見えない買い物アイテム
 //          置いていくと本人からも見えなくなるので、行ごと持っていく
 //
@@ -51,17 +55,6 @@ export async function transferHouseholdData(
     .eq("user_id", userId);
   if (moveError) return moveError.message;
 
-  const { data: recipes } = await admin.from("recipes").select("*").eq("household_id", fromHouseholdId);
-  const recipeCopy = copyRows((recipes ?? []) as Row[], toHouseholdId);
-  if (recipeCopy.rows.length > 0) {
-    const rows = recipeCopy.rows.map((r) => ({
-      ...r,
-      created_by: r.created_by === userId ? userId : null,
-    }));
-    const { error } = await admin.from("recipes").insert(rows);
-    if (error) return error.message;
-  }
-
   const { data: routines } = await admin
     .from("routine_definitions").select("*").eq("household_id", fromHouseholdId);
   const routineCopy = copyRows((routines ?? []) as Row[], toHouseholdId);
@@ -90,10 +83,14 @@ export async function transferHouseholdData(
     .from("meal_plans").select("*").eq("household_id", fromHouseholdId);
   const planCopy = copyRows((plans ?? []) as Row[], toHouseholdId);
   if (planCopy.rows.length > 0) {
-    // 献立が指しているレシピを、複製したレシピのほうに向け直す
+    // 自分のレシピを指した献立だけ参照を残す。相手のレシピを指したものは
+    // 移った先で見えないので外す。料理名は label に入っているので表示は崩れない。
+    const { data: mine } = await admin.from("recipes").select("id").eq("owner_id", userId);
+    const myRecipeIds = new Set((mine ?? []).map((r) => r.id as string));
     const rows = planCopy.rows.map((r) => ({
       ...r,
-      recipe_id: r.recipe_id ? recipeCopy.idMap.get(r.recipe_id as string) ?? null : null,
+      recipe_id:
+        r.recipe_id && myRecipeIds.has(r.recipe_id as string) ? r.recipe_id : null,
     }));
     const { error } = await admin.from("meal_plans").insert(rows);
     if (error) return error.message;

@@ -33,7 +33,7 @@
 | やること | shared_todos | 世帯 |
 | 家事ルーティン | routine_definitions, routine_completions | 世帯（user_id は担当者） |
 | 買い物 | shopping_items | 世帯。ただし `user_id` 入りは**本人のみ** |
-| レシピ | recipes | 世帯（部屋をまたぐ） |
+| レシピ | recipes | **持ち主本人 + 同じ世帯にいる間だけ相手にも** |
 | 献立 | meal_plans | 世帯（部屋をまたぐ） |
 | 予定 | local_calendar_events, calendar_settings | 世帯（user_id は作成者） |
 | 割り勘 | split_sessions, split_subscriptions, family_card_totals | 世帯 + **現在の部屋のみ** |

@@ -78,7 +78,8 @@ export async function DELETE(req: NextRequest) {
         if (planError) {
           return NextResponse.json({ error: planError.message }, { status: 500 });
         }
-        const { error } = await admin.from("recipes").delete().eq("household_id", householdId);
+        // レシピは owner_id の on delete cascade で消えるため、ここでは触らない
+        const { error } = await admin.from("recipes").delete().eq("owner_id", user.id);
         if (error) {
           return NextResponse.json({ error: error.message }, { status: 500 });
         }

@@ -11,7 +11,7 @@ export const SUBCATEGORIES: Partial<Record<string, string[]>> = {
   main: ["meat", "fish", "others"],
 };
 
-const PRESET_RECIPES: Omit<Recipe, "id" | "household_id" | "times_made" | "last_made_at" | "created_by" | "created_at" | "thumbnail_url" | "photo_urls" | "url" | "subcategory">[] = [
+const PRESET_RECIPES: Omit<Recipe, "id" | "owner_id" | "times_made" | "last_made_at" | "created_at" | "thumbnail_url" | "photo_urls" | "url" | "subcategory">[] = [
   {
     title: "魚の煮つけ",
     category: "main",
@@ -171,9 +171,10 @@ interface RecipeState {
   loading: boolean;
   loadError: string | null;
   loadingPreset: boolean;
-  load: (householdId: string) => Promise<void>;
-  loadPreset: (householdId: string, userId: string) => Promise<void>;
-  add: (householdId: string, input: Partial<Recipe> & { title: string }, file?: File) => Promise<void>;
+  /** レシピは持ち主に紐づくので、絞り込みは RLS に任せる（引数は不要）。 */
+  load: () => Promise<void>;
+  loadPreset: (userId: string) => Promise<void>;
+  add: (userId: string, input: Partial<Recipe> & { title: string }, file?: File) => Promise<void>;
   updateRecipe: (id: string, patch: Partial<Pick<Recipe, "category" | "subcategory" | "title" | "ingredients" | "memo" | "servings">>) => Promise<void>;
   recordMade: (id: string, date?: string) => Promise<void>;
   unrecordMade: (id: string) => Promise<void>;
@@ -186,15 +187,15 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
   loadError: null,
   loadingPreset: false,
 
-  load: async (householdId) => {
+  load: async () => {
     set({ loading: true, loadError: null });
     try {
       const supabase = createClient();
       await ensureSession();
       const { data, error } = await supabase
         .from("recipes")
-        .select("id, household_id, title, url, ingredients, thumbnail_url, photo_urls, cook_time_min, servings, category, subcategory, memo, times_made, last_made_at, created_by, created_at")
-        .eq("household_id", householdId)
+        .select("id, owner_id, title, url, ingredients, thumbnail_url, photo_urls, cook_time_min, servings, category, subcategory, memo, times_made, last_made_at, created_at")
+        // 自分のものと、同じ世帯にいる人のものだけが返る（RLS で絞られる）
         .order("created_at", { ascending: false });
       if (error) set({ loadError: error.message, loading: false, recipes: [] });
       else set({ recipes: (data ?? []) as Recipe[], loading: false });
@@ -203,7 +204,7 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
     }
   },
 
-  loadPreset: async (householdId, userId) => {
+  loadPreset: async (userId) => {
     set({ loadingPreset: true });
     const supabase = createClient();
     await ensureSession();
@@ -213,7 +214,7 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
       const { data } = await supabase
         .from("recipes")
         .insert({
-          household_id: householdId,
+          owner_id: userId,
           title: recipe.title,
           category: recipe.category ?? null,
           cook_time_min: recipe.cook_time_min ?? null,
@@ -222,7 +223,6 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
           memo: recipe.memo || null,
           url: null,
           thumbnail_url: null,
-          created_by: userId,
         })
         .select()
         .single();
@@ -231,14 +231,15 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
     set({ loadingPreset: false });
   },
 
-  add: async (householdId, input, file) => {
+  add: async (userId, input, file) => {
     const supabase = createClient();
     await ensureSession();
     let thumbnail_url = input.thumbnail_url ?? null;
 
     if (file) {
       const ext = file.name.split(".").pop() ?? "jpg";
-      const path = `${householdId}/${crypto.randomUUID()}.${ext}`;
+      // 持ち主ごとのフォルダに置く。世帯で分けると、移ったときに迷子になる
+      const path = `${userId}/${crypto.randomUUID()}.${ext}`;
       const { error: uploadError } = await supabase.storage.from("recipes").upload(path, file);
       if (uploadError) {
         console.warn("storage upload failed, saving without photo:", uploadError.message);
@@ -250,7 +251,7 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
     const { data, error } = await supabase
       .from("recipes")
       .insert({
-        household_id: householdId,
+        owner_id: userId,
         title: input.title,
         category: input.category ?? null,
         subcategory: input.subcategory ?? null,
@@ -261,7 +262,6 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
         thumbnail_url,
         photo_urls: input.photo_urls ?? null,
         memo: input.memo ?? null,
-        created_by: input.created_by ?? null,
       })
       .select()
       .single();

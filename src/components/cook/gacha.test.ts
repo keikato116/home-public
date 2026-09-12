@@ -4,10 +4,10 @@ import { Recipe } from "@/types";
 
 function recipe(id: string, category: string): Recipe {
   return {
-    id, household_id: "h", title: id, url: null, ingredients: null,
+    id, owner_id: "u", title: id, url: null, ingredients: null,
     thumbnail_url: null, photo_urls: null, cook_time_min: null, servings: null,
     category, subcategory: null, memo: null, times_made: 0, last_made_at: null,
-    created_by: null, created_at: "",
+     created_at: "",
   };
 }
 

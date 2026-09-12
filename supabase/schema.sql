@@ -97,9 +97,12 @@ create table public.shopping_items (
 -- レシピ
 -- ------------------------------------------------------------
 
+-- レシピは世帯ではなく「その人のもの」。
+-- 同じ世帯にいる間だけお互いのものが見え、別れればそれぞれ自分の分が残る。
+-- 世帯に紐づけると解散のたびに全件を複製することになり、行も写真も倍に増える。
 create table public.recipes (
   id            uuid primary key default gen_random_uuid(),
-  household_id  uuid not null references public.households(id) on delete cascade,
+  owner_id      uuid not null references auth.users(id) on delete cascade,
   title         text not null,
   category      text,
   subcategory   text,
@@ -112,7 +115,6 @@ create table public.recipes (
   servings      integer,
   times_made    integer not null default 0,
   last_made_at  date,
-  created_by    uuid references auth.users(id) on delete set null,
   created_at    timestamptz default now()
 );
 
@@ -328,16 +330,46 @@ create policy "household members can manage routine completions"
             where hm.household_id = routine_completions.household_id and hm.user_id = auth.uid())
   );
 
-create policy "household members can manage recipes"
-  on public.recipes for all
-  using (
-    exists (select 1 from public.household_members hm
-            where hm.household_id = recipes.household_id and hm.user_id = auth.uid())
-  )
-  with check (
-    exists (select 1 from public.household_members hm
-            where hm.household_id = recipes.household_id and hm.user_id = auth.uid())
+-- 「その人と同じ世帯にいるか」。ポリシー内で household_members を引くと
+-- 再帰するので、security definer で RLS を迂回する。
+create or replace function public.shares_household_with(other_user uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1
+    from public.household_members me
+    join public.household_members other
+      on other.household_id = me.household_id
+    where me.user_id = auth.uid()
+      and other.user_id = other_user
   );
+$$;
+
+revoke all on function public.shares_household_with(uuid) from public;
+grant execute on function public.shares_household_with(uuid) to authenticated;
+
+create policy "owner or partner can read recipes"
+  on public.recipes for select
+  using (owner_id = auth.uid() or public.shares_household_with(owner_id));
+
+create policy "owner can insert recipes"
+  on public.recipes for insert
+  with check (owner_id = auth.uid());
+
+-- 「作った回数」を2人のどちらからでも増やせるよう、更新は相手にも許す
+create policy "owner or partner can update recipes"
+  on public.recipes for update
+  using (owner_id = auth.uid() or public.shares_household_with(owner_id))
+  with check (owner_id = auth.uid() or public.shares_household_with(owner_id));
+
+-- 消せるのは持ち主だけ。別れたあとに取り返しがつかないため
+create policy "owner can delete recipes"
+  on public.recipes for delete
+  using (owner_id = auth.uid());
 
 create policy "household members can manage meal plans"
   on public.meal_plans for all

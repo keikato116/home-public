@@ -48,7 +48,8 @@ export interface ShoppingItem {
 
 export interface Recipe {
   id: string;
-  household_id: string;
+  /** 持ち主。レシピは世帯ではなく人に紐づく（同じ世帯の間だけ相手にも見える）。 */
+  owner_id: string;
   title: string;
   url: string | null;
   ingredients: string | null;
@@ -61,7 +62,6 @@ export interface Recipe {
   memo: string | null;
   times_made: number;
   last_made_at: string | null;
-  created_by: string | null;
   created_at: string;
 }
 

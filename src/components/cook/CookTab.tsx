@@ -31,7 +31,7 @@ export function CookTab() {
 
   useEffect(() => {
     if (!householdId) return;
-    loadRecipes(householdId);
+    loadRecipes();
   }, [householdId, loadRecipes]);
 
   const goMonth = (dir: number) => {

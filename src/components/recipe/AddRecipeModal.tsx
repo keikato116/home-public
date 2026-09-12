@@ -93,7 +93,7 @@ export function AddRecipeModal({ onClose }: Props) {
             .filter(Boolean) as string[];
           const thumbnail_url = uploadedUrls[0] ?? r.thumbnail_url;
           const photo_urls = uploadedUrls.length > 1 ? uploadedUrls.slice(1) : null;
-          await add(householdId, { ...r, title: r.title.trim(), created_by: user.id, thumbnail_url, photo_urls });
+          await add(user.id, { ...r, title: r.title.trim(), thumbnail_url, photo_urls });
         }));
       };
 

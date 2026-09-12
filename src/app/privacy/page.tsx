@@ -62,6 +62,12 @@ export default function PrivacyPage() {
           <li>・自分専用として追加した買い物リストの項目</li>
         </ul>
         <p className="text-[12px] text-muted-foreground leading-relaxed">
+          レシピは<strong>登録した本人のもの</strong>です。
+          同じ世帯にいる間はおたがいのレシピが表示されますが、
+          共有を解除すると、それぞれ自分が登録したものだけが残ります。
+          相手のレシピが手元に残ることはありません。
+        </p>
+        <p className="text-[12px] text-muted-foreground leading-relaxed">
           また、精算の記録と共有の買い物リストは、<strong>現在いっしょに使っている期間の分だけ</strong>表示されます。
           1人に戻ったあとで別の方を招待した場合、それ以前の記録が新しい相手に表示されることはありません。
         </p>
