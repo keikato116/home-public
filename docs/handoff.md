@@ -22,8 +22,23 @@ App Store 公開版を作っているセッションからの引き継ぎ。
 
 ## いまの状態
 
-コードは全部入って main に push 済み。型チェック・ESLint・テスト37件・本番ビルドは通る。
-ただし **一度も動かしていない**（Vercel 未デプロイ、実機未確認）。
+**2026-09-12: ブラウザで動くところまで確認済み。**
+Vercel にデプロイし（`https://home-public.vercel.app`）、公開版専用の Supabase に
+繋いで Google ログインが通るところまで到達した。実機（iOS）はまだ未確認。
+
+そこまでに必要だった設定:
+
+- Vercel の環境変数に Supabase の URL と anon / service_role キー
+  （`NEXT_PUBLIC_` の2つは Vercel の警告に対して "Change to Config" を選ぶ。
+  　anon キーは公開前提で、守っているのは RLS のほう）
+- Supabase の Authentication → Providers → Google を有効化し、
+  Google Cloud Console の Client ID / Secret を入れる（**新プロジェクトでは未設定なので忘れやすい**）
+- Google Cloud Console の承認済みリダイレクト URI に
+  `https://<ref>.supabase.co/auth/v1/callback` を追加
+- **Supabase の Authentication → URL Configuration**
+  Site URL: `https://home-public.vercel.app`／Redirect URLs: 同 `/**`
+  → これを入れるまで、ログイン後に `localhost` に飛ばされ続ける
+  （Supabase は許可リストに無い戻り先を既定の Site URL に差し戻す。その初期値が localhost）
 
 ### 設計の要点（触る前に読む）
 
