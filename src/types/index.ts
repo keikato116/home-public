@@ -152,3 +152,12 @@ export interface SplitSubscription {
   active: boolean;
   created_at: string;
 }
+
+/** 割り勘の設定。世帯で共有する（端末ごとではない）。 */
+export interface SplitSettings {
+  household_id: string;
+  /** 0 = 暦月、1-28 = その日を締め日とする請求サイクル */
+  closing_day: number;
+  /** 相手の負担比率（0.0-1.0） */
+  her_ratio: number;
+}

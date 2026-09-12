@@ -25,7 +25,7 @@
 
 ## 2. データはどこにあるか
 
-**保存先は Supabase（公開版専用プロジェクト）のみ。** 15テーブル、全てに RLS 有効。
+**保存先は Supabase（公開版専用プロジェクト）のみ。** 16テーブル、全てに RLS 有効。
 
 | 種類 | 表 | 見える範囲 |
 |---|---|---|
@@ -37,6 +37,7 @@
 | 献立 | meal_plans | 世帯（部屋をまたぐ） |
 | 予定 | local_calendar_events, calendar_settings | 世帯（user_id は作成者） |
 | 割り勘 | split_sessions, split_subscriptions, family_card_totals | 世帯 + **現在の部屋のみ** |
+| 割り勘の設定 | split_settings（締め日・負担比率） | 世帯 |
 | Google トークン | user_tokens | 本人 + 同世帯のメンバー |
 | 課金状態 | subscriptions | 本人（初回リリースでは空のまま） |
 

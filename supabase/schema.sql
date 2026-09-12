@@ -196,6 +196,18 @@ create table public.split_subscriptions (
   created_at   timestamptz default now()
 );
 
+-- 割り勘の設定（締め日・負担比率）。世帯で共有する。
+-- households ではなく別表にしてあるのは、households に「ログイン済みなら誰でも
+-- 引ける」select ポリシーがあるため（招待コードでの参加に必要）。
+create table public.split_settings (
+  household_id uuid primary key references public.households(id) on delete cascade,
+  -- 0 = 暦月、1-28 = その日を締め日とする請求サイクル
+  closing_day  integer not null default 0 check (closing_day between 0 and 28),
+  -- 相手の負担比率（0.0-1.0）。既定は折半
+  her_ratio    double precision not null default 0.5 check (her_ratio between 0 and 1),
+  updated_at   timestamptz default now()
+);
+
 create table public.family_card_totals (
   id           uuid primary key default gen_random_uuid(),
   household_id uuid not null references public.households(id) on delete cascade,
@@ -223,6 +235,7 @@ alter table public.local_calendar_events enable row level security;
 alter table public.user_tokens           enable row level security;
 alter table public.split_sessions        enable row level security;
 alter table public.split_subscriptions   enable row level security;
+alter table public.split_settings        enable row level security;
 alter table public.family_card_totals    enable row level security;
 
 -- ============================================================
@@ -353,6 +366,17 @@ create policy "household members can manage split subscriptions"
   with check (
     exists (select 1 from public.household_members hm
             where hm.household_id = split_subscriptions.household_id and hm.user_id = auth.uid())
+  );
+
+create policy "household members can manage split settings"
+  on public.split_settings for all
+  using (
+    exists (select 1 from public.household_members hm
+            where hm.household_id = split_settings.household_id and hm.user_id = auth.uid())
+  )
+  with check (
+    exists (select 1 from public.household_members hm
+            where hm.household_id = split_settings.household_id and hm.user_id = auth.uid())
   );
 
 create policy "household members can manage family card totals"
