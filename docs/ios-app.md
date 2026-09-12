@@ -1,176 +1,144 @@
-# iOS アプリ化とウィジェット
+# iOS アプリ化（公開版）
 
-このアプリを iPhone のネイティブアプリとして動かし、ホーム画面ウィジェットを追加するための手順。
+公開版を App Store に出すまでの手順。個人版の TestFlight 配布とは前提が違うので、
+このファイルは公開版（`com.keikato.homeapp`）専用に書き直してある。
 
 ## 構成
 
-Capacitor のネイティブシェル（ガワ）が、Vercel にデプロイ済みの Next.js アプリを WebView で読み込む。
+Capacitor のシェルが、Vercel 上の Next.js を WebView で読み込む。
 
 ```
-iPhone
-├── home.app          ← Capacitor シェル（Xcode でビルド）
-│   └── WebView       → https://<your-app>.vercel.app を表示
-└── HomeWidget        ← Swift ウィジェット拡張
-        ↕ App Group 経由でデータ共有
+iPhone アプリ（ガワ）
+  └─ WKWebView → https://home-public.vercel.app
+                    └─ Supabase（データ・認証）
 ```
 
-**なぜサーバー URL を読む方式か**
+アプリ自体は画面を持たない。**Web を直せば `git push` だけで全員に届く**のが利点で、
+Xcode でのビルドが要るのはネイティブ側（プラグイン・capability）を触ったときだけ。
 
-`/api/parse-recipe` など 9 個のサーバーサイド API があるため、静的書き出し（`output: 'export'`）はできない。
-サーバー URL を読む方式なら API がそのまま動き、さらに **Web の変更は `git push` するだけで
-アプリに反映される**（Xcode で再ビルド不要）。再ビルドが要るのはネイティブ側を触った時だけ。
+---
 
-## 必要なもの
+## ⚠️ 先に知っておくこと: WebView では Google ログインが通らない
 
-- Mac + Xcode
-- iPhone（実機）
-- Apple ID
-  - **無料**: 動くが署名が **7日で失効**。切れたら Mac に繋いで入れ直し
-  - **Apple Developer Program（年 $99）**: TestFlight でリンク配布可、ビルドは 90日有効
+**これが公開版いちばんの壁。** 2023年2月から、Google は WKWebView のような
+埋め込みブラウザからの OAuth を `disallowed_useragent` で拒否している。
+Capacitor の WebView はまさにそれなので、**いまのコードのまま iOS で
+「sign in with google」を押すと 403 になる。**
 
-## セットアップ（Mac で実行）
+ブラウザで動いていても、アプリでは動かない。ここは必ず踏む。
 
-### 1. デプロイ URL を設定
+### 直し方
 
-`.env.local` に追記する。
+認証だけ**端末の Safari（SFSafariViewController）に出して**、終わったら
+ディープリンクでアプリに戻す。Google の規約上もこれが正しい形。
 
 ```bash
-CAP_SERVER_URL=https://<your-app>.vercel.app
+npm install @capacitor/browser @capacitor/app
 ```
 
-Vercel のダッシュボードで本番 URL を確認すること。独自ドメインがあればそちらを使う。
+流れ:
 
-### 2. iOS プロジェクトを生成
+1. `supabase.auth.signInWithOAuth({ skipBrowserRedirect: true })` で URL だけ受け取る
+2. `Browser.open({ url })` で Safari に出す
+3. 認証後、カスタムスキーム（`com.keikato.homeapp://`）または Universal Link で戻る
+4. `App.addListener("appUrlOpen", ...)` で受けて `exchangeCodeForSession` する
+
+**PKCE の落とし穴**: Supabase は `code_verifier` を WebView 側の storage に置く。
+Safari 側でコード交換をしてしまうと verifier が無くて失敗するので、
+**交換は必ずアプリ（WebView）側に戻ってから**行う。
+
+### Sign in with Apple は別扱いにできる
+
+ネイティブのプラグインを使えば Safari を経由せず、OS の認証シートで完結する。
+Google より素直なので、**iOS では Apple を主、Google を従にする**のが現実的。
+
+---
+
+## 手順
+
+### A. Apple 側（先に済ませる）
+
+1. **Apple Developer Program に加入**（年 $99）。App Store 公開には必須
+2. **Bundle ID を確定する** — 現在 `com.keikato.homeapp`
+   **App Store Connect にアプリを登録したあとは二度と変えられない。**
+   アプリ名を変えるなら、登録する前に決めきること
+3. Sign in with Apple 用に
+   - Identifiers → **Services ID** を作る
+   - Return URL に `https://<ref>.supabase.co/auth/v1/callback`
+   - Keys → **Sign in with Apple の鍵（.p8）**。Key ID と Team ID を控える
+
+### B. Supabase 側
+
+- Authentication → Providers → **Apple** を有効化（A-3 の値を入れる）
+- Authentication → **Manual linking を有効化**
+  （Apple で入った人が後から Google カレンダーを繋ぐのに使う）
+- 未適用のマイグレーションを流す
+  - `supabase/migrations/2026-09-12_chore_notify_time.sql`
+  - `supabase/migrations/2026-09-12_split_settings.sql`
+
+### C. Mac での作業
 
 ```bash
+git clone https://github.com/keikato116/home-public.git
+cd home-public
 npm install
-npm run ios:add      # ios/ ディレクトリを生成（初回のみ）
-npm run ios:sync     # 設定を反映（capacitor.config.ts を変えたら毎回）
+
+cp .env.local.example .env.local
+# CAP_SERVER_URL=https://home-public.vercel.app を書く（これが無いと真っ白になる）
+
+npm run build
+npm run ios:add      # 初回のみ。ios/ が生成される
+npm run ios:sync     # プラグインを追加・更新したら毎回
 npm run ios:open     # Xcode が開く
 ```
 
-### 3. Xcode で署名設定
+**CocoaPods は不要。** Capacitor 8 から Swift Package Manager が既定になっている。
 
-1. 左ペインで **App** ターゲットを選択
-2. **Signing & Capabilities** タブ
-3. **Team** に自分の Apple ID を選択
-4. **Bundle Identifier** が他人と衝突する場合は `com.keikato.home` を変更
+### D. Xcode の設定
 
-### 4. 実機にインストール
+1. **App** ターゲット → **Signing & Capabilities**
+2. **Team** に Apple Developer のアカウントを選ぶ
+3. **Bundle Identifier** が `com.keikato.homeapp` になっているか確認
+4. **+ Capability** → **Sign in with Apple** を追加
+   （これが無いと Apple ログインがネイティブで動かない）
+5. iPhone を USB で繋ぎ、上部のデバイス選択から選んで ▶
+6. 初回は iPhone 側で 設定 → 一般 → VPN とデバイス管理 から開発者を信頼
 
-1. iPhone を Mac に USB 接続
-2. Xcode 上部のデバイス選択から自分の iPhone を選ぶ
-3. ▶ を押す
-4. 初回は iPhone 側で **設定 → 一般 → VPN とデバイス管理** から開発者を信頼
+### E. 実機で確認すること
 
-これでアプリが起動する。
+| | 見るところ |
+|---|---|
+| **Google ログイン** | **まず落ちる**（上記の WebView 問題）。Safari 経由に直してから再確認 |
+| Apple ログイン | OS の認証シートが出るか |
+| 通知 | 設定に **notification 欄が出る**（ブラウザでは出ない）。家事に時刻を入れて翌朝鳴るか |
+| セーフエリア | 下タブがホームインジケータに被っていないか |
+| 外部リンク | レシピの URL などが Safari で開くか（WebView 内で開くと戻れない） |
+| 初回起動 | `CAP_SERVER_URL` が正しいか。白画面ならここ |
 
-## ウィジェット追加（ステップ2）
+### F. App Store Connect
 
-アプリが動いたら次にウィジェットを足す。
+- アプリを登録（**Bundle ID はここで確定。以後変更不可**）
+- スクリーンショット **2サイズ**（6.9インチ / 6.5インチ）
+- **App プライバシー申告** — `docs/data-and-privacy.md` の「外部に出るデータ」がそのまま材料
+- サポート URL、プライバシーポリシー URL（`/privacy`）
+- 審査メモに書くこと
+  - デモ用アカウント（**Google ログインがあるので必須**）
+  - レシピと献立は課金未実装のため非表示であること
+  - 割り勘は2人目が参加すると表示されること（ソロでは出ない）
 
-### 1. App Group を作る
+---
 
-アプリとウィジェットはプロセスが別なので、データ共有には App Group が要る。
+## 残っている審査ブロッカー
 
-1. Xcode → **App** ターゲット → Signing & Capabilities → **+ Capability** → **App Groups**
-2. `group.com.keikato.home` を追加
-3. あとで作る Widget ターゲットにも**同じ App Group** を追加する
+| | 状態 |
+|---|---|
+| WebView の Google ログイン | ❌ **未対応。iOS で確実に落ちる** |
+| Sign in with Apple | ⚠️ コードは入った。Apple / Supabase の設定が残り |
+| Google OAuth の審査 | ❌ 未対応（独自ドメインが要る。`docs/data-and-privacy.md` 参照） |
+| 利用規約・プライバシーポリシー | ⚠️ ドラフト。法的レビュー未実施 |
 
-### 2. Widget Extension を追加
+## ウィジェット
 
-1. Xcode メニュー **File → New → Target**
-2. **Widget Extension** を選択
-3. Product Name: `HomeWidget`
-4. "Include Live Activity" はオフでよい
-5. 生成された `HomeWidget` ターゲットに App Group を追加（手順1と同じ）
-
-### 3. データの流し方
-
-夜ご飯の判定ロジック（`src/lib/freeTime.ts`）は JS 側にある。これを Swift で書き直すのは
-二重管理になるので、**Web 側が判定結果を書き出し、ウィジェットはそれを読むだけ**にする。
-
-```
-Web (JS)  --判定結果のJSON-->  App Group の UserDefaults  --読む-->  Widget (Swift)
-```
-
-Web から App Group に書くには Capacitor プラグインが必要。
-`@capacitor/preferences` に App Group 設定を付けると、そのまま共有領域に書ける。
-
-```bash
-npm install @capacitor/preferences
-```
-
-`capacitor.config.ts` に追加:
-
-```ts
-plugins: {
-  Preferences: {
-    group: "group.com.keikato.home",
-  },
-},
-```
-
-Web 側で、今日のウィジェット用データを書き出す（アプリ起動時・データ更新時）:
-
-```ts
-import { Preferences } from "@capacitor/preferences";
-
-await Preferences.set({
-  key: "widget_today",
-  value: JSON.stringify({
-    date: "2026-07-12",
-    dinnerAtHome: true,
-    events: [{ time: "18:00", title: "夜ご飯" }],
-    todos: ["ゴミ出し", "洗濯"],
-  }),
-});
-```
-
-Swift 側で読む:
-
-```swift
-let defaults = UserDefaults(suiteName: "group.com.keikato.home")
-let json = defaults?.string(forKey: "widget_today")
-```
-
-書き込んだ後はウィジェットの再描画を促す:
-
-```swift
-WidgetCenter.shared.reloadAllTimelines()
-```
-
-## 配布
-
-### 無料 Apple ID
-
-7日ごとに iPhone を Mac に繋ぎ、Xcode から再インストールする。2台分やる必要がある。
-
-### Apple Developer Program（年 $99）
-
-**TestFlight の Internal Testing なら審査が不要**で、最大 100 人にリンクで配布できる。
-2人で使うだけならこれで十分。App Store 公開（＝審査あり）は不要。
-
-```bash
-# Xcode で Product → Archive → Distribute App → TestFlight
-```
-
-ビルドは 90日で失効するので、3ヶ月に1回 Archive し直す。
-
-## 将来: ソロ / ペアモード（App Store 公開する場合のみ）
-
-一般公開を狙う場合、「2人前提」の設計を解く必要がある。App Store の審査ガイドライン 4.2 は
-個人的・限定的な用途のアプリを弾くため、**1人でも成立すること**が必須になる。
-
-設計方針:
-
-- 世帯（household）の仕組みはそのまま使い、**ソロ = メンバー1人の世帯**として扱う
-- アカウント作成時に「1人で使う / 2人で使う」を選択
-- **後からモード変更可能にする**
-  - ソロ → ペア: 招待コードを発行して相手を招く
-  - ペア → ソロ: 相手を世帯から外す
-- ソロ時は割り勘タブを隠す（him/her の 2人前提が成立しないため）
-- 併せて必要: アカウント削除機能、プライバシーポリシー、利用規約、
-  審査員用デモアカウント（Google 連携があるため必須）
-
-これらは TestFlight 運用には不要なので、公開を決めた時点で着手する。
+いまは作らない方針。必要になったら WidgetKit のターゲットを足すことになるが、
+**Swift で書き直しになり、既存のコードは流用できない**（WebView を表示できないため）。
+変更のたびに審査も要る。詳細は判断した時点で書く。
