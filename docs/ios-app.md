@@ -91,6 +91,8 @@ cp .env.local.example .env.local
 
 npm run build
 npm run ios:add      # 初回のみ。ios/ が生成される
+                     # ※ webDir は capacitor-shell/。Next.js の public/ ではない
+                     #   （public/ には index.html が無く、cap add が落ちるため）
 npm run ios:sync     # プラグインを追加・更新したら毎回
 npm run ios:open     # Xcode が開く
 ```

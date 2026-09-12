@@ -13,7 +13,14 @@ const config: CapacitorConfig = {
   // App Store Connect 側の App ID とここは必ず一致させること。
   appId: "com.keikato.homeapp",
   appName: "home",
-  webDir: "public",
+  // ネイティブシェルは server.url（Vercel）を読むので、ここの中身は普段使われない。
+  // ただし Capacitor は webDir に index.html があることを要求するので、専用の
+  // フォルダを1つ置いてある。Next.js の public/ を指すと index.html が無くて
+  // `cap add ios` が落ちる。
+  //
+  // CAP_SERVER_URL が未設定のままビルドすると server が undefined になり、
+  // この中身が実際に表示される。白画面ではなく理由が出るようにしてある。
+  webDir: "capacitor-shell",
   server: serverUrl
     ? { url: serverUrl, cleartext: false }
     : undefined,
