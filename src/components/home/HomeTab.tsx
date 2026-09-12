@@ -5,6 +5,7 @@ import { useTodoStore } from "@/store/todoStore";
 import { useAuthStore } from "@/store/authStore";
 import { useCalendarStore } from "@/store/calendarStore";
 import { getTodaysRoutines } from "@/lib/routine";
+import { syncChoreNotifications } from "@/lib/notifications";
 import { toISODate, cn } from "@/lib/utils";
 import { WeatherWidget } from "./WeatherWidget";
 import { ScheduleTimeline } from "@/components/calendar/ScheduleTimeline";
@@ -55,6 +56,12 @@ export function HomeTab() {
     if (!householdId) return;
     loadCalendar(householdId, null);
   }, [householdId, loadCalendar]);
+
+  // 家事の定義が変わったら「今日の家事」の通知を組み直す。
+  // 予約は先7日ぶんなので、アプリを開くたびにここで最新に更新される。
+  useEffect(() => {
+    syncChoreNotifications(routineDefinitions);
+  }, [routineDefinitions]);
 
   const tabs = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(today);

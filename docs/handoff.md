@@ -22,8 +22,23 @@ App Store 公開版を作っているセッションからの引き継ぎ。
 
 ## いまの状態
 
-コードは全部入って main に push 済み。型チェック・ESLint・テスト37件・本番ビルドは通る。
-ただし **一度も動かしていない**（Vercel 未デプロイ、実機未確認）。
+**2026-09-12: ブラウザで動くところまで確認済み。**
+Vercel にデプロイし（`https://home-public.vercel.app`）、公開版専用の Supabase に
+繋いで Google ログインが通るところまで到達した。実機（iOS）はまだ未確認。
+
+そこまでに必要だった設定:
+
+- Vercel の環境変数に Supabase の URL と anon / service_role キー
+  （`NEXT_PUBLIC_` の2つは Vercel の警告に対して "Change to Config" を選ぶ。
+  　anon キーは公開前提で、守っているのは RLS のほう）
+- Supabase の Authentication → Providers → Google を有効化し、
+  Google Cloud Console の Client ID / Secret を入れる（**新プロジェクトでは未設定なので忘れやすい**）
+- Google Cloud Console の承認済みリダイレクト URI に
+  `https://<ref>.supabase.co/auth/v1/callback` を追加
+- **Supabase の Authentication → URL Configuration**
+  Site URL: `https://home-public.vercel.app`／Redirect URLs: 同 `/**`
+  → これを入れるまで、ログイン後に `localhost` に飛ばされ続ける
+  （Supabase は許可リストに無い戻り先を既定の Site URL に差し戻す。その初期値が localhost）
 
 ### 設計の要点（触る前に読む）
 
@@ -62,7 +77,51 @@ App Store 公開版を作っているセッションからの引き継ぎ。
 
 ## 次にやること（順番どおり）
 
-### 1. Supabase を公開版専用プロジェクトに分ける（最優先・未着手）
+### 1. Supabase を公開版専用プロジェクトに分ける（✅ 2026-09-12 完了）
+
+公開版専用の organization とプロジェクトを作り、`schema.sql` + マイグレーション3本を
+実行済み。新プロジェクトで確認済みの状態:
+
+| 項目 | 結果 |
+|---|---|
+| テーブル数 | 15 |
+| RLS 有効 | 15 / 15 |
+| Data API 権限 | 15 / 15 |
+| ポリシー数 | 27 |
+| `household_entitled()` | あり |
+| `pairing_scope` 確認クエリ | 4行とも true |
+
+organization を分けたのは課金のため。Supabase の課金は organization 単位で、
+同じ org の中で Free と Pro を混ぜられない。公開版を Pro に上げるとき、
+同居させていると個人用まで巻き込まれる。
+
+**審査に出すときは公開版を Pro にする前提で考えること。** Free は1週間
+アクセスが無いと自動で一時停止する。審査待ちの間に止まると、レビュアーが
+開いたときにアプリが動かず、それだけで差し戻される。
+
+残っているのは Vercel の環境変数の差し替え（下記2）と、個人用プロジェクトの
+後始末（下記）。
+
+#### 個人用プロジェクトの後始末
+
+前セッションは「公開版用のマイグレーション3本が個人用に流れている」と書いていたが、
+2026-09-12 に個人用の構造を実際に見たところ**そうではなかった**:
+
+- `subscriptions` テーブルなし、`household_entitled()` なし → 課金ゲートは入っていない
+- `households.pairing_started_at` なし、トリガーなし → 部屋の区切りも入っていない
+- ただし auth.users を参照する外部キーは全て ON DELETE 付きに直っている
+  → `2026-09-11_account_deletion.sql` だけは適用済み
+
+つまり個人用のレシピと献立は保存できる状態のはずで、
+`supabase/rollback/2026-09-11_revert_public_edition.sql` を流す必要はおそらく無い。
+流す前に、個人用で下のクエリが 0 を返すことを確認すること（0 なら不要）。
+
+```sql
+select count(*) from pg_proc
+where pronamespace = 'public'::regnamespace and proname = 'household_entitled';
+```
+
+### 旧: Supabase を分ける手順（記録として残す）
 
 **いま、公開版用のマイグレーション3本が、個人用（彼女と2人で使っている web app）の
 Supabase に流された状態**になっている。課金ゲートを入れた時点で個人用のレシピと
@@ -74,6 +133,9 @@ Supabase に流された状態**になっている。課金ゲートを入れた
 
 1. Supabase で新規プロジェクトを作る
 2. `supabase/schema.sql` → マイグレーション3本を順に実行
+   （`schema.sql` は 2026-09-12 に実データベースから作り直した。
+   　以前の版は meal_plans / split_sessions / split_subscriptions /
+   　family_card_totals / diary_entries の5テーブルが欠けていた）
 3. 公開版の Vercel に新プロジェクトの URL とキーを設定
 4. 個人用プロジェクトから公開版のルールを外す
    → `supabase/rollback/2026-09-11_revert_public_edition.sql`
@@ -81,9 +143,18 @@ Supabase に流された状態**になっている。課金ゲートを入れた
 
 > SQL Editor には**ファイルの中身**を貼る。パスを貼っても実行できない（実際にこれで2回詰まった）。
 
-**未確認**: `pairing_scope` の最後に出る確認クエリ（`rls_enabled` / `policy_installed` が
-4行とも true か）の結果を、本人からまだ聞けていない。false があるとその表だけ
-絞り込みが効いていない。分けたあと新プロジェクトで必ず確認すること。
+**確認済み（2026-09-12）**: `pairing_scope` の最後に出る確認クエリは、
+まっさらな Postgres に `schema.sql` → マイグレーション3本を流した状態で
+**4行とも true** になることを実際に実行して確かめた。
+新プロジェクトでも同じ結果になるはずだが、流したあと目視で確認すること。
+
+ただし**これは作り直した `schema.sql` を使った場合の話**。以前の `schema.sql` には
+split_sessions / split_subscriptions / family_card_totals が無かったため、
+`pairing_scope` はこの3表を「見つからない表」として飛ばしていた
+（コミット `769b4cc` がそのための変更）。つまり古い手順で新プロジェクトを
+作っていたら、**割り勘に「部屋」の区切りが一切かからないまま公開していた**。
+前の相手とのお金の記録が新しい相手に見える、というまさに防ぎたかった事故が
+起きる状態だったので、schema.sql を直すまで新プロジェクトを作らないこと。
 
 ### 2. デプロイと課金の疎通
 

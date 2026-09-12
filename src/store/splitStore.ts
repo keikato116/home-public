@@ -2,14 +2,23 @@
 
 import { create } from "zustand";
 import { createClient } from "@/lib/supabase/client";
-import { SplitSession, FamilyCardTotal, SplitItem, SplitSubscription } from "@/types";
+import { SplitSession, FamilyCardTotal, SplitItem, SplitSubscription, SplitSettings } from "@/types";
 import { ensureSession, withSessionRetry } from "@/lib/supabase/helpers";
+
+export const DEFAULT_SPLIT_SETTINGS: Omit<SplitSettings, "household_id"> = {
+  closing_day: 0,
+  her_ratio: 0.5,
+};
 
 interface SplitState {
   sessions: SplitSession[];
+  /** null = まだ読めていない。読めるまでは既定値で描く。 */
+  settings: SplitSettings | null;
   familyTotal: FamilyCardTotal | null;
   subscriptions: SplitSubscription[];
   loading: boolean;
+  loadSettings: (householdId: string) => Promise<void>;
+  saveSettings: (householdId: string, patch: Partial<Omit<SplitSettings, "household_id">>) => Promise<void>;
   load: (householdId: string, from: string, to: string, periodYear: number, periodMonth: number) => Promise<void>;
   addSession: (
     householdId: string,
@@ -24,11 +33,41 @@ interface SplitState {
   updateSubscriptionCard: (id: string, card: "mine" | "family") => Promise<void>;
 }
 
-export const useSplitStore = create<SplitState>((set) => ({
+export const useSplitStore = create<SplitState>((set, get) => ({
   sessions: [],
+  settings: null,
   familyTotal: null,
   subscriptions: [],
   loading: false,
+
+  loadSettings: async (householdId) => {
+    const supabase = createClient();
+    await ensureSession();
+    const { data } = await supabase
+      .from("split_settings")
+      .select("*")
+      .eq("household_id", householdId)
+      .maybeSingle();
+
+    // 行が無い＝まだ誰も設定していない。既定値で扱う（ここでは書き込まない。
+    // 開いただけで行が増えると、設定したのかどうか区別がつかなくなる）
+    set({
+      settings: (data as SplitSettings | null) ?? { household_id: householdId, ...DEFAULT_SPLIT_SETTINGS },
+    });
+  },
+
+  saveSettings: async (householdId, patch) => {
+    const current = get().settings ?? { household_id: householdId, ...DEFAULT_SPLIT_SETTINGS };
+    const next: SplitSettings = { ...current, ...patch, household_id: householdId };
+    set({ settings: next });  // 先に反映して待たせない
+
+    const supabase = createClient();
+    await ensureSession();
+    await supabase.from("split_settings").upsert(
+      { ...next, updated_at: new Date().toISOString() },
+      { onConflict: "household_id" }
+    );
+  },
 
   load: async (householdId, from, to, periodYear, periodMonth) => {
     set({ loading: true });

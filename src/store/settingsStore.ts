@@ -11,6 +11,8 @@ interface SettingsState {
   load: (householdId: string) => Promise<void>;
   addRoutine: (householdId: string, def: Omit<RoutineDefinition, "id" | "household_id" | "order">) => Promise<void>;
   deleteRoutine: (id: string) => Promise<void>;
+  /** 通知時刻を設定する。null に戻すと既定の時刻に従う。 */
+  setRoutineNotifyAt: (id: string, notifyAt: string | null) => Promise<void>;
 }
 
 export const useSettingsStore = create<SettingsState>((set) => ({
@@ -42,6 +44,17 @@ export const useSettingsStore = create<SettingsState>((set) => ({
       .select()
       .single();
     if (data) set((s) => ({ routineDefinitions: [...s.routineDefinitions, data as RoutineDefinition] }));
+  },
+
+  setRoutineNotifyAt: async (id, notifyAt) => {
+    const supabase = createClient();
+    await ensureSession();
+    await supabase.from("routine_definitions").update({ notify_at: notifyAt }).eq("id", id);
+    set((s) => ({
+      routineDefinitions: s.routineDefinitions.map((r) =>
+        r.id === id ? { ...r, notify_at: notifyAt } : r
+      ),
+    }));
   },
 
   deleteRoutine: async (id) => {

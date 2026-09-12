@@ -18,10 +18,14 @@ import { getBillingPeriod, getCurrentPeriod, getSessionRatio, formatDateHeader, 
 export function SplitTab() {
   const { householdId } = useAuthStore();
   const {
-    sessions, familyTotal, subscriptions, loading,
-    load, addSession, deleteSession, setFamilyTotal,
+    sessions, familyTotal, subscriptions, loading, settings,
+    load, loadSettings, saveSettings, addSession, deleteSession, setFamilyTotal,
     addSubscription, deleteSubscription, updateSessionStore, updateSessionCard, updateSubscriptionCard,
   } = useSplitStore();
+
+  // 締め日と比率は Supabase にあり、世帯で共有する（精算が合わなくなるため）。
+  // localStorage はその写しで、DB から返るまでの初回描画に使うだけ。
+  // これが無いと、開いた直後だけ暦月で描いてから正しい期間に飛ぶ。
 
   // Closing day: 0 = calendar month, 1-28 = billing cycle closes on that day
   const [closingDay, setClosingDay] = useState<number>(() => {
@@ -45,6 +49,7 @@ export function SplitTab() {
     const ratio = valid ? pct / 100 : splitRatio;
     setSplitRatio(ratio);
     localStorage.setItem(LS_SPLIT_RATIO, String(ratio));
+    if (householdId) saveSettings(householdId, { her_ratio: ratio });
     setEditingRatio(false);
   };
 
@@ -72,6 +77,26 @@ export function SplitTab() {
   useForegroundRefresh(refresh);
 
   useEffect(() => {
+    if (householdId) loadSettings(householdId);
+  }, [householdId, loadSettings]);
+
+  // DB の値が届いたら、それを正として画面と写しを合わせる。
+  // 締め日が変わると表示中の期間もずれるので、現在の期間に取り直す。
+  useEffect(() => {
+    if (!settings) return;
+    setSplitRatio(settings.her_ratio);
+    localStorage.setItem(LS_SPLIT_RATIO, String(settings.her_ratio));
+    setClosingDay((prev) => {
+      if (prev === settings.closing_day) return prev;
+      localStorage.setItem(LS_SPLIT_CLOSING_DAY, String(settings.closing_day));
+      const p = getCurrentPeriod(settings.closing_day);
+      setViewYear(p.year);
+      setViewMonth(p.month);
+      return settings.closing_day;
+    });
+  }, [settings]);
+
+  useEffect(() => {
     setFamilyInput(familyTotal ? String(familyTotal.total) : "");
   }, [familyTotal]);
 
@@ -87,6 +112,7 @@ export function SplitTab() {
     const day = valid ? n : closingDay;
     setClosingDay(day);
     localStorage.setItem(LS_SPLIT_CLOSING_DAY, String(day));
+    if (householdId) saveSettings(householdId, { closing_day: day });
     // Jump to current period under new closing day
     const p = getCurrentPeriod(day);
     setViewYear(p.year);

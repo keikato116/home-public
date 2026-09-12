@@ -14,6 +14,8 @@ export interface RoutineDefinition {
   day_of_week: number | null;
   day_of_month: number | null;
   due_date: string | null;
+  /** 通知する時刻（"HH:MM:SS"）。null ならその家事は通知しない。 */
+  notify_at: string | null;
   order: number;
 }
 
@@ -107,15 +109,6 @@ export interface LocalCalendarEvent {
   created_at: string;
 }
 
-export interface DiaryEntry {
-  id: string;
-  household_id: string;
-  user_id: string | null;
-  author_name: string | null;
-  content: string;
-  entry_date: string;
-  created_at: string;
-}
 
 export interface WeatherData {
   icon: string;
@@ -158,4 +151,13 @@ export interface SplitSubscription {
   card: "mine" | "family";
   active: boolean;
   created_at: string;
+}
+
+/** 割り勘の設定。世帯で共有する（端末ごとではない）。 */
+export interface SplitSettings {
+  household_id: string;
+  /** 0 = 暦月、1-28 = その日を締め日とする請求サイクル */
+  closing_day: number;
+  /** 相手の負担比率（0.0-1.0） */
+  her_ratio: number;
 }

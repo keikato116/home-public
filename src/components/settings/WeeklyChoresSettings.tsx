@@ -46,6 +46,7 @@ export function WeeklyChoresSettings() {
       day_of_week: dayOfWeek,
       day_of_month: null,
       due_date: null,
+      notify_at: null,
     });
     await reloadTodos(householdId);
     setNewLabel("");
@@ -70,6 +71,7 @@ export function WeeklyChoresSettings() {
           day_of_week: day,
           day_of_month: null,
           due_date: null,
+          notify_at: null,
         });
       }
     }

@@ -9,10 +9,7 @@ import {
   LS_ENTITLED_CACHE, LS_CACHED_MEMBER_COUNT,
 } from "@/lib/constants";
 import { logOutPurchases } from "@/lib/purchases";
-import {
-  storeAccessToken, upsertUserToken, refreshAccessToken,
-  ensureValidAccessToken, startGoogleOAuth,
-} from "@/lib/googleToken";
+import { storeAccessToken, upsertUserToken, refreshAccessToken, ensureValidAccessToken, connectGoogleCalendar } from "@/lib/googleToken";
 
 export interface HouseholdMember {
   userId: string;
@@ -279,7 +276,8 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   reAuthGoogle: async () => {
-    await startGoogleOAuth(createClient());
+    // Apple で登録した人が押しても、別アカウントに化けずに今のアカウントへ紐付く
+    await connectGoogleCalendar(createClient());
   },
 }));
 

@@ -6,6 +6,8 @@ import { useSettingsStore } from "@/store/settingsStore";
 import { CalendarSettings } from "./CalendarSettings";
 import { WeeklyChoresSettings } from "./WeeklyChoresSettings";
 import { SubscriptionSettings } from "./SubscriptionSettings";
+import { NotificationSettings } from "./NotificationSettings";
+import { BILLING_ENABLED } from "@/lib/constants";
 import { HouseholdSettings } from "./HouseholdSettings";
 import { DeleteAccount } from "./DeleteAccount";
 import { X, LogOut } from "lucide-react";
@@ -37,12 +39,18 @@ export function SettingsPage() {
 
         <HouseholdSettings />
 
-        <div className="border-t border-border pt-6">
-          <SubscriptionSettings />
-        </div>
+        {BILLING_ENABLED && (
+          <div className="border-t border-border pt-6">
+            <SubscriptionSettings />
+          </div>
+        )}
 
         <div className="border-t border-border pt-6">
           <WeeklyChoresSettings />
+        </div>
+
+        <div className="border-t border-border pt-6">
+          <NotificationSettings />
         </div>
 
         <div className="border-t border-border pt-6">

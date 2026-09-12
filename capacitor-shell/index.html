@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>home</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    background: #f8f7f4;
+    color: #1a1a1a;
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", sans-serif;
+    -webkit-text-size-adjust: 100%;
+  }
+  @media (prefers-color-scheme: dark) {
+    body { background: #1a1a1a; color: #f8f7f4; }
+    code { background: #2a2a2a !important; }
+  }
+  .box { max-width: 20rem; }
+  h1 { font-size: 1rem; font-weight: 500; letter-spacing: .05em; margin: 0 0 .75rem; }
+  p { font-size: .8125rem; line-height: 1.8; opacity: .7; margin: 0 0 .75rem; }
+  code {
+    font-size: .75rem;
+    background: #e8e6e0;
+    padding: .15rem .4rem;
+    border-radius: .2rem;
+  }
+</style>
+</head>
+<body>
+  <div class="box">
+    <h1>設定が足りません</h1>
+    <p>
+      このアプリは、デプロイ先の Web アプリを読み込んで動きます。
+      その URL がビルド時に指定されていません。
+    </p>
+    <p>
+      <code>.env.local</code> に <code>CAP_SERVER_URL</code> を書いてから、
+      <code>npm run build</code> と <code>npm run ios:sync</code> をやり直してください。
+    </p>
+  </div>
+</body>
+</html>
