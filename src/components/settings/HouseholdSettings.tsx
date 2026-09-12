@@ -15,6 +15,8 @@ export function HouseholdSettings() {
   const [confirming, setConfirming] = useState(false);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState("");
+  const [joining, setJoining] = useState(false);
+  const [joinCode, setJoinCode] = useState("");
 
   const solo = memberCount !== null && memberCount <= 1;
   const partner = members.find((m) => m.userId !== user?.id);
@@ -48,6 +50,41 @@ export function HouseholdSettings() {
     setWorking(false);
   };
 
+  // すでに1人で使っている人が、相手の世帯に移る。
+  // 招待コードを入れる画面は「世帯を持っていない人」にしか出ないので、
+  // これが無いと2人ともそれぞれ世帯を作った時点で合流できなくなる。
+  const join = async () => {
+    const code = joinCode.trim().toUpperCase();
+    if (!code) return;
+    setWorking(true);
+    setError("");
+    try {
+      const res = await fetch("/api/household/join", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ invite_code: code }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(
+          body.error === "invite code not found" ? "この招待コードの世帯が見つかりません"
+          : body.error === "household is full" ? "その世帯はすでに2人で使われています"
+          : body.error ?? "参加できませんでした"
+        );
+      }
+      // 所属もデータも入れ替わるので、読み込み直すのが確実
+      for (const key of [
+        LS_CACHED_HOUSEHOLD, LS_CACHED_INVITE, LS_CACHED_IS_OWNER, LS_CACHED_MEMBER_COUNT,
+      ]) {
+        try { localStorage.removeItem(key); } catch {}
+      }
+      window.location.href = "/";
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "エラーが発生しました");
+      setWorking(false);
+    }
+  };
+
   return (
     <div className="space-y-3">
       <p className="text-[10px] tracking-widest text-muted-foreground uppercase">household</p>
@@ -64,6 +101,53 @@ export function HouseholdSettings() {
               <p className="text-xl tracking-widest font-medium">{inviteCode}</p>
             </>
           )}
+
+          <div className="border-t border-border/40 pt-3 space-y-2">
+            {joining ? (
+              <>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  相手の招待コードを入れると、その世帯に移ります。
+                  いまのレシピ・家事・やること・献立は持っていきます。
+                  <strong className="text-foreground">
+                    1人で使っていた割り勘の記録は引き継がれません。
+                  </strong>
+                </p>
+                <div className="flex items-center gap-2">
+                  <input
+                    autoFocus
+                    value={joinCode}
+                    onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                    onKeyDown={(e) => { if (e.key === "Enter") join(); }}
+                    placeholder="招待コード"
+                    maxLength={8}
+                    className="flex-1 bg-background border border-border rounded px-3 py-2 text-[14px] tracking-widest"
+                  />
+                  <button
+                    onClick={join}
+                    disabled={working || !joinCode.trim()}
+                    className="text-[11px] text-foreground underline disabled:opacity-40 flex-shrink-0"
+                  >
+                    {working ? "参加中..." : "参加"}
+                  </button>
+                </div>
+                <button
+                  onClick={() => { setJoining(false); setJoinCode(""); setError(""); }}
+                  disabled={working}
+                  className="text-[11px] text-muted-foreground disabled:opacity-40"
+                >
+                  やめる
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => setJoining(true)}
+                className="text-[11px] text-muted-foreground underline underline-offset-2"
+              >
+                相手の世帯に参加する
+              </button>
+            )}
+            {error && <p className="text-[11px] text-red-500 leading-relaxed">{error}</p>}
+          </div>
         </>
       ) : (
         <>

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { transferHouseholdData } from "@/lib/server/householdTransfer";
 
 // グループの解散。招待した側・された側のどちらからでも実行できる。
 //
@@ -16,24 +17,6 @@ import { createAdminClient } from "@/lib/supabase/admin";
 // カレンダーが見えなくなるのは household_members を消すだけでは不十分。
 // /api/partner-calendar は service role で user_tokens を household_id で引くので、
 // 抜けた人の user_tokens を新しい世帯に付け替えて、古い世帯から引けないようにする。
-
-type Row = Record<string, unknown>;
-
-/**
- * 世帯のデータを、抜ける人の新しい世帯に複製する。
- *
- * id は呼び出し側で振り直す。DB 任せにすると、元の行と新しい行の対応が取れず
- * 献立からレシピへの参照を張り替えられない（複数行 insert の戻り順は保証がない）。
- */
-function copyRows(rows: Row[], householdId: string): { rows: Row[]; idMap: Map<string, string> } {
-  const idMap = new Map<string, string>();
-  const copied = rows.map((r) => {
-    const newId = crypto.randomUUID();
-    idMap.set(r.id as string, newId);
-    return { ...r, id: newId, household_id: householdId };
-  });
-  return { rows: copied, idMap };
-}
 
 export async function POST() {
   const supabase = await createClient();
@@ -107,69 +90,11 @@ export async function POST() {
       return NextResponse.json({ error: joinError.message }, { status: 500 });
     }
 
-    // 本人にしか見えない買い物アイテム（user_id が入っているもの）を持っていく。
-    // 共有アイテム（user_id が null）は2人で使っていたものなので古い世帯に残す。
-    const { error: moveError } = await admin
-      .from("shopping_items")
-      .update({ household_id: newHouseholdId })
-      .eq("household_id", oldHouseholdId)
-      .eq("user_id", leaverId);
-    if (moveError) {
-      return NextResponse.json({ error: moveError.message }, { status: 500 });
-    }
-
-    // --- 暮らしの土台になるものを複製する ---
-    // 2人で作ったものなので、抜ける側にも残る側にも同じものが残る。
-
-    const { data: recipes } = await admin.from("recipes").select("*").eq("household_id", oldHouseholdId);
-    const recipeCopy = copyRows((recipes ?? []) as Row[], newHouseholdId);
-    if (recipeCopy.rows.length > 0) {
-      // 作成者は自分の分だけ残す。相手のIDを持ち出すと、抜けた先で
-      // 名前が引けない幽霊の作成者になる。
-      const rows = recipeCopy.rows.map((r) => ({
-        ...r,
-        created_by: r.created_by === leaverId ? leaverId : null,
-      }));
-      const { error } = await admin.from("recipes").insert(rows);
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    const { data: routines } = await admin
-      .from("routine_definitions").select("*").eq("household_id", oldHouseholdId);
-    const routineCopy = copyRows((routines ?? []) as Row[], newHouseholdId);
-    if (routineCopy.rows.length > 0) {
-      // 担当も同様。相手が担当だった家事は担当なしに戻す。
-      const rows = routineCopy.rows.map((r) => ({
-        ...r,
-        user_id: r.user_id === leaverId ? leaverId : null,
-      }));
-      const { error } = await admin.from("routine_definitions").insert(rows);
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    const { data: todos } = await admin
-      .from("shared_todos").select("*").eq("household_id", oldHouseholdId);
-    const todoCopy = copyRows((todos ?? []) as Row[], newHouseholdId);
-    if (todoCopy.rows.length > 0) {
-      const rows = todoCopy.rows.map((r) => ({
-        ...r,
-        created_by: r.created_by === leaverId ? leaverId : null,
-      }));
-      const { error } = await admin.from("shared_todos").insert(rows);
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    const { data: plans } = await admin
-      .from("meal_plans").select("*").eq("household_id", oldHouseholdId);
-    const planCopy = copyRows((plans ?? []) as Row[], newHouseholdId);
-    if (planCopy.rows.length > 0) {
-      // 献立が指しているレシピを、複製したレシピのほうに向け直す。
-      const rows = planCopy.rows.map((r) => ({
-        ...r,
-        recipe_id: r.recipe_id ? recipeCopy.idMap.get(r.recipe_id as string) ?? null : null,
-      }));
-      const { error } = await admin.from("meal_plans").insert(rows);
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    // レシピ・家事・やること・献立を複製し、自分専用の買い物アイテムを移す。
+    // 参加（/api/household/join）と同じ処理を使っている。
+    const copyError = await transferHouseholdData(admin, oldHouseholdId, newHouseholdId, leaverId);
+    if (copyError) {
+      return NextResponse.json({ error: copyError }, { status: 500 });
     }
 
     // Google の鍵を新しい世帯に付け替える。これをしないと、残った側からは
