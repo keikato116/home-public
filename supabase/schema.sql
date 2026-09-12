@@ -424,3 +424,28 @@ create policy "users can insert own diary entries"
 create policy "users can delete own diary entries"
   on public.diary_entries for delete
   using (user_id = auth.uid());
+
+-- ============================================================
+-- Data API への権限付与
+--
+-- Supabase の「Automatically expose new tables」がオンなら自動で付くが、
+-- オフだとテーブルに権限が付かず、アプリが全部 permission denied で落ちる。
+-- 設定に左右されないよう、ここで明示的に付けておく。
+--
+-- 行単位の制御は上の RLS ポリシーが行う。ここで与えるのは
+-- 「表に触れてよい」という入口の権限だけで、中身の見える範囲は変わらない。
+-- ============================================================
+
+grant usage on schema public to anon, authenticated, service_role;
+
+grant all on all tables    in schema public to anon, authenticated, service_role;
+grant all on all sequences in schema public to anon, authenticated, service_role;
+grant all on all functions in schema public to anon, authenticated, service_role;
+
+-- 以後この接続で作られる表にも同じ権限が付くようにする
+alter default privileges in schema public
+  grant all on tables    to anon, authenticated, service_role;
+alter default privileges in schema public
+  grant all on sequences to anon, authenticated, service_role;
+alter default privileges in schema public
+  grant all on functions to anon, authenticated, service_role;
