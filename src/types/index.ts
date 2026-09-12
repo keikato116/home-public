@@ -14,6 +14,8 @@ export interface RoutineDefinition {
   day_of_week: number | null;
   day_of_month: number | null;
   due_date: string | null;
+  /** 通知する時刻（"HH:MM:SS"）。null なら端末側の既定の時刻を使う。 */
+  notify_at: string | null;
   order: number;
 }
 

@@ -33,8 +33,12 @@ export const DEFAULT_CHORE_NOTIFY: ChoreNotifySetting = {
 /** 予約しておく日数。アプリを開かなくてもこの日数ぶんは鳴り続ける。 */
 const DAYS_AHEAD = 7;
 
+/** 1日に鳴らせる時刻の数の上限。これを超える時刻が設定されたぶんは早い順に切る。 */
+const MAX_SLOTS_PER_DAY = 6;
+
 /** この機能が使う通知IDの範囲。他の用途と衝突しないよう先頭を決めておく。 */
 const ID_BASE = 7100;
+const ID_COUNT = DAYS_AHEAD * MAX_SLOTS_PER_DAY;
 
 export function notificationsAvailable(): boolean {
   return Capacitor.isNativePlatform();
@@ -74,7 +78,7 @@ async function cancelOurs(): Promise<void> {
   const LocalNotifications = await plugin();
   const pending = await LocalNotifications.getPending();
   const ours = pending.notifications.filter(
-    (n) => n.id >= ID_BASE && n.id < ID_BASE + DAYS_AHEAD
+    (n) => n.id >= ID_BASE && n.id < ID_BASE + ID_COUNT
   );
   if (ours.length > 0) await LocalNotifications.cancel({ notifications: ours });
 }
@@ -93,10 +97,28 @@ export interface PlannedNotification {
 }
 
 /**
+ * "HH:MM" / "HH:MM:SS" を分数に直す。読めなければ null。
+ * Postgres の time 型は "07:00:00" で返ってくる。
+ */
+export function parseNotifyAt(value: string | null | undefined): number | null {
+  if (!value) return null;
+  const m = /^(\d{1,2}):(\d{2})/.exec(value);
+  if (!m) return null;
+  const h = Number(m[1]);
+  const min = Number(m[2]);
+  if (h < 0 || h > 23 || min < 0 || min > 59) return null;
+  return h * 60 + min;
+}
+
+/**
  * 何をいつ鳴らすかを決める、副作用の無い部分。
  *
  * ここだけ切り出してあるのは、プラグインを起動せずにテストできるようにするため。
  * 実際の予約は syncChoreNotifications が行う。
+ *
+ * 家事ごとに notify_at を持てる（朝やる家事と夜やる家事を分けるため）。
+ * 設定が無い家事は、端末側の既定の時刻にまとめて鳴らす。
+ * 同じ時刻の家事は1件の通知にまとめる。
  */
 export function planChoreNotifications(
   definitions: RoutineDefinition[],
@@ -106,39 +128,43 @@ export function planChoreNotifications(
 ): PlannedNotification[] {
   if (!setting.enabled) return [];
 
+  const fallback = setting.hour * 60 + setting.minute;
   const planned: PlannedNotification[] = [];
 
   for (let i = 0; i < DAYS_AHEAD; i++) {
     const day = new Date(today);
     day.setDate(day.getDate() + i);
 
-    const at = new Date(day);
-    at.setHours(setting.hour, setting.minute, 0, 0);
-    // 今日のぶんで、もう時刻を過ぎているならとばす
-    if (at.getTime() <= now.getTime()) continue;
+    // その日の家事を、鳴らす時刻ごとにまとめる
+    const byTime = new Map<number, string[]>();
+    for (const def of getTodaysRoutines(definitions, day)) {
+      const at = parseNotifyAt(def.notify_at) ?? fallback;
+      const labels = byTime.get(at);
+      if (labels) labels.push(def.label);
+      else byTime.set(at, [def.label]);
+    }
 
-    const labels = getTodaysRoutines(definitions, day).map((d) => d.label);
-    // 家事が無い日は予約しない。空の通知で起こされるのが一番嫌われるため。
-    if (labels.length === 0) continue;
+    const times = Array.from(byTime.keys()).sort((a, b) => a - b).slice(0, MAX_SLOTS_PER_DAY);
 
-    planned.push({
-      id: ID_BASE + i,
-      title: `今日の家事 ${labels.length}件`,
-      body: bodyFor(labels),
-      schedule: { at },
+    times.forEach((minutes, slot) => {
+      const at = new Date(day);
+      at.setHours(Math.floor(minutes / 60), minutes % 60, 0, 0);
+      // 今日のぶんで、もう時刻を過ぎているならとばす
+      if (at.getTime() <= now.getTime()) return;
+
+      const labels = byTime.get(minutes)!;
+      planned.push({
+        id: ID_BASE + i * MAX_SLOTS_PER_DAY + slot,
+        title: `今日の家事 ${labels.length}件`,
+        body: bodyFor(labels),
+        schedule: { at },
+      });
     });
   }
 
   return planned;
 }
 
-/**
- * 今日から DAYS_AHEAD 日ぶんの通知を予約し直す。
- *
- * 家事は繰り返しの規則から決まるので、先の日付でも中身を計算できる。
- * ただし「予約したあとに済ませた」ぶんは反映できない（予約時点の内容で鳴る）。
- * アプリを開くたびに組み直すことで、ズレを短く抑えている。
- */
 export async function syncChoreNotifications(
   definitions: RoutineDefinition[]
 ): Promise<void> {

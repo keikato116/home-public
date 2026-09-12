@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { planChoreNotifications, DEFAULT_CHORE_NOTIFY } from "./notifications";
+import { planChoreNotifications, parseNotifyAt, DEFAULT_CHORE_NOTIFY } from "./notifications";
 import { RoutineDefinition } from "@/types";
 
 function def(partial: Partial<RoutineDefinition>): RoutineDefinition {
@@ -11,6 +11,7 @@ function def(partial: Partial<RoutineDefinition>): RoutineDefinition {
     day_of_week: null,
     day_of_month: null,
     due_date: null,
+    notify_at: null,
     user_id: null,
     order: 0,
     created_at: "",
@@ -73,6 +74,90 @@ describe("planChoreNotifications", () => {
 
   it("同じ日を二重に予約しない（IDが重複しない）", () => {
     const ids = planChoreNotifications([def({})], on, MON, earlyMorning).map((n) => n.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+});
+
+describe("parseNotifyAt", () => {
+  it("Postgres の time 型（HH:MM:SS）を読む", () => {
+    expect(parseNotifyAt("07:30:00")).toBe(7 * 60 + 30);
+  });
+
+  it("HH:MM でも読む", () => {
+    expect(parseNotifyAt("21:05")).toBe(21 * 60 + 5);
+  });
+
+  it("未設定・壊れた値は null", () => {
+    expect(parseNotifyAt(null)).toBeNull();
+    expect(parseNotifyAt("")).toBeNull();
+    expect(parseNotifyAt("あさ")).toBeNull();
+    expect(parseNotifyAt("25:00")).toBeNull();
+  });
+});
+
+describe("planChoreNotifications: 家事ごとの時刻", () => {
+  it("朝の家事と夜の家事が別々の通知になる", () => {
+    const chores = [
+      def({ id: "a", label: "ゴミ", notify_at: "07:00:00" }),
+      def({ id: "b", label: "皿洗い", notify_at: "20:00:00" }),
+    ];
+    const day1 = planChoreNotifications(chores, on, MON, earlyMorning)
+      .filter((n) => n.schedule.at.getDate() === 14);
+
+    expect(day1).toHaveLength(2);
+    expect(day1[0].schedule.at.getHours()).toBe(7);
+    expect(day1[0].body).toBe("ゴミ");
+    expect(day1[1].schedule.at.getHours()).toBe(20);
+    expect(day1[1].body).toBe("皿洗い");
+  });
+
+  it("同じ時刻の家事は1件にまとまる", () => {
+    const chores = [
+      def({ id: "a", label: "ゴミ", notify_at: "07:00:00" }),
+      def({ id: "b", label: "洗濯", notify_at: "07:00:00" }),
+    ];
+    const day1 = planChoreNotifications(chores, on, MON, earlyMorning)
+      .filter((n) => n.schedule.at.getDate() === 14);
+
+    expect(day1).toHaveLength(1);
+    expect(day1[0].title).toBe("今日の家事 2件");
+    expect(day1[0].body).toBe("ゴミ、洗濯");
+  });
+
+  it("時刻が未設定の家事は既定の時刻に鳴る", () => {
+    const chores = [
+      def({ id: "a", label: "ゴミ", notify_at: "07:00:00" }),
+      def({ id: "b", label: "掃除", notify_at: null }),
+    ];
+    const day1 = planChoreNotifications(chores, { ...on, hour: 8, minute: 0 }, MON, earlyMorning)
+      .filter((n) => n.schedule.at.getDate() === 14);
+
+    expect(day1.map((n) => [n.schedule.at.getHours(), n.body])).toEqual([
+      [7, "ゴミ"],
+      [8, "掃除"],
+    ]);
+  });
+
+  it("早い時刻だけ過ぎている場合、残りは予約される", () => {
+    const chores = [
+      def({ id: "a", label: "ゴミ", notify_at: "07:00:00" }),
+      def({ id: "b", label: "皿洗い", notify_at: "20:00:00" }),
+    ];
+    const noon = new Date(2026, 8, 14, 12, 0);
+    const day1 = planChoreNotifications(chores, on, MON, noon)
+      .filter((n) => n.schedule.at.getDate() === 14);
+
+    expect(day1).toHaveLength(1);
+    expect(day1[0].body).toBe("皿洗い");
+  });
+
+  it("時刻が違っても ID は重複しない", () => {
+    const chores = [
+      def({ id: "a", label: "ゴミ", notify_at: "07:00:00" }),
+      def({ id: "b", label: "皿洗い", notify_at: "20:00:00" }),
+      def({ id: "c", label: "掃除", notify_at: null }),
+    ];
+    const ids = planChoreNotifications(chores, on, MON, earlyMorning).map((n) => n.id);
     expect(new Set(ids).size).toBe(ids.length);
   });
 });
