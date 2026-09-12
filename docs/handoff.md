@@ -74,6 +74,9 @@ Supabase に流された状態**になっている。課金ゲートを入れた
 
 1. Supabase で新規プロジェクトを作る
 2. `supabase/schema.sql` → マイグレーション3本を順に実行
+   （`schema.sql` は 2026-09-12 に実データベースから作り直した。
+   　以前の版は meal_plans / split_sessions / split_subscriptions /
+   　family_card_totals / diary_entries の5テーブルが欠けていた）
 3. 公開版の Vercel に新プロジェクトの URL とキーを設定
 4. 個人用プロジェクトから公開版のルールを外す
    → `supabase/rollback/2026-09-11_revert_public_edition.sql`
@@ -81,9 +84,18 @@ Supabase に流された状態**になっている。課金ゲートを入れた
 
 > SQL Editor には**ファイルの中身**を貼る。パスを貼っても実行できない（実際にこれで2回詰まった）。
 
-**未確認**: `pairing_scope` の最後に出る確認クエリ（`rls_enabled` / `policy_installed` が
-4行とも true か）の結果を、本人からまだ聞けていない。false があるとその表だけ
-絞り込みが効いていない。分けたあと新プロジェクトで必ず確認すること。
+**確認済み（2026-09-12）**: `pairing_scope` の最後に出る確認クエリは、
+まっさらな Postgres に `schema.sql` → マイグレーション3本を流した状態で
+**4行とも true** になることを実際に実行して確かめた。
+新プロジェクトでも同じ結果になるはずだが、流したあと目視で確認すること。
+
+ただし**これは作り直した `schema.sql` を使った場合の話**。以前の `schema.sql` には
+split_sessions / split_subscriptions / family_card_totals が無かったため、
+`pairing_scope` はこの3表を「見つからない表」として飛ばしていた
+（コミット `769b4cc` がそのための変更）。つまり古い手順で新プロジェクトを
+作っていたら、**割り勘に「部屋」の区切りが一切かからないまま公開していた**。
+前の相手とのお金の記録が新しい相手に見える、というまさに防ぎたかった事故が
+起きる状態だったので、schema.sql を直すまで新プロジェクトを作らないこと。
 
 ### 2. デプロイと課金の疎通
 
