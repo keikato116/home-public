@@ -5,6 +5,7 @@ import {
   LS_GOOGLE_TOKEN, LS_GOOGLE_TOKEN_EXPIRY, LS_GOOGLE_REFRESH,
   LS_CACHED_USER, GOOGLE_CALENDAR_SCOPE,
 } from "@/lib/constants";
+import { startOAuth, isNativeApp } from "@/lib/nativeAuth";
 
 // Google access-token lifecycle: storage, refresh, silent re-auth.
 // Kept separate from authStore (which owns session/household state);
@@ -18,15 +19,14 @@ export function storeAccessToken(token: string, expiresInSec?: number) {
   localStorage.setItem(LS_GOOGLE_TOKEN_EXPIRY, String(Date.now() + seconds * 1000));
 }
 
-/** Starts the Google OAuth flow requesting calendar read access. */
-export function startGoogleOAuth(supabase: ReturnType<typeof createClient>) {
-  return supabase.auth.signInWithOAuth({
-    provider: "google",
-    options: {
-      redirectTo: `${window.location.origin}/auth/callback`,
-      scopes: GOOGLE_CALENDAR_SCOPE,
-      queryParams: { access_type: "offline", prompt: "consent" },
-    },
+/**
+ * Google のログインを始める（カレンダー読み取りの権限つき）。
+ * iOS アプリでは Safari に出す。分岐は startOAuth 側にある。
+ */
+export function startGoogleOAuth() {
+  return startOAuth("google", {
+    scopes: GOOGLE_CALENDAR_SCOPE,
+    queryParams: { access_type: "offline", prompt: "consent" },
   });
 }
 
@@ -44,8 +44,9 @@ export async function connectGoogleCalendar(supabase: ReturnType<typeof createCl
   const { data: { user } } = await supabase.auth.getUser();
   const hasGoogle = user?.identities?.some((i) => i.provider === "google") ?? false;
 
-  // 未ログイン、または既に Google 連携済み（＝トークンの取り直し）は従来どおり
-  if (!user || hasGoogle) return startGoogleOAuth(supabase);
+  // 未ログイン、または既に Google 連携済み（＝トークンの取り直し）は従来どおり。
+  // ネイティブでも linkIdentity は WebView 内で遷移してしまうので、Safari 経由に倒す。
+  if (!user || hasGoogle || isNativeApp()) return startGoogleOAuth();
 
   try {
     const { error } = await supabase.auth.linkIdentity({
@@ -58,7 +59,7 @@ export async function connectGoogleCalendar(supabase: ReturnType<typeof createCl
     });
     if (error) throw error;
   } catch {
-    return startGoogleOAuth(supabase);
+    return startGoogleOAuth();
   }
 }
 
@@ -104,7 +105,7 @@ async function doRefresh(): Promise<string | null> {
   if (!refreshToken) {
     // No refresh token anywhere — if the user is logged in, re-auth silently to get one
     if (typeof window !== "undefined" && localStorage.getItem(LS_CACHED_USER)) {
-      startGoogleOAuth(createClient()).catch(() => {});
+      startGoogleOAuth().catch(() => {});
     }
     return null;
   }
@@ -125,7 +126,7 @@ async function doRefresh(): Promise<string | null> {
           localStorage.removeItem(LS_GOOGLE_REFRESH);
         }
         if (typeof window !== "undefined" && localStorage.getItem(LS_CACHED_USER)) {
-          startGoogleOAuth(createClient()).catch(() => {});
+          startGoogleOAuth().catch(() => {});
         }
       }
       return null;

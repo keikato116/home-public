@@ -27,25 +27,28 @@ Capacitor の WebView はまさにそれなので、**いまのコードのま�
 
 ブラウザで動いていても、アプリでは動かない。ここは必ず踏む。
 
-### 直し方
+### ✅ 対応済み（2026-09-12）
 
-認証だけ**端末の Safari（SFSafariViewController）に出して**、終わったら
-ディープリンクでアプリに戻す。Google の規約上もこれが正しい形。
+`src/lib/nativeAuth.ts` に実装した。ネイティブかどうかで自動的に分岐するので、
+ブラウザの挙動は変わらない。
 
-```bash
-npm install @capacitor/browser @capacitor/app
+```
+WebView              Safari                    WebView
+signInWithOAuth  →   Google → Supabase  →      appUrlOpen
+（URLだけ取る）                                 → exchangeCodeForSession
 ```
 
-流れ:
+`code_verifier` は WebView 側の cookie にあるので、**コード交換はアプリに戻ってから**行う。
+そのため `redirectTo` はサーバーの `/auth/callback` ではなくカスタムスキームを指す。
 
-1. `supabase.auth.signInWithOAuth({ skipBrowserRedirect: true })` で URL だけ受け取る
-2. `Browser.open({ url })` で Safari に出す
-3. 認証後、カスタムスキーム（`com.keikato.homeapp://`）または Universal Link で戻る
-4. `App.addListener("appUrlOpen", ...)` で受けて `exchangeCodeForSession` する
+**ただし、次の2つを設定しないと戻ってこられない。**
 
-**PKCE の落とし穴**: Supabase は `code_verifier` を WebView 側の storage に置く。
-Safari 側でコード交換をしてしまうと verifier が無くて失敗するので、
-**交換は必ずアプリ（WebView）側に戻ってから**行う。
+1. **Xcode**: App ターゲット → Info → **URL Types** に URL Scheme
+   `com.keikato.homeapp` を追加
+2. **Supabase**: Authentication → URL Configuration → Redirect URLs に
+   `com.keikato.homeapp://auth/callback` を追加
+
+値は `src/lib/constants.ts` の `NATIVE_AUTH_REDIRECT` と一致させること。
 
 ### Sign in with Apple は別扱いにできる
 
@@ -108,7 +111,7 @@ npm run ios:open     # Xcode が開く
 
 | | 見るところ |
 |---|---|
-| **Google ログイン** | **まず落ちる**（上記の WebView 問題）。Safari 経由に直してから再確認 |
+| **Google ログイン** | Safari が開いて、終わるとアプリに戻るか。戻らないなら URL Types か Redirect URLs の登録漏れ |
 | Apple ログイン | OS の認証シートが出るか |
 | 通知 | 設定に **notification 欄が出る**（ブラウザでは出ない）。家事に時刻を入れて翌朝鳴るか |
 | セーフエリア | 下タブがホームインジケータに被っていないか |
@@ -132,7 +135,7 @@ npm run ios:open     # Xcode が開く
 
 | | 状態 |
 |---|---|
-| WebView の Google ログイン | ❌ **未対応。iOS で確実に落ちる** |
+| WebView の Google ログイン | ✅ 実装済み。**Xcode の URL Types と Supabase の Redirect URLs の登録が残り** |
 | Sign in with Apple | ⚠️ コードは入った。Apple / Supabase の設定が残り |
 | Google OAuth の審査 | ❌ 未対応（独自ドメインが要る。`docs/data-and-privacy.md` 参照） |
 | 利用規約・プライバシーポリシー | ⚠️ ドラフト。法的レビュー未実施 |

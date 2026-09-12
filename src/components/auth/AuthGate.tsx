@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { startGoogleOAuth } from "@/lib/googleToken";
+import { startOAuth } from "@/lib/nativeAuth";
+import { GOOGLE_CALENDAR_SCOPE } from "@/lib/constants";
 
 // ログインの入口。
 //
@@ -11,18 +11,23 @@ import { startGoogleOAuth } from "@/lib/googleToken";
 // ログイン手段を併せて用意することを求めていて、Google はどれも満たさない。
 // Sign in with Apple はその3条件を満たすので、並べて置いてある。
 //
+// iOS アプリでは、認証だけ Safari に出して戻ってくる（Google が WebView からの
+// OAuth を拒否するため）。その分岐は startOAuth の中にある。
+//
 // Apple で入った人は Google のトークンを持たないので、カレンダーは
 // 手入力の予定だけになる。calendar タブに「connect google calendar」が出て、
 // そこから後付けで繋げられる（connectGoogleCalendar が identity を紐付ける）。
 
 export function AuthGate() {
-  const supabase = createClient();
   const [busy, setBusy] = useState<"google" | "apple" | null>(null);
 
   const signInWithGoogle = async () => {
     setBusy("google");
     try {
-      await startGoogleOAuth(supabase);
+      await startOAuth("google", {
+        scopes: GOOGLE_CALENDAR_SCOPE,
+        queryParams: { access_type: "offline", prompt: "consent" },
+      });
     } finally {
       setBusy(null);
     }
@@ -31,10 +36,7 @@ export function AuthGate() {
   const signInWithApple = async () => {
     setBusy("apple");
     try {
-      await supabase.auth.signInWithOAuth({
-        provider: "apple",
-        options: { redirectTo: `${location.origin}/auth/callback` },
-      });
+      await startOAuth("apple");
     } finally {
       setBusy(null);
     }

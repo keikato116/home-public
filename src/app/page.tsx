@@ -16,6 +16,7 @@ import { SplitTab } from "@/components/split/SplitTab";
 import { SettingsPage } from "@/components/settings/SettingsPage";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
 import { PREMIUM_TABS, PAIR_ONLY_TABS, BILLING_ENABLED } from "@/lib/constants";
+import { initDeepLinkAuth } from "@/lib/nativeAuth";
 
 function MainApp() {
   const { activeTab, settingsOpen, householdId, accessToken, user, setActiveTab, memberCount } = useAuthStore();
@@ -74,6 +75,9 @@ export default function Page() {
 
   useEffect(() => {
     init();
+    // iOS アプリでは、Safari から戻ってきたログインをここで受ける。
+    // ブラウザでは何もしない（サーバーの /auth/callback が処理する）。
+    initDeepLinkAuth(() => { init(); });
   }, [init]);
 
   if (loading) {

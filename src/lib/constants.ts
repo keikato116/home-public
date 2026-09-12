@@ -15,6 +15,11 @@ export const LS_CACHED_MEMBER_COUNT = "cached_member_count";
 // 「今日の家事」のローカル通知の設定（端末ごと。世帯では共有しない）
 export const LS_CHORE_NOTIFY = "chore_notify";
 
+// iOS アプリのログインの戻り先。Safari から アプリに戻すためのカスタムスキーム。
+// Xcode の Info.plist（URL Types）と、Supabase の Redirect URLs の両方に
+// 同じ値を登録しておくこと。どちらか欠けると戻ってこられない。
+export const NATIVE_AUTH_REDIRECT = "com.keikato.homeapp://auth/callback";
+
 // OAuth
 export const GOOGLE_CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.readonly";
 
