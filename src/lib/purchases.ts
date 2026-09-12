@@ -2,7 +2,7 @@
 
 import { Capacitor } from "@capacitor/core";
 import type { PurchasesPackage, CustomerInfo } from "@revenuecat/purchases-capacitor";
-import { RC_ENTITLEMENT_ID } from "@/lib/constants";
+import { RC_ENTITLEMENT_ID, BILLING_ENABLED } from "@/lib/constants";
 
 // RevenueCat（StoreKit のラッパー）への薄い入口。
 //
@@ -12,7 +12,9 @@ import { RC_ENTITLEMENT_ID } from "@/lib/constants";
 // ブラウザでは常に「未購入」として振る舞い、購入は iOS アプリ内でだけ行える。
 
 export function purchasesAvailable(): boolean {
-  return Capacitor.isNativePlatform();
+  // BILLING_ENABLED が false の間は、ネイティブでも購入まわりを初期化しない。
+  // 商品が未登録の状態で RevenueCat を呼ぶと空のペイウォールが出てしまう。
+  return BILLING_ENABLED && Capacitor.isNativePlatform();
 }
 
 let configured = false;

@@ -15,7 +15,7 @@ import { CookTab } from "@/components/cook/CookTab";
 import { SplitTab } from "@/components/split/SplitTab";
 import { SettingsPage } from "@/components/settings/SettingsPage";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
-import { PREMIUM_TABS, PAIR_ONLY_TABS } from "@/lib/constants";
+import { PREMIUM_TABS, PAIR_ONLY_TABS, BILLING_ENABLED } from "@/lib/constants";
 
 function MainApp() {
   const { activeTab, settingsOpen, householdId, accessToken, user, setActiveTab, memberCount } = useAuthStore();
@@ -64,7 +64,7 @@ function MainApp() {
 
       <BottomTabBar />
       {settingsOpen && <SettingsPage />}
-      <PaywallModal />
+      {BILLING_ENABLED && <PaywallModal />}
     </div>
   );
 }

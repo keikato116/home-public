@@ -17,6 +17,16 @@ export const LS_CACHED_MEMBER_COUNT = "cached_member_count";
 export const GOOGLE_CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.readonly";
 
 // 課金
+// 課金機能そのものを出すかどうか。NEXT_PUBLIC_BILLING_ENABLED=true のときだけ有効。
+//
+// 初回リリースは課金なしで出す。そのとき購入ボタンを残すと、押しても何も買えない
+// 状態になり Guideline 2.1（機能しないUI）で差し戻される。フラグが false の間は
+// 設定の premium 欄もペイウォールも描画せず、RevenueCat の初期化も行わない。
+//
+// レシピと献立のタブは household_entitled() が false のまま＝全員に出ない。
+// 課金を実装するときは、このフラグを true にして再デプロイする。
+export const BILLING_ENABLED = process.env.NEXT_PUBLIC_BILLING_ENABLED === "true";
+
 // RevenueCat ダッシュボードで作る Entitlement の識別子。ここを変えるなら向こうも変える。
 export const RC_ENTITLEMENT_ID = "premium";
 // 課金しないと使えないタブ。BottomTabBar と page.tsx の両方がこれを見る。
