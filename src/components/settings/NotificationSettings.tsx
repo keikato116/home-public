@@ -9,10 +9,19 @@ import {
   notificationPermissionGranted,
 } from "@/lib/notifications";
 
-// 「今日の家事」の通知設定。ブラウザではローカル通知が使えないので iOS のときだけ出す。
+// 「今日の家事」の通知設定。
 //
-// 時刻は家事ごとに設定する（DB の notify_at）。世帯で共有する値にしているのは、
-// 「ゴミ出しは朝7時」が2人にとって同じであるべきだから。オン・オフだけ端末ごと。
+// ここには性質の違う2つが並んでいる。混ぜないこと。
+//
+//   時刻（DB の notify_at） … 世帯で共有。「ゴミ出しは朝7時」は2人にとって同じ
+//   オン・オフ（localStorage）  … 端末ごと。「この iPhone で鳴らすか」
+//
+// 以前は時刻の一覧をオン・オフの内側に入れていたが、これだと共有設定に
+// 端末の都合で触れなくなる。実際に2通りの行き止まりがあった:
+//   - 通知の許可を一度拒否すると iOS は二度とダイアログを出さないので
+//     チェックが入らず、時刻欄に永久に到達できない
+//   - ブラウザではセクションごと消えるので、ウェブから時刻を直せない
+// いまは時刻の一覧を常に出し、チェックは配信のスイッチだけに絞ってある。
 //
 // 時刻が空の家事は通知しない。家事を足しただけで通知が勝手に増えるより、
 // 鳴らしたいものを選んでもらうほうが、通知を切られにくい。
@@ -40,6 +49,7 @@ export function NotificationSettings() {
 
   const [enabled, setEnabled] = useState(false);
   const [denied, setDenied] = useState(false);
+  const canNotify = notificationsAvailable();
 
   // localStorage を読むので、描画後に反映する（SSR とズレないように）。
   // あわせて端末側の許可も確かめる。アプリの設定はオンのまま iOS の
@@ -63,8 +73,6 @@ export function NotificationSettings() {
     });
   }, [routineDefinitions]);
 
-  if (!notificationsAvailable()) return null;
-
   const toggle = async () => {
     const next = !enabled;
     const ok = await setChoreNotifyEnabled(next, todoRoutines);
@@ -85,52 +93,60 @@ export function NotificationSettings() {
     <div className="space-y-3">
       <p className="text-[10px] tracking-widest text-muted-foreground uppercase">notification</p>
 
-      <label className="flex items-center gap-3 cursor-pointer">
-        <input
-          type="checkbox"
-          checked={enabled}
-          onChange={toggle}
-          className="w-3.5 h-3.5 accent-foreground cursor-pointer"
-        />
-        <span className="text-[12px] tracking-wide">今日の家事を知らせる</span>
-      </label>
+      {/* 配信のスイッチ。鳴らせる端末でだけ意味があるので、ブラウザでは出さない。
+          時刻の一覧（下）はこれに関係なく出す。 */}
+      {canNotify && (
+        <label className="flex items-center gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={enabled}
+            onChange={toggle}
+            className="w-3.5 h-3.5 accent-foreground cursor-pointer"
+          />
+          <span className="text-[12px] tracking-wide">この端末で知らせる</span>
+        </label>
+      )}
 
-      {denied && (
+      {canNotify && denied && (
         <p className="text-[11px] text-red-500 leading-relaxed">
           通知が許可されていません。iPhone の「設定 → 通知 → Imbrex」から許可してください。
+          許可しなくても、下の時刻は設定できます。
         </p>
       )}
 
-      {enabled && (
-        <>
-          {sorted.length > 0 && (
-            <div className="pl-6 pt-1 space-y-1.5">
-              <p className="text-[10px] text-muted-foreground/70 leading-relaxed">
-                知らせてほしい家事に時刻を入れてください。空のままなら通知しません。
-              </p>
-              {sorted.map((r) => (
-                <div key={r.id} className="flex items-center gap-2">
-                  <span className="flex-1 text-[12px] truncate">{r.label}</span>
-                  <span className="text-[10px] text-muted-foreground/60 flex-shrink-0">
-                    {whenLabel(r)}
-                  </span>
-                  <input
-                    type="time"
-                    value={toInputValue(r.notify_at)}
-                    onChange={(e) => changeChoreTime(r.id, e.target.value)}
-                    className="bg-background border border-border rounded px-2 py-0.5 text-[11px] w-[88px] flex-shrink-0"
-                  />
-                </div>
-              ))}
-            </div>
-          )}
+      <div className="pt-1 space-y-1.5">
+        <p className="text-[10px] text-muted-foreground/70 leading-relaxed">
+          知らせてほしい家事に時刻を入れてください。空のままなら通知しません。
+          時刻は2人で共有されます。
+        </p>
 
-          <p className="text-[11px] text-muted-foreground leading-relaxed">
-            時刻を入れた家事が、その日にあるときだけ鳴ります。
-            同じ時刻の家事はまとめて1回で届きます。
+        {sorted.length === 0 ? (
+          <p className="text-[11px] text-muted-foreground">
+            家事がまだありません。先に家事を追加してください。
           </p>
-        </>
-      )}
+        ) : (
+          sorted.map((r) => (
+            <div key={r.id} className="flex items-center gap-2">
+              <span className="flex-1 text-[12px] truncate">{r.label}</span>
+              <span className="text-[10px] text-muted-foreground/60 flex-shrink-0">
+                {whenLabel(r)}
+              </span>
+              <input
+                type="time"
+                value={toInputValue(r.notify_at)}
+                onChange={(e) => changeChoreTime(r.id, e.target.value)}
+                className="bg-background border border-border rounded px-2 py-0.5 text-[11px] w-[88px] flex-shrink-0"
+              />
+            </div>
+          ))
+        )}
+      </div>
+
+      <p className="text-[11px] text-muted-foreground leading-relaxed">
+        {canNotify
+          ? "時刻を入れた家事が、その日にあるときだけ鳴ります。同じ時刻の家事はまとめて1回で届きます。"
+          : "通知が鳴るのは iPhone のアプリだけです。ここで入れた時刻はそちらに反映されます。"}
+      </p>
     </div>
   );
 }
