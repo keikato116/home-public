@@ -18,7 +18,7 @@ const config: CapacitorConfig = {
   // 別のアプリとして登録するため、意図的に別 ID にしている。
   // App Store Connect 側の App ID とここは必ず一致させること。
   appId: "com.keikato.homeapp",
-  appName: "home",
+  appName: "Imbrex",
   // ネイティブシェルは server.url（Vercel）を読むので、ここの中身は普段使われない。
   // ただし Capacitor は webDir に index.html があることを要求するので、専用の
   // フォルダを1つ置いてある。Next.js の public/ を指すと index.html が無くて

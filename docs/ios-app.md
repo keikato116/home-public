@@ -128,10 +128,14 @@ npm run ios:open     # Xcode が開く
 1. **App** ターゲット → **Signing & Capabilities**
 2. **Team** に Apple Developer のアカウントを選ぶ
 3. **Bundle Identifier** が `com.keikato.homeapp` になっているか確認
-4. **+ Capability** → **Sign in with Apple** を追加
+4. **General → Display Name** が `Imbrex` になっているか確認
+   `capacitor.config.ts` の `appName` は **`cap add ios` でひな型を作るときにしか読まれない**。
+   すでに `ios/` がある状態で名前を変えても Xcode 側には反映されないので、
+   ここで手で直す（実体は `Info.plist` の `CFBundleDisplayName`）
+5. **+ Capability** → **Sign in with Apple** を追加
    （これが無いと Apple ログインがネイティブで動かない）
-5. iPhone を USB で繋ぎ、上部のデバイス選択から選んで ▶
-6. 初回は iPhone 側で 設定 → 一般 → VPN とデバイス管理 から開発者を信頼
+6. iPhone を USB で繋ぎ、上部のデバイス選択から選んで ▶
+7. 初回は iPhone 側で 設定 → 一般 → VPN とデバイス管理 から開発者を信頼
 
 ### E. 実機で確認すること
 
@@ -147,6 +151,12 @@ npm run ios:open     # Xcode が開く
 ### F. App Store Connect
 
 - アプリを登録（**Bundle ID はここで確定。以後変更不可**）
+  - Name: `Imbrex`（ローマ瓦の丸瓦。tegula と対になって継ぎ目を覆う）。
+    App Store 全体で一意である必要があるが、**公開前なら変更できる**
+  - Primary Language: **日本語**（日本限定配信なので英語にしない）
+  - User Access: **Full Access**（Limited にすると、招待した相手にこのアプリを
+    見せる許可をここでも別途与える必要が出て二重管理になる）
+  - Bundle ID は `com.keikato.homeapp` のまま。アプリ名と揃える必要はない
 - スクリーンショット **2サイズ**（6.9インチ / 6.5インチ）
 - **App プライバシー申告** — `docs/data-and-privacy.md` の「外部に出るデータ」がそのまま材料
 - サポート URL、プライバシーポリシー URL（`/privacy`）

@@ -9,13 +9,13 @@ const dmMono = DM_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "home",
+  title: "Imbrex",
   description: "household task sharing app",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "home",
+    title: "Imbrex",
   },
 };
 
