@@ -66,13 +66,36 @@ Google より素直なので、**iOS では Apple を主、Google を従にす�
    **App Store Connect にアプリを登録したあとは二度と変えられない。**
    アプリ名を変えるなら、登録する前に決めきること
 3. Sign in with Apple 用に
-   - Identifiers → **Services ID** を作る
-   - Return URL に `https://<ref>.supabase.co/auth/v1/callback`
-   - Keys → **Sign in with Apple の鍵（.p8）**。Key ID と Team ID を控える
+   - Identifiers → **App IDs** で `com.keikato.homeapp` を作り、
+     Capabilities の **Sign in with Apple** にチェック
+   - Identifiers → **Services IDs** で `com.keikato.homeapp.signin` を作り、
+     Configure から Primary App ID・Domains・Return URLs を設定
+     （Return URL は `https://<ref>.supabase.co/auth/v1/callback`）
+   - Keys → **Sign in with Apple の鍵（.p8）**
+     **.p8 は一度しかダウンロードできない。** Key ID と Team ID も控える
 
 ### B. Supabase 側
 
-- Authentication → Providers → **Apple** を有効化（A-3 の値を入れる）
+- Authentication → Providers → **Apple** を有効化
+
+  | 欄 | 入れるもの |
+  |---|---|
+  | Client IDs | `com.keikato.homeapp,com.keikato.homeapp.signin`（Bundle ID と Services ID をカンマ区切り。名前ではなく識別子） |
+  | Secret Key (for OAuth) | **`.p8` の中身ではない。`.p8` で署名した JWT** |
+
+  JWT は `scripts/apple-client-secret.mjs` で作る:
+
+  ```bash
+  node scripts/apple-client-secret.mjs \
+    --p8 ~/Downloads/AuthKey_XXXXXXXXXX.p8 \
+    --team-id XXXXXXXXXX \
+    --key-id XXXXXXXXXX \
+    --services-id com.keikato.homeapp.signin
+  ```
+
+  ⚠️ **この JWT は Apple の仕様で最長6ヶ月。** 切れると Apple ログインが
+  全員できなくなる。同じ `.p8` から何度でも作れるので、期限前に同じコマンドを
+  実行して貼り替える。**カレンダーに繰り返しの予定を入れておくこと。**
 - Authentication → **Manual linking を有効化**
   （Apple で入った人が後から Google カレンダーを繋ぐのに使う）
 - 未適用のマイグレーションを流す
