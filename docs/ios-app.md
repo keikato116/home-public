@@ -128,10 +128,28 @@ npm run ios:open     # Xcode が開く
 1. **App** ターゲット → **Signing & Capabilities**
 2. **Team** に Apple Developer のアカウントを選ぶ
 3. **Bundle Identifier** が `com.keikato.homeapp` になっているか確認
-4. **General → Display Name** が `Imbrex` になっているか確認
-   `capacitor.config.ts` の `appName` は **`cap add ios` でひな型を作るときにしか読まれない**。
-   すでに `ios/` がある状態で名前を変えても Xcode 側には反映されないので、
-   ここで手で直す（実体は `Info.plist` の `CFBundleDisplayName`）
+4. **アプリ名を2か所直す。** `capacitor.config.ts` の `appName` は
+   **`cap add ios` でひな型を作るときにしか読まれない**ので、すでに `ios/` が
+   ある状態で名前を変えても Xcode 側には反映されない。
+
+   | どこ | 既定値 | 直す値 |
+   |---|---|---|
+   | General → **Display Name**（`CFBundleDisplayName`） | `home` | `Imbrex` |
+   | `Info.plist` の **Bundle name**（`CFBundleName`） | `$(PRODUCT_NAME)` → `App` | `Imbrex` |
+
+   **両方直すこと。** アップロードすると Apple がこの2つを全 App Store の名前と
+   突き合わせ、どちらか一方でも既出なら
+   `ITMS-90129: The bundle uses a bundle name or display name that is already taken.`
+   で弾かれる（実際に踏んだ。`home` も `App` も当然すでに存在する）。
+
+   Build Settings の Product Name を変える方法でも直るが、`.app` のファイル名まで
+   変わるので Info.plist を直接書くほうが影響が小さい。
+
+   確認:
+
+   ```bash
+   plutil -p ios/App/App/Info.plist | grep -iE 'CFBundleName|CFBundleDisplayName|CFBundleVersion'
+   ```
 5. **+ Capability** → **Sign in with Apple** を追加
    （これが無いと Apple ログインがネイティブで動かない）
 6. iPhone を USB で繋ぎ、上部のデバイス選択から選んで ▶
@@ -147,6 +165,21 @@ npm run ios:open     # Xcode が開く
 | セーフエリア | 下タブがホームインジケータに被っていないか |
 | 外部リンク | レシピの URL などが Safari で開くか（WebView 内で開くと戻れない） |
 | 初回起動 | 「設定が足りません」が出たら `CAP_SERVER_URL` の設定漏れ。直したら **npm run ios:sync をやり直す**（ビルドし直すだけでは反映されない） |
+
+### E-2. アップロードが弾かれたら
+
+**同じビルド番号は二度と受け付けられない。** 中身を直しても Build を上げずに
+出し直すと別のエラーになるので、Xcode → App ターゲット → General → **Build** を
+必ず1つ進めてから Archive し直す（Version は `1.0` のままでよい）。
+
+Xcode Organizer の **"Uploaded to Apple" は転送が終わっただけ**で、受理された
+という意味ではない。検証はそのあとに走り、失敗すると App Store Connect の画面には
+何も出ずに **Apple ID 宛のメールだけ**で知らされる。ビルドが TestFlight に
+現れないときは、まずメールを見る。
+
+`CAP_SERVER_URL` はネイティブシェルに焼き込まれる。変えたら `npm run ios:sync`
+をやり直してから Archive すること。あとから気づくとビルド番号をもう1つ
+消費する。
 
 ### F. App Store Connect
 
