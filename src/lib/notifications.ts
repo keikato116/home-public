@@ -67,6 +67,19 @@ export function lastNotificationError(): string | null {
   return lastError;
 }
 
+/**
+ * ネイティブ側にプラグインが登録されているか。JS 側の import が通っても、
+ * アプリに実体が入っていなければ false になる。呼び出しが応答しないのか、
+ * そもそも居ないのかを、待たずに1行で見分けられる。
+ */
+export function nativePluginPresent(): boolean {
+  try {
+    return Capacitor.isPluginAvailable("LocalNotifications");
+  } catch {
+    return false;
+  }
+}
+
 function recordError(where: string, e: unknown): void {
   lastError = `${where}: ${e instanceof Error ? e.message : String(e)}`;
   console.warn("[notifications]", lastError, e);

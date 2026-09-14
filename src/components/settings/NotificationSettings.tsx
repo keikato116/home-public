@@ -7,7 +7,7 @@ import type { NotifyPermission } from "@/lib/notifications";
 import {
   notificationsAvailable, getChoreNotifySetting,
   setChoreNotifyEnabled, syncChoreNotifications, parseNotifyAt,
-  notificationPermission, lastNotificationError,
+  notificationPermission, lastNotificationError, nativePluginPresent,
 } from "@/lib/notifications";
 
 // 「今日の家事」の通知設定。
@@ -144,10 +144,13 @@ export function NotificationSettings() {
         </p>
       )}
 
-      {/* 端末が手元に無い側から原因を追えるように、落ちた理由をそのまま出す。 */}
-      {error && (
+      {/* 端末が手元に無い側から原因を追えるように、状態をそのまま出す。
+          plugin=no ならネイティブ側に実体が無い（ビルドの問題）。
+          plugin=yes なのに応答しないなら、実体はあるが動いていない。 */}
+      {canNotify && (permission === "unavailable" || error) && (
         <p className="text-[10px] text-muted-foreground/70 leading-relaxed break-all">
-          {error}
+          plugin={nativePluginPresent() ? "yes" : "no"}
+          {error ? ` / ${error}` : ""}
         </p>
       )}
 
