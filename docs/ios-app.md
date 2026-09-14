@@ -161,7 +161,7 @@ npm run ios:open     # Xcode が開く
 |---|---|
 | **Google ログイン** | Safari が開いて、終わるとアプリに戻るか。戻らないなら URL Types か Redirect URLs の登録漏れ |
 | Apple ログイン | OS の認証シートが出るか |
-| 通知 | 設定に **notification 欄が出る**（ブラウザでは出ない）。家事に時刻を入れて翌朝鳴るか |
+| 通知 | 家事に時刻を入れて翌朝鳴るか。**チェックが入らないときは iOS の設定 → Imbrex を見る**: そこに「通知」の行が無ければ、アプリは一度も OS に許可を求めていない＝`@capacitor/local-notifications` のネイティブ側がアプリに入っていない。`npx cap sync ios` の出力に載っているか確かめてから Archive し直す（`npm install` しただけでは入らない） |
 | セーフエリア | 下タブがホームインジケータに被っていないか |
 | 外部リンク | レシピの URL などが Safari で開くか（WebView 内で開くと戻れない） |
 | 初回起動 | 「設定が足りません」が出たら `CAP_SERVER_URL` の設定漏れ。直したら **npm run ios:sync をやり直す**（ビルドし直すだけでは反映されない） |

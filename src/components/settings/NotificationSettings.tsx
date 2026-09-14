@@ -3,10 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useTodoStore } from "@/store/todoStore";
+import type { NotifyPermission } from "@/lib/notifications";
 import {
   notificationsAvailable, getChoreNotifySetting,
   setChoreNotifyEnabled, syncChoreNotifications, parseNotifyAt,
-  notificationPermissionGranted,
+  notificationPermission,
 } from "@/lib/notifications";
 
 // 「今日の家事」の通知設定。
@@ -48,7 +49,7 @@ export function NotificationSettings() {
   const todoRoutines = useTodoStore((s) => s.routineDefinitions);
 
   const [enabled, setEnabled] = useState(false);
-  const [denied, setDenied] = useState(false);
+  const [permission, setPermission] = useState<NotifyPermission | null>(null);
   const canNotify = notificationsAvailable();
 
   // localStorage を読むので、描画後に反映する（SSR とズレないように）。
@@ -58,7 +59,7 @@ export function NotificationSettings() {
   useEffect(() => {
     const on = getChoreNotifySetting().enabled;
     setEnabled(on);
-    if (on) notificationPermissionGranted().then((ok) => setDenied(!ok));
+    if (on) notificationPermission().then(setPermission);
   }, []);
 
   // 時刻の早い順に並べる。未設定（＝通知しない）は最後にまとめる。
@@ -74,11 +75,9 @@ export function NotificationSettings() {
   }, [routineDefinitions]);
 
   const toggle = async () => {
-    const next = !enabled;
-    const ok = await setChoreNotifyEnabled(next, todoRoutines);
-    setEnabled(ok);
-    // オンにしようとして許可が下りなかった＝端末側で拒否されている
-    setDenied(next && !ok);
+    const res = await setChoreNotifyEnabled(!enabled, todoRoutines);
+    setEnabled(res.enabled);
+    setPermission(res.permission);
   };
 
   const changeChoreTime = async (id: string, value: string) => {
@@ -107,10 +106,19 @@ export function NotificationSettings() {
         </label>
       )}
 
-      {canNotify && denied && (
+      {/* 「チェックが入らない」の原因は2つあり、見た目で区別がつかない。
+          文面を分けないと、利用者も開発側も設定アプリを探し回ることになる。 */}
+      {canNotify && permission === "denied" && (
         <p className="text-[11px] text-red-500 leading-relaxed">
           通知が許可されていません。iPhone の「設定 → 通知 → Imbrex」から許可してください。
           許可しなくても、下の時刻は設定できます。
+        </p>
+      )}
+
+      {canNotify && permission === "unavailable" && (
+        <p className="text-[11px] text-red-500 leading-relaxed">
+          このバージョンのアプリは通知に対応していません。更新をお待ちください。
+          時刻の設定はいまのうちにしておけます。
         </p>
       )}
 

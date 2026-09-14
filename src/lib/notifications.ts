@@ -59,18 +59,32 @@ async function plugin() {
 }
 
 /**
+ * 通知の状態。"denied" と "unavailable" は画面上の見え方が同じ（チェックが入らない）
+ * ぶん、区別できないと原因にたどり着けないので分けてある。
+ *
+ *   denied      … 利用者が断った。iOS は一度断られると二度と聞かないので、
+ *                 設定アプリから手で許可してもらうしかない
+ *   unavailable … プラグインのネイティブ側がアプリに入っていない。
+ *                 `npx cap sync ios` してビルドし直すと直る。
+ *                 この状態では iOS の設定にアプリの「通知」の行すら出ない
+ *                 （OS に一度も許可を求めていないため）
+ */
+export type NotifyPermission = "granted" | "denied" | "unavailable";
+
+/**
  * 通知の許可を求める。すでに許可済みなら何も出ない。
  * 起動時ではなく、設定で利用者がオンにしたときに呼ぶこと
  * （理由が分からないまま許可を求められると、まず拒否される）。
  */
-export async function requestNotificationPermission(): Promise<boolean> {
-  if (!notificationsAvailable()) return false;
+export async function requestNotificationPermission(): Promise<NotifyPermission> {
+  if (!notificationsAvailable()) return "unavailable";
   try {
     const LocalNotifications = await plugin();
     const res = await LocalNotifications.requestPermissions();
-    return res.display === "granted";
+    return res.display === "granted" ? "granted" : "denied";
   } catch {
-    return false;
+    // ブリッジは生きているのに呼び出しが落ちる＝ネイティブ側が登録されていない
+    return "unavailable";
   }
 }
 
@@ -208,27 +222,30 @@ async function runSync(definitions: RoutineDefinition[]): Promise<void> {
  * いま通知を鳴らせる状態かどうか。設定で許可しておきながら、あとから iOS の
  * 「設定 → 通知」で切られていることがある。その場合ここが false になる。
  */
-export async function notificationPermissionGranted(): Promise<boolean> {
-  if (!notificationsAvailable()) return false;
+export async function notificationPermission(): Promise<NotifyPermission> {
+  if (!notificationsAvailable()) return "unavailable";
   try {
     const LocalNotifications = await plugin();
     const perm = await LocalNotifications.checkPermissions();
-    return perm.display === "granted";
+    return perm.display === "granted" ? "granted" : "denied";
   } catch {
-    return false;
+    return "unavailable";
   }
 }
 
-/** 設定を切り替えたときに呼ぶ。許可の取得と予約し直しをまとめて行う。 */
+/**
+ * 設定を切り替えたときに呼ぶ。許可の取得と予約し直しをまとめて行う。
+ * オンにできなかったときは理由を返す（画面はそれを出し分ける）。
+ */
 export async function setChoreNotifyEnabled(
   enabled: boolean,
   definitions: RoutineDefinition[]
-): Promise<boolean> {
+): Promise<{ enabled: boolean; permission: NotifyPermission }> {
   if (enabled) {
-    const granted = await requestNotificationPermission();
-    if (!granted) return false;
+    const permission = await requestNotificationPermission();
+    if (permission !== "granted") return { enabled: false, permission };
   }
   saveChoreNotifySetting({ ...getChoreNotifySetting(), enabled });
   await syncChoreNotifications(definitions);
-  return enabled;
+  return { enabled, permission: enabled ? "granted" : await notificationPermission() };
 }
