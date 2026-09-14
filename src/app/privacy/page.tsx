@@ -10,7 +10,7 @@
 // 審査で必ず見られる。Limited Use に言及していないと差し戻される。
 
 export const metadata = {
-  title: "プライバシーポリシー | home",
+  title: "プライバシーポリシー | Imbrex",
 };
 
 const UPDATED = "2026年9月12日";
@@ -25,7 +25,7 @@ export default function PrivacyPage() {
 
       <section className="space-y-2">
         <p className="text-[12px] text-muted-foreground leading-relaxed">
-          本アプリ「home」（以下、本アプリ）は、2人または1人で家事や予定を共有するためのアプリです。
+          本アプリ「Imbrex」（以下、本アプリ）は、2人または1人で家事や予定を共有するためのアプリです。
           本ポリシーは、本アプリが取得する情報と、その取り扱いについて定めます。
         </p>
       </section>
@@ -155,7 +155,7 @@ export default function PrivacyPage() {
       <section className="space-y-2">
         <h2 className="text-[13px] tracking-wide">お問い合わせ</h2>
         <p className="text-[12px] text-muted-foreground leading-relaxed">
-          ご不明な点は、App Store に記載の連絡先までご連絡ください。
+          ご不明な点は support@imbrex.app までご連絡ください。
         </p>
       </section>
     </main>

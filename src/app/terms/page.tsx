@@ -5,7 +5,7 @@
 // 提供中の内容に書き換えること。いまは提供していない前提で書いてある。
 
 export const metadata = {
-  title: "利用規約 | home",
+  title: "利用規約 | Imbrex",
 };
 
 const UPDATED = "2026年9月12日";
@@ -21,7 +21,7 @@ export default function TermsPage() {
       <section className="space-y-2">
         <h2 className="text-[13px] tracking-wide">1. 本規約について</h2>
         <p className="text-[12px] text-muted-foreground leading-relaxed">
-          本規約は、本アプリ「home」（以下、本アプリ）の利用条件を定めるものです。
+          本規約は、本アプリ「Imbrex」（以下、本アプリ）の利用条件を定めるものです。
           本アプリを利用された時点で、本規約に同意したものとみなします。
         </p>
       </section>
