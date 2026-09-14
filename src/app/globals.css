@@ -53,6 +53,37 @@
   }
 }
 
+/* Sign-in buttons.
+   Apple (HIG) and Google (branding guidelines) each publish a light and a dark
+   variant, and each requires its own variant on the matching background. The
+   app follows the system theme via prefers-color-scheme, so the buttons have to
+   follow it too — a black Apple button on the dark background (#141414) is
+   nearly invisible. Geometry is shared in the component; only the colours and
+   the marks differ, which is what both sets of rules actually require. */
+.btn-provider {
+  border: 1px solid transparent;
+}
+.btn-apple {
+  background: #000;
+  color: #fff;
+}
+.btn-google {
+  background: #fff;
+  color: #1f1f1f;
+  border-color: #747775;
+}
+@media (prefers-color-scheme: dark) {
+  .btn-apple {
+    background: #fff;
+    color: #000;
+  }
+  .btn-google {
+    background: #131314;
+    color: #e3e3e3;
+    border-color: #8e918f;
+  }
+}
+
 /* Outside @layer so it overrides Tailwind utilities — prevents iOS auto-zoom on input focus */
 input, textarea, select {
   font-size: 16px !important;
