@@ -28,11 +28,16 @@ export function ScheduleTimeline({ events, isToday, userId, memberNameMap, date 
   const myEvents = timed.filter(e => e.ownerId === userId);
   const partnerEvents = timed.filter(e => e.ownerId !== userId);
 
-  const myName = myEvents[0]?.ownerName ?? (userId ? memberNameMap[userId] : "") ?? "me";
+  // ?? は空文字を素通りさせるので、名前が無いとき「行が無い→"me"→M」と
+  // 「display_name が空→何も出ない」に割れていた。どちらも未設定なので同じ扱いにする。
+  const firstNonEmpty = (...xs: (string | undefined)[]) => xs.find((x) => x) ?? "";
+  const myName = firstNonEmpty(myEvents[0]?.ownerName, userId ? memberNameMap[userId] : undefined);
   const partnerEntry = Object.entries(memberNameMap).find(([id]) => id !== userId);
-  const partnerName = partnerEvents[0]?.ownerName
-    ?? allDay.find(e => e.ownerId !== userId)?.ownerName
-    ?? (partnerEntry?.[1] ?? "");
+  const partnerName = firstNonEmpty(
+    partnerEvents[0]?.ownerName,
+    allDay.find(e => e.ownerId !== userId)?.ownerName,
+    partnerEntry?.[1]
+  );
 
   const nowMin = isToday
     ? (() => { const n = new Date(); return (n.getUTCHours() * 60 + n.getUTCMinutes() + 9 * 60) % 1440; })()

@@ -63,19 +63,23 @@ export async function connectGoogleCalendar(supabase: ReturnType<typeof createCl
   }
 }
 
+/**
+ * Google のトークンを保存する。**display_name には触らない。**
+ * 以前はここが Google プロフィールの名前を書いていたが、トークンは定期的に
+ * 更新されるので、本人が設定画面で直した名前がそのたびに上書きされていた。
+ * 名前は src/lib/displayName.ts の側だけが書く。
+ */
 export async function upsertUserToken(
   supabase: ReturnType<typeof createClient>,
   userId: string,
   householdId: string,
-  accessToken: string,
-  displayName: string
+  accessToken: string
 ) {
   await supabase.from("user_tokens").upsert({
     user_id: userId,
     household_id: householdId,
     google_access_token: accessToken,
     ...(localStorage.getItem(LS_GOOGLE_REFRESH) ? { google_refresh_token: localStorage.getItem(LS_GOOGLE_REFRESH) } : {}),
-    display_name: displayName,
     updated_at: new Date().toISOString(),
   });
 }
@@ -146,8 +150,7 @@ async function doRefresh(): Promise<string | null> {
 
     const { user, householdId } = useAuthStore.getState();
     if (user && householdId) {
-      const displayName = user.user_metadata?.full_name ?? user.email ?? "";
-      upsertUserToken(supabase, user.id, householdId, accessToken, displayName).catch(() => {});
+      upsertUserToken(supabase, user.id, householdId, accessToken).catch(() => {});
     }
 
     return accessToken;

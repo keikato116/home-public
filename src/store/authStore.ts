@@ -9,6 +9,7 @@ import {
   LS_ENTITLED_CACHE, LS_CACHED_MEMBER_COUNT,
 } from "@/lib/constants";
 import { logOutPurchases } from "@/lib/purchases";
+import { normalizeDisplayName } from "@/lib/displayName";
 import { storeAccessToken, upsertUserToken, refreshAccessToken, ensureValidAccessToken, connectGoogleCalendar } from "@/lib/googleToken";
 
 export interface HouseholdMember {
@@ -55,6 +56,13 @@ interface AuthState {
   members: HouseholdMember[];
   /** null = 未取得。ソロ判定はこれが 1 以下かどうかで行う。 */
   memberCount: number | null;
+  /**
+   * 自分の表示名。null = まだ読めていない、"" = 未設定（名前を尋ねる）。
+   * この2つを分けないと、読み込み中に入力画面が一瞬出てしまう。
+   */
+  displayName: string | null;
+  loadDisplayName: () => Promise<void>;
+  saveDisplayName: (raw: string) => Promise<void>;
   refreshMembers: () => Promise<void>;
   setHouseholdId: (id: string, inviteCode?: string) => void;
   setSettingsOpen: (open: boolean) => void;
@@ -68,7 +76,7 @@ interface AuthState {
 let isSigningOut = false;
 let periodicRefreshInterval: ReturnType<typeof setInterval> | null = null;
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   householdId: null,
   inviteCode: null,
@@ -80,6 +88,40 @@ export const useAuthStore = create<AuthState>((set) => ({
   isOwner: false,
   members: [],
   memberCount: null,
+  displayName: null,
+
+  loadDisplayName: async () => {
+    const { user } = get();
+    if (!user) return;
+    try {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from("user_tokens")
+        .select("display_name")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      // 行が無い（Apple だけで入った人）も、空文字（未入力）も、等しく未設定。
+      set({ displayName: (data?.display_name as string | undefined) ?? "" });
+    } catch {
+      // 読めなかったときは null のままにして入力画面を出さない。
+      // 通信が不安定なだけで名前を聞かれるのは鬱陶しい。
+    }
+  },
+
+  saveDisplayName: async (raw) => {
+    const { user, householdId } = get();
+    if (!user) return;
+    const name = normalizeDisplayName(raw);
+    const supabase = createClient();
+    await supabase.from("user_tokens").upsert({
+      user_id: user.id,
+      ...(householdId ? { household_id: householdId } : {}),
+      display_name: name ?? "",
+      updated_at: new Date().toISOString(),
+    });
+    set({ displayName: name ?? "" });
+    await get().refreshMembers();
+  },
 
   refreshMembers: async () => {
     const { householdId, user } = useAuthStore.getState();
@@ -192,9 +234,9 @@ export const useAuthStore = create<AuthState>((set) => ({
         });
 
         if (hid && token) {
-          const displayName = session.user.user_metadata?.full_name ?? session.user.email ?? "";
-          await upsertUserToken(supabase, session.user.id, hid, token, displayName);
+          await upsertUserToken(supabase, session.user.id, hid, token);
         }
+        if (hid) await get().loadDisplayName();
       } else if (!cachedUser) {
         set({ user: null, householdId: null, inviteCode: null, accessToken: null, loading: false });
       } else {
@@ -237,9 +279,9 @@ export const useAuthStore = create<AuthState>((set) => ({
 
         set({ user: session.user, householdId: hid, inviteCode: ic, accessToken: token });
         if (hid && token) {
-          const displayName = session.user.user_metadata?.full_name ?? session.user.email ?? "";
-          await upsertUserToken(supabase, session.user.id, hid, token, displayName);
+          await upsertUserToken(supabase, session.user.id, hid, token);
         }
+        if (hid) await get().loadDisplayName();
       } else if (event === "TOKEN_REFRESHED" && session) {
         if (session.access_token) setJwt(session.access_token);
         if (session.provider_token) {

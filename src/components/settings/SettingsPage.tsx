@@ -9,6 +9,7 @@ import { SubscriptionSettings } from "./SubscriptionSettings";
 import { NotificationSettings } from "./NotificationSettings";
 import { BILLING_ENABLED } from "@/lib/constants";
 import { HouseholdSettings } from "./HouseholdSettings";
+import { NameSettings } from "./NameSettings";
 import { DeleteAccount } from "./DeleteAccount";
 import { X, LogOut } from "lucide-react";
 
@@ -37,7 +38,11 @@ export function SettingsPage() {
           </button>
         </div>
 
-        <HouseholdSettings />
+        <NameSettings />
+
+        <div className="border-t border-border pt-6">
+          <HouseholdSettings />
+        </div>
 
         {BILLING_ENABLED && (
           <div className="border-t border-border pt-6">

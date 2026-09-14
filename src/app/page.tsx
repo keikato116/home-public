@@ -6,6 +6,7 @@ import { useCalendarStore } from "@/store/calendarStore";
 import { useSubscriptionStore } from "@/store/subscriptionStore";
 import { AuthGate } from "@/components/auth/AuthGate";
 import { HouseholdSetup } from "@/components/onboarding/HouseholdSetup";
+import { NameSetup } from "@/components/onboarding/NameSetup";
 import { BottomTabBar } from "@/components/layout/BottomTabBar";
 import { HomeTab } from "@/components/home/HomeTab";
 import { ShoppingTab } from "@/components/shopping/ShoppingTab";
@@ -71,7 +72,7 @@ function MainApp() {
 }
 
 export default function Page() {
-  const { user, householdId, loading, init } = useAuthStore();
+  const { user, householdId, loading, displayName, init } = useAuthStore();
 
   useEffect(() => {
     init();
@@ -90,5 +91,8 @@ export default function Page() {
 
   if (!user) return <AuthGate />;
   if (!householdId) return <HouseholdSetup />;
+  // null は「まだ読めていない」。"" のときだけ尋ねる。両者を混ぜると、
+  // 起動のたびに名前入力が一瞬ちらつく。
+  if (displayName === "") return <NameSetup />;
   return <MainApp />;
 }
