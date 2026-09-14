@@ -104,6 +104,12 @@ Google より素直なので、**iOS では Apple を主、Google を従にす�
 
 ### C. Mac での作業
 
+`ios/` は生成物なので、壊したら消して作り直してよい。ただし `cap add ios` が
+作るのは素の雛形で、このアプリに必要な設定（アプリ名2か所・URL Types・
+カメラの説明・輸出コンプライアンス・ビルド番号）は入らない。手で入れ直すと
+必ずどれか忘れるので、**`./scripts/ios-bootstrap.sh` にまとめてある**。
+Xcode でターゲットを消してしまったときもこれで戻せる。
+
 ```bash
 git clone https://github.com/keikato116/home-public.git
 cd home-public
