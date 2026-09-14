@@ -1,6 +1,7 @@
 "use client";
 
 import { Capacitor } from "@capacitor/core";
+import { LocalNotifications } from "@capacitor/local-notifications";
 import type { RoutineDefinition } from "@/types";
 import { getTodaysRoutines } from "@/lib/routine";
 import { getJSTToday } from "@/lib/dates";
@@ -13,8 +14,18 @@ import { LS_CHORE_NOTIFY } from "@/lib/constants";
 // デバイストークンの管理も要らず、Vercel の cron（Hobby は1日1回・時刻は1時間の
 // 幅でしか保証されない）にも縛られない。時刻は端末のタイムゾーンで正確に出る。
 //
-// ネイティブ限定のプラグインなので、purchases.ts と同じく動的 import にしている。
-// ブラウザ（PWA / 開発時）では何もしない。
+// プラグインは静的に import している。以前は purchases.ts と同じく動的 import
+// だったが、それが原因で通知がまったく動かなかった。
+//
+// 動的 import は webpack の別チャンクになり、実行時に取りに行く。端末では
+// この取得が返ってこず、ネイティブを呼ぶ手前で止まっていた。症状は
+// 「チェックが入らない」だけで、ネイティブ側は正常（Capacitor は
+// プラグインを登録済みと答え、他のプラグインの呼び出しも往復していた）。
+// 静的 import なら本体のバンドルに入るので、取りに行く必要がない。
+//
+// ブラウザで読み込んでも安全。registerPlugin はプロキシを作るだけで、
+// ネイティブが無い環境で落ちるのは「呼んだとき」。呼ぶ側は
+// notificationsAvailable() で守ってある。
 
 /** 通知の設定。端末ごとの設定なので localStorage に置く（世帯では共有しない）。 */
 export interface ChoreNotifySetting {
@@ -51,11 +62,6 @@ export function getChoreNotifySetting(): ChoreNotifySetting {
 
 export function saveChoreNotifySetting(s: ChoreNotifySetting): void {
   setJSON(LS_CHORE_NOTIFY, s);
-}
-
-async function plugin() {
-  const mod = await import("@capacitor/local-notifications");
-  return mod.LocalNotifications;
 }
 
 // プラグイン呼び出しが落ちたときの中身。catch で握り潰すと画面上は
@@ -150,7 +156,6 @@ export type NotifyPermission = "granted" | "denied" | "unavailable";
 export async function requestNotificationPermission(): Promise<NotifyPermission> {
   if (!notificationsAvailable()) return "unavailable";
   try {
-    const LocalNotifications = await withTimeout(plugin(), CALL_TIMEOUT_MS, "プラグインの読み込み");
     const res = await withTimeout(
       LocalNotifications.requestPermissions(), ANSWER_TIMEOUT_MS, "requestPermissions"
     );
@@ -165,7 +170,6 @@ export async function requestNotificationPermission(): Promise<NotifyPermission>
 
 /** この機能が予約したぶんだけ取り消す。他の通知には触らない。 */
 async function cancelOurs(): Promise<void> {
-  const LocalNotifications = await withTimeout(plugin(), CALL_TIMEOUT_MS, "プラグインの読み込み");
   const pending = await withTimeout(
     LocalNotifications.getPending(), CALL_TIMEOUT_MS, "getPending"
   );
@@ -278,7 +282,6 @@ async function runSync(definitions: RoutineDefinition[]): Promise<void> {
   if (!notificationsAvailable()) return;
 
   try {
-    const LocalNotifications = await plugin();
     const setting = getChoreNotifySetting();
 
     await cancelOurs();
@@ -311,7 +314,6 @@ async function runSync(definitions: RoutineDefinition[]): Promise<void> {
 export async function notificationPermission(): Promise<NotifyPermission> {
   if (!notificationsAvailable()) return "unavailable";
   try {
-    const LocalNotifications = await withTimeout(plugin(), CALL_TIMEOUT_MS, "プラグインの読み込み");
     const perm = await withTimeout(
       LocalNotifications.checkPermissions(), CALL_TIMEOUT_MS, "checkPermissions"
     );
