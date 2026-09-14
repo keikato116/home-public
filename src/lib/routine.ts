@@ -1,5 +1,10 @@
 import { RoutineDefinition } from "@/types";
-import { toISODate } from "@/lib/utils";
+import { toDateStr } from "@/lib/dates";
+
+// 日付の比較は toDateStr（ローカルの年月日）で行うこと。toISODate は UTC に直すので、
+// JST の深夜0時に作った Date を渡すと前日の日付が返る（JST 9/15 00:00 = UTC 9/14 15:00）。
+// due_date は入力欄のローカル日付をそのまま保存しているため、UTC に直すと1日ずれ、
+// 単発の家事が前日に出て前日に通知されていた。
 
 export function getTodaysRoutines(
   definitions: RoutineDefinition[],
@@ -7,7 +12,7 @@ export function getTodaysRoutines(
 ): RoutineDefinition[] {
   const dayOfWeek = today.getDay();
   const dayOfMonth = today.getDate();
-  const todayStr = toISODate(today);
+  const todayStr = toDateStr(today);
 
   return definitions.filter((def) => {
     if (def.frequency === "daily") return true;
@@ -20,7 +25,7 @@ export function getTodaysRoutines(
 
 // Returns the most recent past scheduled date for a routine (null if today is scheduled or daily).
 export function getLastScheduledDate(def: RoutineDefinition, today: Date): string | null {
-  const todayStr = toISODate(today);
+  const todayStr = toDateStr(today);
 
   if (def.frequency === "once") {
     return def.due_date && def.due_date < todayStr ? def.due_date : null;
@@ -30,15 +35,15 @@ export function getLastScheduledDate(def: RoutineDefinition, today: Date): strin
     if (diff === 0) return null;
     const d = new Date(today);
     d.setDate(d.getDate() - diff);
-    return toISODate(d);
+    return toDateStr(d);
   }
   if (def.frequency === "monthly" && def.day_of_month != null) {
     const dom = today.getDate();
     if (dom === def.day_of_month) return null;
     if (dom > def.day_of_month) {
-      return toISODate(new Date(today.getFullYear(), today.getMonth(), def.day_of_month));
+      return toDateStr(new Date(today.getFullYear(), today.getMonth(), def.day_of_month));
     }
-    return toISODate(new Date(today.getFullYear(), today.getMonth() - 1, def.day_of_month));
+    return toDateStr(new Date(today.getFullYear(), today.getMonth() - 1, def.day_of_month));
   }
   return null;
 }

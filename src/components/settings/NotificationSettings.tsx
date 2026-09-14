@@ -6,6 +6,7 @@ import { useTodoStore } from "@/store/todoStore";
 import {
   notificationsAvailable, getChoreNotifySetting,
   setChoreNotifyEnabled, syncChoreNotifications, parseNotifyAt,
+  notificationPermissionGranted,
 } from "@/lib/notifications";
 
 // 「今日の家事」の通知設定。ブラウザではローカル通知が使えないので iOS のときだけ出す。
@@ -40,9 +41,14 @@ export function NotificationSettings() {
   const [enabled, setEnabled] = useState(false);
   const [denied, setDenied] = useState(false);
 
-  // localStorage を読むので、描画後に反映する（SSR とズレないように）
+  // localStorage を読むので、描画後に反映する（SSR とズレないように）。
+  // あわせて端末側の許可も確かめる。アプリの設定はオンのまま iOS の
+  // 「設定 → 通知」で切られていることがあり、そのままだと
+  // 「オンなのに鳴らない」が黙って続く。
   useEffect(() => {
-    setEnabled(getChoreNotifySetting().enabled);
+    const on = getChoreNotifySetting().enabled;
+    setEnabled(on);
+    if (on) notificationPermissionGranted().then((ok) => setDenied(!ok));
   }, []);
 
   // 時刻の早い順に並べる。未設定（＝通知しない）は最後にまとめる。
@@ -91,7 +97,7 @@ export function NotificationSettings() {
 
       {denied && (
         <p className="text-[11px] text-red-500 leading-relaxed">
-          通知が許可されていません。iPhone の「設定 → 通知 → home」から許可してください。
+          通知が許可されていません。iPhone の「設定 → 通知 → Imbrex」から許可してください。
         </p>
       )}
 

@@ -25,11 +25,17 @@ export const DEFAULT_CHORE_NOTIFY: ChoreNotifySetting = {
   enabled: false,
 };
 
+// iOS はアプリごとに未発火のローカル通知を **64件** までしか保持しない。超えた分は
+// 黙って捨てられる。DAYS_AHEAD × MAX_SLOTS_PER_DAY がこの 64 を超えないこと。
+// いまは 7 × 6 = 42 で、22件の余裕がある。
+// この不変条件は notifications.test.ts が見張っている。
+export const IOS_PENDING_LIMIT = 64;
+
 /** 予約しておく日数。アプリを開かなくてもこの日数ぶんは鳴り続ける。 */
-const DAYS_AHEAD = 7;
+export const DAYS_AHEAD = 7;
 
 /** 1日に鳴らせる時刻の数の上限。これを超える時刻が設定されたぶんは早い順に切る。 */
-const MAX_SLOTS_PER_DAY = 6;
+export const MAX_SLOTS_PER_DAY = 6;
 
 /** この機能が使う通知IDの範囲。他の用途と衝突しないよう先頭を決めておく。 */
 const ID_BASE = 7100;
@@ -162,9 +168,18 @@ export function planChoreNotifications(
   return planned;
 }
 
-export async function syncChoreNotifications(
-  definitions: RoutineDefinition[]
-): Promise<void> {
+// 予約の組み直しは「全部消す → 入れ直す」の2段階なので、2つ同時に走ると
+// 片方の cancel がもう片方の schedule を消してしまう。時刻の入力欄は1文字ごとに
+// onChange が飛ぶうえ、home タブの再表示でも走るので、実際に重なる。
+// 直前の処理を待ってから始めることで順番に流す。
+let syncChain: Promise<void> = Promise.resolve();
+
+export function syncChoreNotifications(definitions: RoutineDefinition[]): Promise<void> {
+  syncChain = syncChain.then(() => runSync(definitions)).catch(() => {});
+  return syncChain;
+}
+
+async function runSync(definitions: RoutineDefinition[]): Promise<void> {
   if (!notificationsAvailable()) return;
 
   try {
@@ -186,6 +201,21 @@ export async function syncChoreNotifications(
     }
   } catch {
     // 通知が予約できなくてもアプリの本体は動く。黙って諦める。
+  }
+}
+
+/**
+ * いま通知を鳴らせる状態かどうか。設定で許可しておきながら、あとから iOS の
+ * 「設定 → 通知」で切られていることがある。その場合ここが false になる。
+ */
+export async function notificationPermissionGranted(): Promise<boolean> {
+  if (!notificationsAvailable()) return false;
+  try {
+    const LocalNotifications = await plugin();
+    const perm = await LocalNotifications.checkPermissions();
+    return perm.display === "granted";
+  } catch {
+    return false;
   }
 }
 

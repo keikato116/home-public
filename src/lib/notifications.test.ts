@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { planChoreNotifications, parseNotifyAt, DEFAULT_CHORE_NOTIFY } from "./notifications";
+import {
+  planChoreNotifications, parseNotifyAt, DEFAULT_CHORE_NOTIFY,
+  DAYS_AHEAD, MAX_SLOTS_PER_DAY, IOS_PENDING_LIMIT,
+} from "./notifications";
 import { RoutineDefinition } from "@/types";
 
 function def(partial: Partial<RoutineDefinition>): RoutineDefinition {
@@ -146,5 +149,34 @@ describe("planChoreNotifications: 家事ごとの時刻", () => {
     ];
     const ids = planChoreNotifications(chores, on, MON, earlyMorning).map((n) => n.id);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+});
+
+describe("予約枠", () => {
+  it("iOS が保持できる未発火通知の上限を超えない", () => {
+    // 超えた分は iOS が黙って捨てるので、気づけるのはここだけ。
+    expect(DAYS_AHEAD * MAX_SLOTS_PER_DAY).toBeLessThanOrEqual(IOS_PENDING_LIMIT);
+  });
+});
+
+describe("単発の家事の日付", () => {
+  // due_date は入力欄のローカル日付（"2026-09-14"）をそのまま保存している。
+  // 判定側が UTC に直していたため、JST では1日ずれて前日に通知されていた。
+  it("当日に鳴る（前日ではなく）", () => {
+    const defs = [def({ frequency: "once", due_date: "2026-09-14", notify_at: "08:00:00" })];
+    const planned = planChoreNotifications(defs, on, MON, earlyMorning);
+
+    expect(planned).toHaveLength(1);
+    expect(planned[0].schedule.at.getFullYear()).toBe(2026);
+    expect(planned[0].schedule.at.getMonth()).toBe(8);
+    expect(planned[0].schedule.at.getDate()).toBe(14);
+  });
+
+  it("前日には鳴らない", () => {
+    const defs = [def({ frequency: "once", due_date: "2026-09-15", notify_at: "08:00:00" })];
+    const planned = planChoreNotifications(defs, on, MON, earlyMorning);
+
+    expect(onDay1(planned)).toHaveLength(0);
+    expect(planned.every((n) => n.schedule.at.getDate() === 15)).toBe(true);
   });
 });
