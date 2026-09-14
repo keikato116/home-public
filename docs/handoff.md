@@ -23,7 +23,7 @@ App Store 公開版を作っているセッションからの引き継ぎ。
 ## いまの状態
 
 **2026-09-12: ブラウザで動くところまで確認済み。**
-Vercel にデプロイし（`https://home-public.vercel.app`）、公開版専用の Supabase に
+Vercel にデプロイし（`https://imbrex.app`）、公開版専用の Supabase に
 繋いで Google ログインが通るところまで到達した。実機（iOS）はまだ未確認。
 
 そこまでに必要だった設定:
@@ -36,9 +36,39 @@ Vercel にデプロイし（`https://home-public.vercel.app`）、公開版専�
 - Google Cloud Console の承認済みリダイレクト URI に
   `https://<ref>.supabase.co/auth/v1/callback` を追加
 - **Supabase の Authentication → URL Configuration**
-  Site URL: `https://home-public.vercel.app`／Redirect URLs: 同 `/**`
+  Site URL: `https://imbrex.app`／Redirect URLs: 同 `/**`
   → これを入れるまで、ログイン後に `localhost` に飛ばされ続ける
   （Supabase は許可リストに無い戻り先を既定の Site URL に差し戻す。その初期値が localhost）
+
+### 独自ドメイン（2026-09-14）
+
+`imbrex.app` を Cloudflare Registrar で取得した。Whois の代理公開は既定で有効
+（設定項目は無く、ダッシュボードからは切れない）。**自動更新を切らさないこと** —
+失効すると Google の OAuth 審査に使う確認済みドメインと、App Store のサポート URL が
+同時に死ぬ。
+
+Vercel に向けるときの注意:
+
+- Vercel の Settings → Domains で `imbrex.app` を追加し、指示されたレコードを
+  Cloudflare の DNS に入れる
+- **Cloudflare のプロキシ（オレンジの雲）は必ず OFF（DNS only / 灰色の雲）にする。**
+  ON のままだと Cloudflare と Vercel が両方 TLS を終端しようとして、
+  リダイレクトループか証明書エラーになる
+- `.app` は HSTS プリロードリストに載っているので **HTTP では一切アクセスできない**。
+  Vercel は自動で HTTPS なので問題は起きないが、`http://` で試して繋がらなくても故障ではない
+
+ドメインを変えたら、あわせて直すところ:
+
+| どこ | 何を |
+|---|---|
+| Supabase → URL Configuration | Site URL と Redirect URLs を `https://imbrex.app` に。**旧 URL も残す**と移行中に両方動く |
+| Google Cloud Console → OAuth 同意画面 | 承認済みドメイン・ホームページ・プライバシーポリシーの URL |
+| Mac の `.env.local` | `CAP_SERVER_URL=https://imbrex.app` → **`npm run ios:sync` をやり直す**（ビルドし直すだけでは反映されない） |
+| Google Search Console | **ドメインプロパティ**（DNS の TXT）で登録。apex と全サブドメインが一度に確認済みになる |
+
+`support@imbrex.app` は Cloudflare の Email Routing で Gmail に転送している
+（メールボックスは持たない）。App Store のサポート連絡先に個人の Gmail を
+書かずに済ませるため。
 
 ### 設計の要点（触る前に読む）
 
@@ -80,7 +110,7 @@ Vercel にデプロイし（`https://home-public.vercel.app`）、公開版専�
 ### いまどこまで来たか
 
 - ✅ 公開版専用の Supabase（新 organization + プロジェクト）。マイグレーション適用済み
-- ✅ Vercel にデプロイ済み（`https://home-public.vercel.app`）。**ブラウザでログインして動くところまで確認**
+- ✅ Vercel にデプロイ済み（`https://imbrex.app`）。**ブラウザでログインして動くところまで確認**
 - ✅ Vercel の環境変数に Supabase 3つ + `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`
 - ✅ Supabase の Redirect URLs に `com.keikato.homeapp://auth/callback`
 - 🔄 **Mac で iOS 化の途中。Xcode の iOS 26.5 コンポーネント（8.5GB）をダウンロード中**

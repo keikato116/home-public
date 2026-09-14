@@ -10,7 +10,7 @@ loadEnv({ path: ".env.local" });
 // be exported as static files. Instead the native shell loads the deployed Next.js app.
 // Upside: shipping a web change is still just `git push` — no Xcode rebuild needed.
 // Set CAP_SERVER_URL in .env.local (or the shell) to your deployment, e.g.
-//   CAP_SERVER_URL=https://homes-xxxx.vercel.app
+//   CAP_SERVER_URL=https://imbrex.app
 const serverUrl = process.env.CAP_SERVER_URL;
 
 const config: CapacitorConfig = {

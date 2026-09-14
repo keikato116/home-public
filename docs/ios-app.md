@@ -9,7 +9,7 @@ Capacitor のシェルが、Vercel 上の Next.js を WebView で読み込む。
 
 ```
 iPhone アプリ（ガワ）
-  └─ WKWebView → https://home-public.vercel.app
+  └─ WKWebView → https://imbrex.app
                     └─ Supabase（データ・認証）
 ```
 
@@ -110,7 +110,7 @@ cd home-public
 npm install
 
 cp .env.local.example .env.local
-# CAP_SERVER_URL=https://home-public.vercel.app を書く
+# CAP_SERVER_URL=https://imbrex.app を書く
 # （capacitor.config.ts が dotenv で .env.local を読む。書き換えたら ios:sync をやり直す）
 
 npm run build

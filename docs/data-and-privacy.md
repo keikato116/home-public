@@ -163,7 +163,9 @@ Apple Developer 側で Service ID と鍵の作成が要る。
 審査（verification）に必要なもの:
 
 - OAuth 同意画面の記入（アプリ名・サポートメール・ロゴ）
-- **ドメインの所有確認**（Search Console で `〇〇.vercel.app` を検証する）
+- **ドメインの所有確認**（Search Console の**ドメインプロパティ**で `imbrex.app` を DNS の
+  TXT レコードで検証する。`*.vercel.app` は Public Suffix List に載っていて
+  「自分が所有するドメイン」として認められないので、独自ドメインが要る）
 - **プライバシーポリシーの URL**（`/privacy` を使う。いまドラフトなので要確認）
 - アプリのホームページ URL
 - **デモ動画** — ログインの流れと、カレンダー権限を何に使っているかを映したもの
