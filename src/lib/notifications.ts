@@ -72,6 +72,26 @@ export function lastNotificationError(): string | null {
  * アプリに実体が入っていなければ false になる。呼び出しが応答しないのか、
  * そもそも居ないのかを、待たずに1行で見分けられる。
  */
+/**
+ * ブリッジ全体が生きているかを、別のプラグインで確かめる。
+ *
+ * LocalNotifications が応答しないとき、原因は2通りある。
+ *   - そのプラグインだけが壊れている
+ *   - ネイティブへの呼び出し自体が片道で、どのプラグインも返事をしない
+ * 見分けがつかないと直しようがないので、確実に入っている @capacitor/app に
+ * 同じ形式の呼び出しを投げて比べる。
+ */
+export async function bridgeProbe(): Promise<string> {
+  if (!Capacitor.isNativePlatform()) return "native=no";
+  try {
+    const { App } = await withTimeout(import("@capacitor/app"), CALL_TIMEOUT_MS, "App の読み込み");
+    const info = await withTimeout(App.getInfo(), CALL_TIMEOUT_MS, "App.getInfo");
+    return `bridge=ok (${info.id} ${info.version}/${info.build})`;
+  } catch (e) {
+    return `bridge=NG (${e instanceof Error ? e.message : String(e)})`;
+  }
+}
+
 export function nativePluginPresent(): boolean {
   try {
     return Capacitor.isPluginAvailable("LocalNotifications");

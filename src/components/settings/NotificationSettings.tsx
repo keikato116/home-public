@@ -7,7 +7,7 @@ import type { NotifyPermission } from "@/lib/notifications";
 import {
   notificationsAvailable, getChoreNotifySetting,
   setChoreNotifyEnabled, syncChoreNotifications, parseNotifyAt,
-  notificationPermission, lastNotificationError, nativePluginPresent,
+  notificationPermission, lastNotificationError, nativePluginPresent, bridgeProbe,
 } from "@/lib/notifications";
 
 // 「今日の家事」の通知設定。
@@ -52,6 +52,7 @@ export function NotificationSettings() {
   const [permission, setPermission] = useState<NotifyPermission | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [probe, setProbe] = useState<string | null>(null);
   const canNotify = notificationsAvailable();
 
   // localStorage を読むので、描画後に反映する（SSR とズレないように）。
@@ -67,6 +68,8 @@ export function NotificationSettings() {
     notificationPermission().then((p) => {
       setPermission(p);
       setError(lastNotificationError());
+      // 応答が無かったときだけ、ブリッジ自体を別のプラグインで確かめる
+      if (p === "unavailable") bridgeProbe().then(setProbe);
     });
   }, []);
 
@@ -151,6 +154,7 @@ export function NotificationSettings() {
         <p className="text-[10px] text-muted-foreground/70 leading-relaxed break-all">
           plugin={nativePluginPresent() ? "yes" : "no"}
           {error ? ` / ${error}` : ""}
+          {probe ? ` / ${probe}` : ""}
         </p>
       )}
 
