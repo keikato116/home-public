@@ -59,14 +59,15 @@ export function NotificationSettings() {
   // 「設定 → 通知」で切られていることがあり、そのままだと
   // 「オンなのに鳴らない」が黙って続く。
   useEffect(() => {
-    const on = getChoreNotifySetting().enabled;
-    setEnabled(on);
-    if (on) {
-      notificationPermission().then((p) => {
-        setPermission(p);
-        setError(lastNotificationError());
-      });
-    }
+    setEnabled(getChoreNotifySetting().enabled);
+    // 設定に関係なく毎回聞く。checkPermissions は利用者に何も見せず即座に返る
+    // はずのものなので、返らない・落ちること自体がネイティブ側の異常を示す。
+    // 画面を開いた時点で分かるので、チェックを押してもらう必要がない。
+    if (!notificationsAvailable()) return;
+    notificationPermission().then((p) => {
+      setPermission(p);
+      setError(lastNotificationError());
+    });
   }, []);
 
   // 時刻の早い順に並べる。未設定（＝通知しない）は最後にまとめる。

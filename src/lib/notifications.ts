@@ -73,6 +73,30 @@ function recordError(where: string, e: unknown): void {
 }
 
 /**
+ * ネイティブ側が応答しないことがある。プラグインが登録されていても実体が
+ * 無ければ、ブリッジに投げた呼び出しは失敗すらせず、ただ返ってこない。
+ * そのまま await すると画面は「確認中…」のまま固まり、原因が何も分からない。
+ * 待つのをやめて、returned しなかったという事実をエラーに変える。
+ */
+function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error(`${label} が ${ms / 1000} 秒たっても応答しません`)),
+      ms
+    );
+    p.then(
+      (v) => { clearTimeout(timer); resolve(v); },
+      (e) => { clearTimeout(timer); reject(e); }
+    );
+  });
+}
+
+// 許可のダイアログは利用者が答えるまで返らないので、そこだけ長く待つ。
+// 残りは即座に返るはずのものなので、返らなければ異常。
+const ANSWER_TIMEOUT_MS = 60_000;
+const CALL_TIMEOUT_MS = 8_000;
+
+/**
  * 通知の状態。"denied" と "unavailable" は画面上の見え方が同じ（チェックが入らない）
  * ぶん、区別できないと原因にたどり着けないので分けてある。
  *
@@ -93,8 +117,10 @@ export type NotifyPermission = "granted" | "denied" | "unavailable";
 export async function requestNotificationPermission(): Promise<NotifyPermission> {
   if (!notificationsAvailable()) return "unavailable";
   try {
-    const LocalNotifications = await plugin();
-    const res = await LocalNotifications.requestPermissions();
+    const LocalNotifications = await withTimeout(plugin(), CALL_TIMEOUT_MS, "プラグインの読み込み");
+    const res = await withTimeout(
+      LocalNotifications.requestPermissions(), ANSWER_TIMEOUT_MS, "requestPermissions"
+    );
     lastError = null;
     return res.display === "granted" ? "granted" : "denied";
   } catch (e) {
@@ -106,8 +132,10 @@ export async function requestNotificationPermission(): Promise<NotifyPermission>
 
 /** この機能が予約したぶんだけ取り消す。他の通知には触らない。 */
 async function cancelOurs(): Promise<void> {
-  const LocalNotifications = await plugin();
-  const pending = await LocalNotifications.getPending();
+  const LocalNotifications = await withTimeout(plugin(), CALL_TIMEOUT_MS, "プラグインの読み込み");
+  const pending = await withTimeout(
+    LocalNotifications.getPending(), CALL_TIMEOUT_MS, "getPending"
+  );
   const ours = pending.notifications.filter(
     (n) => n.id >= ID_BASE && n.id < ID_BASE + ID_COUNT
   );
@@ -202,6 +230,10 @@ export function planChoreNotifications(
 // 片方の cancel がもう片方の schedule を消してしまう。時刻の入力欄は1文字ごとに
 // onChange が飛ぶうえ、home タブの再表示でも走るので、実際に重なる。
 // 直前の処理を待ってから始めることで順番に流す。
+//
+// ただし「待つ」はここでは危ない。ネイティブが応答しない1回があると、
+// 以降の呼び出しが全部その後ろで止まる。runSync の中の呼び出しは
+// すべて withTimeout をかぶせてあるので、チェーンは必ず有限時間で進む。
 let syncChain: Promise<void> = Promise.resolve();
 
 export function syncChoreNotifications(definitions: RoutineDefinition[]): Promise<void> {
@@ -219,7 +251,9 @@ async function runSync(definitions: RoutineDefinition[]): Promise<void> {
     await cancelOurs();
     if (!setting.enabled) return;
 
-    const perm = await LocalNotifications.checkPermissions();
+    const perm = await withTimeout(
+      LocalNotifications.checkPermissions(), CALL_TIMEOUT_MS, "checkPermissions"
+    );
     if (perm.display !== "granted") return;
 
     const notifications = planChoreNotifications(
@@ -227,7 +261,9 @@ async function runSync(definitions: RoutineDefinition[]): Promise<void> {
     );
 
     if (notifications.length > 0) {
-      await LocalNotifications.schedule({ notifications });
+      await withTimeout(
+        LocalNotifications.schedule({ notifications }), CALL_TIMEOUT_MS, "schedule"
+      );
     }
   } catch (e) {
     // 通知が予約できなくてもアプリの本体は動く。本体は止めないが、理由は残す。
@@ -242,8 +278,11 @@ async function runSync(definitions: RoutineDefinition[]): Promise<void> {
 export async function notificationPermission(): Promise<NotifyPermission> {
   if (!notificationsAvailable()) return "unavailable";
   try {
-    const LocalNotifications = await plugin();
-    const perm = await LocalNotifications.checkPermissions();
+    const LocalNotifications = await withTimeout(plugin(), CALL_TIMEOUT_MS, "プラグインの読み込み");
+    const perm = await withTimeout(
+      LocalNotifications.checkPermissions(), CALL_TIMEOUT_MS, "checkPermissions"
+    );
+    lastError = null;
     return perm.display === "granted" ? "granted" : "denied";
   } catch (e) {
     recordError("checkPermissions", e);
