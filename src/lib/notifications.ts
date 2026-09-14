@@ -58,6 +58,20 @@ async function plugin() {
   return mod.LocalNotifications;
 }
 
+// プラグイン呼び出しが落ちたときの中身。catch で握り潰すと画面上は
+// 「チェックが入らない」としか見えず、端末を手元に持っていない側からは
+// 原因にたどり着けない。最後の失敗だけ覚えて設定画面に出す。
+let lastError: string | null = null;
+
+export function lastNotificationError(): string | null {
+  return lastError;
+}
+
+function recordError(where: string, e: unknown): void {
+  lastError = `${where}: ${e instanceof Error ? e.message : String(e)}`;
+  console.warn("[notifications]", lastError, e);
+}
+
 /**
  * 通知の状態。"denied" と "unavailable" は画面上の見え方が同じ（チェックが入らない）
  * ぶん、区別できないと原因にたどり着けないので分けてある。
@@ -81,9 +95,11 @@ export async function requestNotificationPermission(): Promise<NotifyPermission>
   try {
     const LocalNotifications = await plugin();
     const res = await LocalNotifications.requestPermissions();
+    lastError = null;
     return res.display === "granted" ? "granted" : "denied";
-  } catch {
+  } catch (e) {
     // ブリッジは生きているのに呼び出しが落ちる＝ネイティブ側が登録されていない
+    recordError("requestPermissions", e);
     return "unavailable";
   }
 }
@@ -213,8 +229,9 @@ async function runSync(definitions: RoutineDefinition[]): Promise<void> {
     if (notifications.length > 0) {
       await LocalNotifications.schedule({ notifications });
     }
-  } catch {
-    // 通知が予約できなくてもアプリの本体は動く。黙って諦める。
+  } catch (e) {
+    // 通知が予約できなくてもアプリの本体は動く。本体は止めないが、理由は残す。
+    recordError("schedule", e);
   }
 }
 
@@ -228,7 +245,8 @@ export async function notificationPermission(): Promise<NotifyPermission> {
     const LocalNotifications = await plugin();
     const perm = await LocalNotifications.checkPermissions();
     return perm.display === "granted" ? "granted" : "denied";
-  } catch {
+  } catch (e) {
+    recordError("checkPermissions", e);
     return "unavailable";
   }
 }

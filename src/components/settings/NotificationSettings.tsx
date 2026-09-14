@@ -7,7 +7,7 @@ import type { NotifyPermission } from "@/lib/notifications";
 import {
   notificationsAvailable, getChoreNotifySetting,
   setChoreNotifyEnabled, syncChoreNotifications, parseNotifyAt,
-  notificationPermission,
+  notificationPermission, lastNotificationError,
 } from "@/lib/notifications";
 
 // 「今日の家事」の通知設定。
@@ -50,6 +50,8 @@ export function NotificationSettings() {
 
   const [enabled, setEnabled] = useState(false);
   const [permission, setPermission] = useState<NotifyPermission | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const canNotify = notificationsAvailable();
 
   // localStorage を読むので、描画後に反映する（SSR とズレないように）。
@@ -59,7 +61,12 @@ export function NotificationSettings() {
   useEffect(() => {
     const on = getChoreNotifySetting().enabled;
     setEnabled(on);
-    if (on) notificationPermission().then(setPermission);
+    if (on) {
+      notificationPermission().then((p) => {
+        setPermission(p);
+        setError(lastNotificationError());
+      });
+    }
   }, []);
 
   // 時刻の早い順に並べる。未設定（＝通知しない）は最後にまとめる。
@@ -75,9 +82,20 @@ export function NotificationSettings() {
   }, [routineDefinitions]);
 
   const toggle = async () => {
-    const res = await setChoreNotifyEnabled(!enabled, todoRoutines);
-    setEnabled(res.enabled);
-    setPermission(res.permission);
+    // 押しても何も起きないように見えるのが一番困る。許可を尋ねている間は
+    // 目に見えて止めておき、終わったら結果か理由のどちらかを必ず出す。
+    setBusy(true);
+    try {
+      const res = await setChoreNotifyEnabled(!enabled, todoRoutines);
+      setEnabled(res.enabled);
+      setPermission(res.permission);
+      setError(lastNotificationError());
+    } catch (e) {
+      setPermission("unavailable");
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
   };
 
   const changeChoreTime = async (id: string, value: string) => {
@@ -100,9 +118,12 @@ export function NotificationSettings() {
             type="checkbox"
             checked={enabled}
             onChange={toggle}
+            disabled={busy}
             className="w-3.5 h-3.5 accent-foreground cursor-pointer"
           />
-          <span className="text-[12px] tracking-wide">この端末で知らせる</span>
+          <span className="text-[12px] tracking-wide">
+            この端末で知らせる{busy && "（確認中…）"}
+          </span>
         </label>
       )}
 
@@ -119,6 +140,13 @@ export function NotificationSettings() {
         <p className="text-[11px] text-red-500 leading-relaxed">
           このバージョンのアプリは通知に対応していません。更新をお待ちください。
           時刻の設定はいまのうちにしておけます。
+        </p>
+      )}
+
+      {/* 端末が手元に無い側から原因を追えるように、落ちた理由をそのまま出す。 */}
+      {error && (
+        <p className="text-[10px] text-muted-foreground/70 leading-relaxed break-all">
+          {error}
         </p>
       )}
 
