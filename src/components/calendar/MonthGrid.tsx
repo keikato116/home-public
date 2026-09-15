@@ -4,6 +4,7 @@ import { CalendarEvent, MealPlan, isHighlightPlan } from "@/types";
 import { getJapaneseHolidayName } from "@/lib/japaneseHolidays";
 import { toDateStr, isSameDay, isWeekendOrHoliday, getMonthDays, DOW_LETTERS, toJSTDateStr, toJSTMinOfDay } from "@/lib/dates";
 import { hasEventInWindow, bothHaveAllDayEvent } from "@/lib/freeTime";
+import { usePrefsStore } from "@/store/prefsStore";
 import { eventColor, parseTaskType } from "./lib";
 import { RUN_CELL_BG, RIDE_CELL_BG } from "@/lib/colors";
 
@@ -17,6 +18,7 @@ interface MonthGridProps {
 }
 
 export function MonthGrid({ selectedDate, today, eventsMap, currentUserId, plans, onSelect }: MonthGridProps) {
+  const autoDetect = usePrefsStore((s) => s.mealAutoDetect);
   const year = selectedDate.getFullYear();
   const month = selectedDate.getMonth();
   const cells = getMonthDays(year, month);
@@ -67,8 +69,8 @@ export function MonthGrid({ selectedDate, today, eventsMap, currentUserId, plans
           // logs (run:/ride: tasks) are ignored.
           const calEvents = (eventsMap[ds] ?? []).filter(e => !(e.isLocal && parseTaskType(e.summary)));
           const isFuture = ds >= todayStr;
-          const autoFreeDinner = isFuture && !hasEventInWindow(calEvents, 18, 21);
-          const autoFreeLunch = isFuture && !hasEventInWindow(calEvents, 11, 13) &&
+          const autoFreeDinner = autoDetect && isFuture && !hasEventInWindow(calEvents, 18, 21);
+          const autoFreeLunch = autoDetect && isFuture && !hasEventInWindow(calEvents, 11, 13) &&
             (isWeekendOrHoliday(d) || bothHaveAllDayEvent(calEvents));
           // A real planned meal (recipe/label) always keeps its dot; the auto / highlight-only
           // marker disappears once a timed plan lands in that meal window.

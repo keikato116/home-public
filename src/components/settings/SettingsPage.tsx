@@ -10,6 +10,7 @@ import { NotificationSettings } from "./NotificationSettings";
 import { BILLING_ENABLED } from "@/lib/constants";
 import { HouseholdSettings } from "./HouseholdSettings";
 import { NameSettings } from "./NameSettings";
+import { MealSettings } from "./MealSettings";
 import { DeleteAccount } from "./DeleteAccount";
 import { X, LogOut } from "lucide-react";
 
@@ -52,6 +53,10 @@ export function SettingsPage() {
 
         <div className="border-t border-border pt-6">
           <WeeklyChoresSettings />
+        </div>
+
+        <div className="border-t border-border pt-6">
+          <MealSettings />
         </div>
 
         <div className="border-t border-border pt-6">

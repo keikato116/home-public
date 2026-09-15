@@ -7,6 +7,8 @@ export const LS_CACHED_HOUSEHOLD = "cached_household_id";
 export const LS_CACHED_INVITE = "cached_invite_code";
 export const LS_CACHED_IS_OWNER = "cached_is_owner";
 export const LS_GACHA_HISTORY = "gacha_history";
+/** 献立の「空いてそうな日」の自動判定を出すか。既定は出さない。 */
+export const LS_MEAL_AUTO_DETECT = "meal_auto_detect";
 export const LS_SPLIT_CLOSING_DAY = "split_closing_day";
 export const LS_SPLIT_RATIO = "split_ratio";
 export const LS_CAL_CACHE_PREFIX = "cal_cache_";

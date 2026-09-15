@@ -18,6 +18,7 @@ import { SettingsPage } from "@/components/settings/SettingsPage";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
 import { PREMIUM_TABS, PAIR_ONLY_TABS, BILLING_ENABLED } from "@/lib/constants";
 import { initDeepLinkAuth } from "@/lib/nativeAuth";
+import { hydratePrefs } from "@/store/prefsStore";
 
 function MainApp() {
   const { activeTab, settingsOpen, householdId, accessToken, user, setActiveTab, memberCount } = useAuthStore();
@@ -75,6 +76,8 @@ export default function Page() {
   const { user, householdId, loading, displayName, init } = useAuthStore();
 
   useEffect(() => {
+    // localStorage は描画後に読む（SSR の出力とズレるため）
+    hydratePrefs();
     init();
     // iOS アプリでは、Safari から戻ってきたログインをここで受ける。
     // ブラウザでは何もしない（サーバーの /auth/callback が処理する）。

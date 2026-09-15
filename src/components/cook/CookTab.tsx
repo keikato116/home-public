@@ -5,6 +5,7 @@ import { useMealPlanStore } from "@/store/mealPlanStore";
 import { useRecipeStore } from "@/store/recipeStore";
 import { useAuthStore } from "@/store/authStore";
 import { useCalendarStore } from "@/store/calendarStore";
+import { usePrefsStore } from "@/store/prefsStore";
 import { MealPlan, isHighlightPlan } from "@/types";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { toDateStr, isSameDay, isWeekendOrHoliday, DOW_LETTERS, MONTH_NAMES } from "@/lib/dates";
@@ -18,6 +19,7 @@ export function CookTab() {
   const { plans, loading, load, toggleHighlight } = useMealPlanStore();
   const { load: loadRecipes } = useRecipeStore();
   const { eventsByDate } = useCalendarStore();
+  const autoDetect = usePrefsStore((s) => s.mealAutoDetect);
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth());
@@ -129,8 +131,8 @@ export function CookTab() {
               dinnerPlan={dinnerByDate[ds]}
               lunchPlan={lunchByDate[ds]}
               isToday={isSameDay(d, today)}
-              freeEvening={isFuture && !eveningBusy}
-              freeLunch={lunchFreeWindow && (isHolidayOrWeekend || bothHaveAllDayEvent(dayEvents))}
+              freeEvening={autoDetect && isFuture && !eveningBusy}
+              freeLunch={autoDetect && lunchFreeWindow && (isHolidayOrWeekend || bothHaveAllDayEvent(dayEvents))}
               showLunch={true}
               isHighlightedDinner={highlightDinnerDates.has(ds) && !eveningBusy}
               isHighlightedLunch={highlightLunchDates.has(ds) && !middayBusy}

@@ -15,10 +15,12 @@ import { RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
 import { CalendarEvent, isHighlightPlan } from "@/types";
 import { getJapaneseHolidayName } from "@/lib/japaneseHolidays";
 import { hasEventInWindow, bothHaveAllDayEvent } from "@/lib/freeTime";
+import { usePrefsStore } from "@/store/prefsStore";
 import { toDateStr, isSameDay, isWeekendOrHoliday, getWeekDays, getJSTToday } from "@/lib/dates";
 import { ViewMode, getPeriodLabel, parseTaskType } from "./lib";
 
 export function CalendarTab() {
+  const autoDetect = usePrefsStore((s) => s.mealAutoDetect);
   const { householdId, reAuthGoogle, user, calendarViewSignal } = useAuthStore();
   const { load, eventsByDate, loading, syncing, error, addLocalEvent, deleteLocalEvent } = useCalendarStore();
   const { memberNameMap } = useTodoStore();
@@ -179,8 +181,8 @@ export function CalendarTab() {
               const isFuture = ds >= toDateStr(today);
               const eveningBusy = hasEventInWindow(calEventsOnly, 18, 21);
               const middayBusy = hasEventInWindow(calEventsOnly, 11, 13);
-              const autoFreeDinner = isFuture && !eveningBusy;
-              const autoFreeLunch = isFuture && !middayBusy &&
+              const autoFreeDinner = autoDetect && isFuture && !eveningBusy;
+              const autoFreeLunch = autoDetect && isFuture && !middayBusy &&
                 (isWeekendOrHoliday(selectedDate) || bothHaveAllDayEvent(calEventsOnly));
 
               // A timed event in the meal window always wins: even a manually highlighted
