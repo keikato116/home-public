@@ -72,6 +72,21 @@ Vercel に向けるときの注意:
 
 ### 設計の要点（触る前に読む）
 
+**トークンと表示名は別の表に分けてある（2026-09-15）。**
+`user_tokens` は Google の鍵だけを持ち、**本人と service_role しか読めない**。
+表示名とカレンダーの色は `member_profiles` にあり、こちらは同居人も読める。
+
+分けてあるのは、以前 `user_tokens` に「同じ世帯なら読める」という SELECT
+ポリシーが付いていて、**同居人のブラウザから相手の `google_refresh_token` が
+読めていた**ため。RLS は行の制御で列は絞れない。リフレッシュトークンは失効
+しないので、控えれば世帯を抜けたあとも相手のカレンダーを読み続けられた。
+
+なので **`user_tokens` に同居人向けの SELECT ポリシーを足さないこと。**
+相手のカレンダーは `/api/partner-calendar` が service_role で取りに行く。
+世帯を移動する処理（join / dissolve）では、両方の表の `household_id` を
+同時に更新すること。片方だけだと新しい相手に名前が出ない。
+
+
 **課金判定の正は Supabase**。`subscriptions` テーブルに RevenueCat の webhook が書き、
 `household_entitled()` が判定する。WebView が読むのは Vercel 上の web アプリなので、
 クライアントの申告を信じると DevTools から有料機能が使い放題になる。
