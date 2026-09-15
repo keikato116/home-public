@@ -148,7 +148,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const token = get().accessToken ?? localStorage.getItem(LS_GOOGLE_TOKEN);
     const user = get().user;
     if (user && token) {
-      void upsertUserToken(createClient(), user.id, id, token).catch(() => {});
+      void upsertUserToken(token).catch(() => {});
     }
   },
   setSettingsOpen: (open) => set({ settingsOpen: open }),
@@ -192,23 +192,23 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }
         const token = session.provider_token ?? localStorage.getItem(LS_GOOGLE_TOKEN);
 
-        const [{ data: member }, { data: tokenRow }] = await Promise.all([
+        const [{ data: member }, tokenRow] = await Promise.all([
           supabase
             .from("household_members")
             .select("household_id, households(invite_code)")
             .eq("user_id", session.user.id)
             .maybeSingle(),
+          // localStorage が消えたときの復旧。表を直接読むと暗号文が返るので
+          // /api/tokens を通す（復号できるのはサーバーだけ）。
           !localStorage.getItem(LS_GOOGLE_REFRESH)
-            ? supabase
-                .from("user_tokens")
-                .select("google_refresh_token")
-                .eq("user_id", session.user.id)
-                .maybeSingle()
-            : Promise.resolve({ data: null }),
+            ? fetch("/api/tokens")
+                .then((r) => (r.ok ? r.json() : { refreshToken: null }))
+                .catch(() => ({ refreshToken: null }))
+            : Promise.resolve({ refreshToken: null }),
         ]);
 
-        if (tokenRow?.google_refresh_token && !localStorage.getItem(LS_GOOGLE_REFRESH)) {
-          localStorage.setItem(LS_GOOGLE_REFRESH, tokenRow.google_refresh_token);
+        if (tokenRow?.refreshToken && !localStorage.getItem(LS_GOOGLE_REFRESH)) {
+          localStorage.setItem(LS_GOOGLE_REFRESH, tokenRow.refreshToken);
         }
 
         const hid = member?.household_id ?? null;
@@ -249,7 +249,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         });
 
         if (hid && token) {
-          await upsertUserToken(supabase, session.user.id, hid, token);
+          await upsertUserToken(token);
         }
         if (hid) await get().loadDisplayName();
       } else if (!cachedUser) {
@@ -294,7 +294,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
         set({ user: session.user, householdId: hid, inviteCode: ic, accessToken: token });
         if (hid && token) {
-          await upsertUserToken(supabase, session.user.id, hid, token);
+          await upsertUserToken(token);
         }
         if (hid) await get().loadDisplayName();
       } else if (event === "TOKEN_REFRESHED" && session) {

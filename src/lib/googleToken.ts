@@ -64,23 +64,23 @@ export async function connectGoogleCalendar(supabase: ReturnType<typeof createCl
 }
 
 /**
- * Google のトークンを保存する。**display_name には触らない。**
- * 以前はここが Google プロフィールの名前を書いていたが、トークンは定期的に
- * 更新されるので、本人が設定画面で直した名前がそのたびに上書きされていた。
- * 名前は src/lib/displayName.ts の側だけが書く。
+ * Google のトークンを保存する。
+ *
+ * 表に直接書かず /api/tokens を通す。保存前にサーバーが暗号化するため
+ * （鍵はブラウザに配れない）。名前には触らない — display_name は
+ * member_profiles にあり、src/lib/displayName.ts の側だけが書く。
  */
-export async function upsertUserToken(
-  supabase: ReturnType<typeof createClient>,
-  userId: string,
-  householdId: string,
-  accessToken: string
-) {
-  await supabase.from("user_tokens").upsert({
-    user_id: userId,
-    household_id: householdId,
-    google_access_token: accessToken,
-    ...(localStorage.getItem(LS_GOOGLE_REFRESH) ? { google_refresh_token: localStorage.getItem(LS_GOOGLE_REFRESH) } : {}),
-    updated_at: new Date().toISOString(),
+export async function upsertUserToken(accessToken: string) {
+  const refreshToken = localStorage.getItem(LS_GOOGLE_REFRESH);
+  await fetch("/api/tokens", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      accessToken,
+      // 持っているときだけ送る。undefined なら向こうで更新対象から外れるので、
+      // アクセストークンだけの更新でリフレッシュトークンを消さずに済む。
+      ...(refreshToken ? { refreshToken } : {}),
+    }),
   });
 }
 
@@ -88,19 +88,15 @@ async function doRefresh(): Promise<string | null> {
   let refreshToken = localStorage.getItem(LS_GOOGLE_REFRESH);
 
   if (!refreshToken) {
-    // localStorage may have been cleared (iOS PWA storage eviction); recover from DB
+    // localStorage may have been cleared (iOS PWA storage eviction); recover from DB.
+    // 保存時に暗号化しているので、復号できるサーバー越しに取り直す。
     try {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data } = await supabase
-          .from("user_tokens")
-          .select("google_refresh_token")
-          .eq("user_id", user.id)
-          .maybeSingle();
-        if (data?.google_refresh_token) {
-          refreshToken = data.google_refresh_token;
-          localStorage.setItem(LS_GOOGLE_REFRESH, data.google_refresh_token);
+      const res = await fetch("/api/tokens");
+      if (res.ok) {
+        const { refreshToken: stored } = await res.json();
+        if (stored) {
+          refreshToken = stored;
+          localStorage.setItem(LS_GOOGLE_REFRESH, stored);
         }
       }
     } catch {}
@@ -150,7 +146,7 @@ async function doRefresh(): Promise<string | null> {
 
     const { user, householdId } = useAuthStore.getState();
     if (user && householdId) {
-      upsertUserToken(supabase, user.id, householdId, accessToken).catch(() => {});
+      upsertUserToken(accessToken).catch(() => {});
     }
 
     return accessToken;

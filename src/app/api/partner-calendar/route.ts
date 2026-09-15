@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { fetchEventsFromAllCalendars, filterByColors, requestGoogleTokenRefresh } from "@/lib/server/google";
+import { encryptToken, decryptToken } from "@/lib/server/tokenCrypto";
 
 async function refreshGoogleToken(refreshToken: string): Promise<string | null> {
   try {
@@ -101,18 +102,21 @@ export async function GET(request: Request) {
     partners.map(async (partner) => {
       const profile = profileById.get(partner.user_id as string);
       const colors: string[] = (profile?.calendar_colors as string[] | null) ?? [];
-      let token: string | null = partner.google_access_token;
-      if (!token && !partner.google_refresh_token) return;
+      // 保存時に暗号化してある。暗号化を入れる前の行は平文で、decryptToken が
+      // そのまま返す（移行スクリプトは不要。次に書かれた時点で暗号文になる）。
+      const storedRefresh = decryptToken(partner.google_refresh_token as string | null);
+      let token: string | null = decryptToken(partner.google_access_token as string | null) || null;
+      if (!token && !storedRefresh) return;
 
       // Try with current token; if expired, refresh
       let events = token ? await fetchPartnerEvents(token, colors, from) : null;
 
-      if (events === null && partner.google_refresh_token) {
-        token = await refreshGoogleToken(partner.google_refresh_token);
+      if (events === null && storedRefresh) {
+        token = await refreshGoogleToken(storedRefresh);
         if (token) {
           // Store refreshed token for next time (fire-and-forget)
           void supabase.from("user_tokens")
-            .update({ google_access_token: token, updated_at: new Date().toISOString() })
+            .update({ google_access_token: encryptToken(token), updated_at: new Date().toISOString() })
             .eq("user_id", partner.user_id);
           events = await fetchPartnerEvents(token, colors, from);
         }
