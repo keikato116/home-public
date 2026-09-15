@@ -162,14 +162,25 @@ create table public.local_calendar_events (
 --   付け替えが必須（メンバーを消すだけでは相手の予定が見え続ける）
 -- ------------------------------------------------------------
 
+-- Google の鍵だけを置く表。**本人と service_role 以外に読ませないこと。**
+-- 表示名やカレンダーの色は member_profiles に分けてある。同じ表に置くと、
+-- 同居人に名前を見せるための SELECT ポリシーがトークンまで巻き込む
+-- （RLS は行の制御で、列は絞れない）。
 create table public.user_tokens (
   user_id              uuid primary key references auth.users(id) on delete cascade,
   household_id         uuid references public.households(id) on delete cascade,
   google_access_token  text not null default '',
   google_refresh_token text not null default '',
-  display_name         text not null default '',
-  calendar_colors      text[],
   updated_at           timestamptz default now()
+);
+
+-- 同居人に見せてよい情報。
+create table public.member_profiles (
+  user_id         uuid primary key references auth.users(id) on delete cascade,
+  household_id    uuid references public.households(id) on delete cascade,
+  display_name    text not null default '',
+  calendar_colors text[],
+  updated_at      timestamptz default now()
 );
 
 -- ------------------------------------------------------------
@@ -235,6 +246,7 @@ alter table public.meal_plans            enable row level security;
 alter table public.calendar_settings     enable row level security;
 alter table public.local_calendar_events enable row level security;
 alter table public.user_tokens           enable row level security;
+alter table public.member_profiles       enable row level security;
 alter table public.split_sessions        enable row level security;
 alter table public.split_subscriptions   enable row level security;
 alter table public.split_settings        enable row level security;
@@ -468,14 +480,22 @@ create policy "user can manage own token"
   using (user_id = auth.uid())
   with check (user_id = auth.uid());
 
-create policy "household members can read tokens"
-  on public.user_tokens for select
+-- トークンを同居人に読ませるポリシーは置かないこと。相手のカレンダーは
+-- /api/partner-calendar が service_role で取りに行くので、必要ない。
+
+create policy "user can manage own profile"
+  on public.member_profiles for all
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid());
+
+create policy "household members can read profiles"
+  on public.member_profiles for select
   using (
     exists (
       select 1
       from public.household_members hm1
       join public.household_members hm2 on hm1.household_id = hm2.household_id
-      where hm1.user_id = auth.uid() and hm2.user_id = user_tokens.user_id
+      where hm1.user_id = auth.uid() and hm2.user_id = member_profiles.user_id
     )
   );
 

@@ -158,7 +158,7 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
       const [settingsRes, localRes, tokensRes] = await Promise.all([
         supabase.from("calendar_settings").select("*").eq("household_id", householdId).maybeSingle(),
         supabase.from("local_calendar_events").select("*").eq("household_id", householdId),
-        supabase.from("user_tokens").select("user_id, google_access_token, display_name, calendar_colors").eq("household_id", householdId),
+        supabase.from("member_profiles").select("user_id, display_name, calendar_colors").eq("household_id", householdId),
       ]);
 
       const settings = (settingsRes.data as CalendarSettings | null) ?? {
@@ -314,7 +314,7 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
     if (partial.selected_colors !== undefined && user) {
       await Promise.all([
         settingsOp,
-        supabase.from("user_tokens")
+        supabase.from("member_profiles")
           .update({ calendar_colors: partial.selected_colors })
           .eq("user_id", user.id)
           .eq("household_id", householdId),

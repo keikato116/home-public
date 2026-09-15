@@ -84,6 +84,11 @@ export async function POST(request: Request) {
       .from("user_tokens")
       .update({ household_id: targetId, updated_at: new Date().toISOString() })
       .eq("user_id", user.id);
+    // 名前と色も同じ世帯を指していないと、移った先で相手に名前が出ない。
+    await admin
+      .from("member_profiles")
+      .update({ household_id: targetId, updated_at: new Date().toISOString() })
+      .eq("user_id", user.id);
     return NextResponse.json({ ok: true, household_id: targetId, moved: false });
   }
 
@@ -127,6 +132,10 @@ export async function POST(request: Request) {
   // /api/partner-calendar が古い世帯を見たままになる。
   await admin
     .from("user_tokens")
+    .update({ household_id: targetId, updated_at: new Date().toISOString() })
+    .eq("user_id", user.id);
+  await admin
+    .from("member_profiles")
     .update({ household_id: targetId, updated_at: new Date().toISOString() })
     .eq("user_id", user.id);
 

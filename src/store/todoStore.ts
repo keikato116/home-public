@@ -64,7 +64,7 @@ export const useTodoStore = create<TodoState>((set, get) => ({
       supabase.from("routine_definitions").select("*").eq("household_id", householdId).order("order"),
       supabase.from("routine_completions").select("definition_id, completed_by").eq("household_id", householdId).eq("completed_on", today),
       supabase.from("shared_todos").select("*").eq("household_id", householdId).order("order"),
-      supabase.from("user_tokens").select("user_id, display_name").eq("household_id", householdId),
+      supabase.from("member_profiles").select("user_id, display_name").eq("household_id", householdId),
     ]);
 
     const memberNameMap: Record<string, string> = {};

@@ -103,6 +103,10 @@ export async function POST() {
       .from("user_tokens")
       .update({ household_id: newHouseholdId, updated_at: new Date().toISOString() })
       .eq("user_id", leaverId);
+    await admin
+      .from("member_profiles")
+      .update({ household_id: newHouseholdId, updated_at: new Date().toISOString() })
+      .eq("user_id", leaverId);
     if (tokenError) {
       return NextResponse.json({ error: tokenError.message }, { status: 500 });
     }

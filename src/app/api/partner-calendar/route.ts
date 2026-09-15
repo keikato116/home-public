@@ -77,7 +77,7 @@ export async function GET(request: Request) {
   // Fetch all partner tokens
   const { data: partners } = await supabase
     .from("user_tokens")
-    .select("user_id, google_access_token, google_refresh_token, display_name, calendar_colors")
+    .select("user_id, google_access_token, google_refresh_token")
     .eq("household_id", householdId)
     .neq("user_id", user.id);
 
@@ -85,11 +85,22 @@ export async function GET(request: Request) {
     return NextResponse.json({ events: [] });
   }
 
+  // 名前と色は member_profiles 側にある。トークンと同じ表に置くと、
+  // 同居人に読ませるための SELECT ポリシーがトークンまで巻き込むため分けてある。
+  const { data: profiles } = await supabase
+    .from("member_profiles")
+    .select("user_id, display_name, calendar_colors")
+    .in("user_id", partners.map((p) => p.user_id));
+  const profileById = new Map(
+    (profiles ?? []).map((p) => [p.user_id as string, p])
+  );
+
   const allEvents: object[] = [];
 
   await Promise.allSettled(
     partners.map(async (partner) => {
-      const colors: string[] = (partner as { calendar_colors?: string[] | null }).calendar_colors ?? [];
+      const profile = profileById.get(partner.user_id as string);
+      const colors: string[] = (profile?.calendar_colors as string[] | null) ?? [];
       let token: string | null = partner.google_access_token;
       if (!token && !partner.google_refresh_token) return;
 
@@ -108,7 +119,7 @@ export async function GET(request: Request) {
       }
 
       if (events && events.length > 0) {
-        const ownerName = ((partner.display_name ?? "") as string).split(" ")[0];
+        const ownerName = ((profile?.display_name ?? "") as string).split(" ")[0];
         allEvents.push(
           ...events.map((e) => ({ ...e, ownerId: partner.user_id, ownerName }))
         );

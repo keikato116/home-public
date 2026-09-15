@@ -19,7 +19,8 @@ export interface HouseholdMember {
 
 /**
  * 世帯のメンバーを、参加順（= 先頭が世帯を作った人）で返す。
- * 表示名は user_tokens にしかないので、Google 連携前のメンバーは空文字になる。
+ * 表示名は member_profiles にある。トークンとは別の表に置いてあるのは、
+ * 同居人に見せてよい情報と見せてはいけない情報を混ぜないため。
  */
 async function fetchMembers(
   supabase: ReturnType<typeof createClient>,
@@ -35,7 +36,7 @@ async function fetchMembers(
   if (ids.length === 0) return [];
 
   const { data: tokens } = await supabase
-    .from("user_tokens")
+    .from("member_profiles")
     .select("user_id, display_name")
     .in("user_id", ids);
   const nameById = new Map((tokens ?? []).map((t) => [t.user_id as string, t.display_name as string]));
@@ -96,7 +97,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const supabase = createClient();
       const { data } = await supabase
-        .from("user_tokens")
+        .from("member_profiles")
         .select("display_name")
         .eq("user_id", user.id)
         .maybeSingle();
@@ -113,7 +114,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (!user) return;
     const name = normalizeDisplayName(raw);
     const supabase = createClient();
-    await supabase.from("user_tokens").upsert({
+    await supabase.from("member_profiles").upsert({
       user_id: user.id,
       ...(householdId ? { household_id: householdId } : {}),
       display_name: name ?? "",
