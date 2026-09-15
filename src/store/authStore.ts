@@ -135,7 +135,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     });
   },
 
-  setHouseholdId: (id, inviteCode) => set({ householdId: id, inviteCode: inviteCode ?? null }),
+  setHouseholdId: (id, inviteCode) => {
+    set({ householdId: id, inviteCode: inviteCode ?? null });
+    // 世帯が決まった時点で Google のトークンを保存し直す。
+    //
+    // ログインは世帯に入る前に済んでいるので、そのときの upsertUserToken は
+    // householdId がまだ無く飛ばされている。ここで書かないと user_tokens に
+    // トークンが入らないままになり、**相手からこの人のカレンダーが永久に見えない**
+    // （/api/partner-calendar は household_id で相手の行を引き、トークンが
+    // 無ければ黙って空を返す）。新規ユーザーは全員この順序を通る。
+    const token = get().accessToken ?? localStorage.getItem(LS_GOOGLE_TOKEN);
+    const user = get().user;
+    if (user && token) {
+      void upsertUserToken(createClient(), user.id, id, token).catch(() => {});
+    }
+  },
   setSettingsOpen: (open) => set({ settingsOpen: open }),
   setActiveTab: (tab) => set({ activeTab: tab }),
   bumpCalendarView: () => set((s) => ({ calendarViewSignal: s.calendarViewSignal + 1 })),
