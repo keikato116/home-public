@@ -155,7 +155,7 @@ export default function PrivacyPage() {
       <section className="space-y-2">
         <h2 className="text-[13px] tracking-wide">お問い合わせ</h2>
         <p className="text-[12px] text-muted-foreground leading-relaxed">
-          ご不明な点は support@imbrex.app までご連絡ください。
+          ご不明な点は imbrex2026@gmail.com までご連絡ください。
         </p>
       </section>
     </main>

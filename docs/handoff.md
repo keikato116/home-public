@@ -66,9 +66,13 @@ Vercel に向けるときの注意:
 | Mac の `.env.local` | `CAP_SERVER_URL=https://imbrex.app` → **`npm run ios:sync` をやり直す**（ビルドし直すだけでは反映されない） |
 | Google Search Console | **ドメインプロパティ**（DNS の TXT）で登録。apex と全サブドメインが一度に確認済みになる |
 
-`support@imbrex.app` は Cloudflare の Email Routing で Gmail に転送している
-（メールボックスは持たない）。App Store のサポート連絡先に個人の Gmail を
-書かずに済ませるため。
+問い合わせ先は **`imbrex2026@gmail.com`**。このアプリ専用に作った Gmail で、
+`/privacy`・App Store のサポート連絡先・Google Cloud のデベロッパー連絡先を
+ここに揃えてある。個人の常用アドレス（`kei.116...`）は表に出さない。
+
+`support@imbrex.app` を Cloudflare の Email Routing で転送する案もあったが、
+転送だと送信ができず、審査の往復で困る。受信も送信もできる実体のある
+アカウントにしてある。
 
 ### 設計の要点（触る前に読む）
 
