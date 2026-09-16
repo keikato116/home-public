@@ -90,6 +90,21 @@ export function AuthGate() {
           Google で入るとカレンダーの予定も表示されます。
           Apple で入った場合も、あとから設定できます。
         </p>
+
+        {/* 審査で見られる3点への導線。Google は「ログインせずにアプリの説明が
+            読めること」を求めており、Apple は規約とプライバシーポリシーが
+            サインアップ前に読めることを求める。 */}
+        <nav className="flex gap-4 pt-1">
+          <a href="/about" className="text-[10px] underline underline-offset-4 text-muted-foreground hover:text-foreground">
+            このアプリについて
+          </a>
+          <a href="/privacy" className="text-[10px] underline underline-offset-4 text-muted-foreground hover:text-foreground">
+            プライバシー
+          </a>
+          <a href="/terms" className="text-[10px] underline underline-offset-4 text-muted-foreground hover:text-foreground">
+            利用規約
+          </a>
+        </nav>
       </div>
     </div>
   );
