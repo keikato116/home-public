@@ -21,6 +21,11 @@ export default function PrivacyPage() {
       <div>
         <h1 className="text-[22px] tracking-wide">プライバシーポリシー</h1>
         <p className="text-[11px] text-muted-foreground mt-1">最終更新日: {UPDATED}</p>
+        <p className="mt-2">
+          <a href="/privacy/en" className="text-[11px] underline underline-offset-4 text-muted-foreground hover:text-foreground">
+            English
+          </a>
+        </p>
       </div>
 
       <section className="space-y-2">
@@ -140,6 +145,45 @@ export default function PrivacyPage() {
         <p className="text-[12px] text-muted-foreground leading-relaxed">
           現在、本アプリは有料の機能を提供していません。お支払いに関する情報は取得しません。
           今後、有料の機能を提供する場合は、本ポリシーを更新したうえでお知らせします。
+        </p>
+      </section>
+
+      <section className="space-y-2">
+        <h2 className="text-[13px] tracking-wide">データの保護</h2>
+        <p className="text-[12px] text-muted-foreground leading-relaxed">
+          お客様の情報、とくに Google カレンダーへのアクセスに用いる認証情報を保護するため、
+          次の措置を講じています。
+        </p>
+        <ul className="text-[12px] text-muted-foreground leading-relaxed space-y-1">
+          <li>
+            ・<strong>通信の暗号化</strong> — 端末とサーバーの間の通信はすべて TLS（HTTPS）で暗号化されます。
+            本アプリのドメインは HSTS プリロードに登録されており、暗号化されない通信は行えません。
+          </li>
+          <li>
+            ・<strong>認証情報の暗号化保存</strong> — Google の認証トークンは AES-256-GCM で暗号化して保存します。
+            復号の鍵はデータベースの外に保管しており、データベースの内容だけが流出しても復号できません。
+          </li>
+          <li>
+            ・<strong>カレンダーの予定を保存しない</strong> — 予定は表示のつど Google から取得します。
+            当方のデータベースには保存せず、表示中の端末上にのみ保持されます。
+          </li>
+          <li>
+            ・<strong>アクセス制御</strong> — データベースは行単位のアクセス制御（Row Level Security）により、
+            各データをその所有者と、同じ世帯の方のみが参照できるよう制限しています。
+            認証トークンは例外で、<strong>本人以外は同じ世帯の方であっても参照できません</strong>。
+          </li>
+          <li>
+            ・<strong>最小限の権限</strong> — カレンダーについては読み取り専用の権限
+            （<code className="text-[11px]">calendar.readonly</code>）のみを要求します。
+            予定の作成・変更・削除を行う権限は要求しません。
+          </li>
+        </ul>
+        <p className="text-[12px] text-muted-foreground leading-relaxed">
+          データの保管には Supabase を、アプリの配信には Vercel を利用しており、
+          各事業者のセキュリティ対策が適用されます。
+          カレンダーの連携は、Google アカウントの
+          「サードパーティ製アプリとの連携」からいつでも解除できます。
+          解除すると、本アプリからカレンダーを参照できなくなります。
         </p>
       </section>
 
