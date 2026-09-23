@@ -1,6 +1,8 @@
 // Server-side Google API helpers shared by /api/calendar, /api/partner-calendar
 // and /api/refresh-token.
 
+import { withSummary } from "@/lib/calendarEvent";
+
 type CalInfo = { id: string; backgroundColor?: string; selected?: boolean; accessRole?: string };
 
 export async function fetchEventsFromAllCalendars(
@@ -38,7 +40,12 @@ export async function fetchEventsFromAllCalendars(
         });
         if (!res.ok) return [];
         const data = await res.json();
-        return (data.items ?? []).map((e: object) => ({ ...e, calendarColor: cal.backgroundColor }));
+        // summary は Google がタイトル未設定の予定で省いてくるので、ここで埋める。
+        // 読む側は summary が必ずある前提で書かれており、欠けると画面ごと落ちる。
+        return (data.items ?? []).map((e: object) => withSummary({
+          ...(e as { summary?: string }),
+          calendarColor: cal.backgroundColor,
+        }));
       } catch { return []; }
     })
   );

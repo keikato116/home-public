@@ -7,6 +7,7 @@ import { fetchCalendarEvents } from "@/lib/calendar";
 import { toISODate } from "@/lib/utils";
 import { toJSTDateStr } from "@/lib/dates";
 import { LS_GOOGLE_TOKEN, LS_CAL_CACHE_PREFIX } from "@/lib/constants";
+import { withSummaries } from "@/lib/calendarEvent";
 import { RUN_COLOR, RIDE_COLOR } from "@/lib/colors";
 import { useAuthStore, ensureValidAccessToken } from "@/store/authStore";
 import { ensureSession } from "@/lib/supabase/helpers";
@@ -125,7 +126,10 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
       try {
         const raw = localStorage.getItem(cacheKey);
         if (raw) {
-          set({ events: JSON.parse(raw), loading: false, syncing: true, error: null });
+          // キャッシュにも summary の無い予定が残っている。JSON.stringify は
+          // undefined のキーを落とすため。ここは取得を待たずに描画されるので、
+          // 埋めそこねると開いた瞬間に落ちる。
+          set({ events: withSummaries(JSON.parse(raw)), loading: false, syncing: true, error: null });
         } else {
           set({ loading: true, syncing: false, error: null });
         }
