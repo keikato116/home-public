@@ -73,6 +73,8 @@ as $$
 $$;
 
 revoke all on function public.member_premium_source(uuid) from public, anon, authenticated;
+-- 課金が切れたときの自動解散（webhook、service role）が相手の権利を確かめるのに使う。
+grant execute on function public.member_premium_source(uuid) to service_role;
 
 -- 自分の権利: 'subscription'（購入） / 'grant'（付与） / null
 create or replace function public.premium_source()

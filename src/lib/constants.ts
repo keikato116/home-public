@@ -36,6 +36,11 @@ export const GOOGLE_CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.r
 // 課金を実装するときは、このフラグを true にして再デプロイする。
 export const BILLING_ENABLED = process.env.NEXT_PUBLIC_BILLING_ENABLED === "true";
 
+// 2人で使う場合の課金切れの扱い。利用規約「5. 有料プラン」と同じ内容を、
+// 購入画面と設定にも出す（src/lib/server/lapseExit.ts が実際にこの通りに動く）。
+export const PAIR_LAPSE_NOTICE =
+  "相手の課金状態が切れたら解散します。データは残り、相手が再び加入して同じ招待コードで入り直すと、元どおり再開します。";
+
 // RevenueCat ダッシュボードで作る Entitlement の識別子。ここを変えるなら向こうも変える。
 export const RC_ENTITLEMENT_ID = "premium";
 // 課金しないと使えないタブ。BottomTabBar と page.tsx の両方がこれを見る。

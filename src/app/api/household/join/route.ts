@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { transferHouseholdData } from "@/lib/server/householdTransfer";
+import { resumeRoomIfReturning, mustResubscribeToReturn } from "@/lib/server/lapseExit";
 
 // 招待コードで世帯に参加する。
 //
@@ -72,6 +73,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "household is full" }, { status: 409 });
   }
 
+  // 課金切れで抜けた人は、加入し直してから戻ってもらう
+  try {
+    if (await mustResubscribeToReturn(admin, targetId, user.id)) {
+      return NextResponse.json({ error: "resubscribe to return" }, { status: 402 });
+    }
+  } catch (e) {
+    console.error("[join] resubscribe check failed", e);
+    return NextResponse.json({ error: "failed to check subscription" }, { status: 500 });
+  }
+
   // まだ世帯が無い人はそのまま入れる
   if (!currentId) {
     const { error } = await admin
@@ -89,6 +100,8 @@ export async function POST(request: Request) {
       .from("member_profiles")
       .update({ household_id: targetId, updated_at: new Date().toISOString() })
       .eq("user_id", user.id);
+    const resumeError = await resumeRoom(admin, targetId, user.id);
+    if (resumeError) return resumeError;
     return NextResponse.json({ ok: true, household_id: targetId, moved: false });
   }
 
@@ -144,5 +157,25 @@ export async function POST(request: Request) {
   // 1人では意味を持たない記録だけ。
   await admin.from("households").delete().eq("id", currentId);
 
+  const resumeError = await resumeRoom(admin, targetId, user.id);
+  if (resumeError) return resumeError;
+
   return NextResponse.json({ ok: true, household_id: targetId, moved: true });
+}
+
+// 課金切れで自動退出した人が同じ招待コードで戻ってきたら、元の部屋を再開する
+// （割り勘・共有の買い物リストの前の記録がまた見える）。別の人が入ったなら、
+// 再開の控えを捨てる。参加そのものは済んでいるので、失敗は 500 で知らせるだけ。
+async function resumeRoom(
+  admin: NonNullable<ReturnType<typeof createAdminClient>>,
+  householdId: string,
+  userId: string
+): Promise<NextResponse | null> {
+  try {
+    await resumeRoomIfReturning(admin, householdId, userId);
+    return null;
+  } catch (e) {
+    console.error("[join] resume room failed", e);
+    return NextResponse.json({ error: "joined, but failed to restore previous records" }, { status: 500 });
+  }
 }

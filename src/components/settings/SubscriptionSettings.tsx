@@ -2,7 +2,7 @@
 
 import { useSubscriptionStore } from "@/store/subscriptionStore";
 import { useAuthStore } from "@/store/authStore";
-import { MANAGE_SUBSCRIPTION_URL } from "@/lib/constants";
+import { MANAGE_SUBSCRIPTION_URL, PAIR_LAPSE_NOTICE } from "@/lib/constants";
 
 // プレミアムタブは未購入だと丸ごと隠れるので、購入への導線はここが唯一になる。
 // 設定から必ず購入・復元できること、解約導線が示されていることが審査上の必須要件。
@@ -73,6 +73,10 @@ export function SubscriptionSettings() {
             </button>
           </div>
         </>
+      )}
+
+      {paired && (
+        <p className="text-[11px] text-muted-foreground leading-relaxed">{PAIR_LAPSE_NOTICE}</p>
       )}
     </div>
   );

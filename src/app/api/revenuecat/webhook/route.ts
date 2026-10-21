@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { exitIfPartnerStillPaying } from "@/lib/server/lapseExit";
 
 // RevenueCat webhook → subscriptions テーブル。
 // 課金状態の唯一の正はこのテーブル。クライアントの customerInfo は表示の先読みにしか使わない
@@ -98,6 +99,20 @@ export async function POST(req: NextRequest) {
   if (error) {
     // 5xx で返すと RevenueCat が再送してくれる
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // 課金が切れた人の相手がまだ課金していれば、切れた人を世帯から抜く（lapseExit.ts）。
+  // データは世帯に残り、同じ招待コードで戻ると元の部屋が再開する。
+  // 失敗したら 5xx で再送させる。上の upsert は同じ値で上書きされるだけなので、
+  // 再送されても害は無い。
+  if (status === "expired") {
+    try {
+      const exited = await exitIfPartnerStillPaying(supabase, userId);
+      return NextResponse.json({ ok: true, exited });
+    } catch (e) {
+      console.error("[revenuecat] exit after lapse failed", e);
+      return NextResponse.json({ error: "exit after lapse failed" }, { status: 500 });
+    }
   }
 
   return NextResponse.json({ ok: true });

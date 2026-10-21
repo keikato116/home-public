@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuthStore } from "@/store/authStore";
+import { createClient } from "@/lib/supabase/client";
 import {
   LS_CACHED_HOUSEHOLD, LS_CACHED_INVITE, LS_CACHED_IS_OWNER, LS_CACHED_MEMBER_COUNT,
 } from "@/lib/constants";
@@ -19,6 +20,20 @@ export function HouseholdSettings() {
   const [joinCode, setJoinCode] = useState("");
 
   const solo = memberCount !== null && memberCount <= 1;
+
+  // 課金切れで前の世帯から自動退出した人には、戻るための招待コードを出す
+  // （supabase/migrations/2026-10-21_room_pauses.sql）。
+  const [pausedRoomCode, setPausedRoomCode] = useState<string | null>(null);
+  useEffect(() => {
+    if (!solo) return;
+    let cancelled = false;
+    createClient()
+      .rpc("my_paused_room")
+      .then(({ data }) => {
+        if (!cancelled && typeof data === "string" && data) setPausedRoomCode(data);
+      });
+    return () => { cancelled = true; };
+  }, [solo]);
   const partner = members.find((m) => m.userId !== user?.id);
   const partnerName = partner?.displayName || "相手";
 
@@ -69,6 +84,7 @@ export function HouseholdSettings() {
         throw new Error(
           body.error === "invite code not found" ? "この招待コードの世帯が見つかりません"
           : body.error === "household is full" ? "その世帯はすでに2人で使われています"
+          : body.error === "resubscribe to return" ? "入り直すには、先に有料プランに加入し直してください（設定 → premium）"
           : body.error ?? "参加できませんでした"
         );
       }
@@ -92,6 +108,23 @@ export function HouseholdSettings() {
       {solo ? (
         <>
           <p className="text-[13px]">1人で使用中</p>
+          {pausedRoomCode && (
+            <div className="border border-border rounded-xl px-4 py-3 space-y-2">
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                課金状態が切れたため、前の世帯から退出しました。2人で使っていたデータは残っています。
+                再び加入して、下の招待コードで入り直すと、元どおり再開します。
+              </p>
+              <p className="text-[15px] tracking-widest font-medium">{pausedRoomCode}</p>
+              {!joining && (
+                <button
+                  onClick={() => { setJoining(true); setJoinCode(pausedRoomCode); }}
+                  className="text-[11px] text-foreground underline underline-offset-2"
+                >
+                  このコードで入り直す
+                </button>
+              )}
+            </div>
+          )}
           {inviteCode && (
             <>
               <p className="text-[11px] text-muted-foreground leading-relaxed">

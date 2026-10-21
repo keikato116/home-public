@@ -2,7 +2,7 @@
 
 import { useSubscriptionStore } from "@/store/subscriptionStore";
 import { purchasesAvailable } from "@/lib/purchases";
-import { TERMS_URL, PRIVACY_URL } from "@/lib/constants";
+import { TERMS_URL, PRIVACY_URL, PAIR_LAPSE_NOTICE } from "@/lib/constants";
 import { freeTrialLabel, priceLabel } from "@/lib/trial";
 import { X } from "lucide-react";
 
@@ -45,7 +45,7 @@ export function PaywallModal() {
         </div>
 
         <p className="text-[11px] text-muted-foreground leading-relaxed">
-          2人で使う場合は、2人とも加入すると使えるようになります。
+          2人で使う場合は、2人とも加入すると使えるようになります。{PAIR_LAPSE_NOTICE}
         </p>
 
         <ul className="space-y-2">
