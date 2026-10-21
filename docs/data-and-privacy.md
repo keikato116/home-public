@@ -17,8 +17,8 @@
 | recipe | レシピ | **課金ゲート** |
 | 設定 | 世帯・家事・カレンダー・通知・アカウント削除 | — |
 
-- **課金ゲート**: `premium_source()` が null でない人だけ。本人の購入、運営の付与、
-  同じ世帯のもう1人の購入・付与のどれか。未加入の人には献立とレシピのタブが出ない。
+- **課金ゲート**: `household_entitled()` が true のときだけ。世帯の**全員**が権利
+  （購入 or 運営の付与）を持っている必要がある。1人でも欠けると献立とレシピのタブが出ない。
 - **ソロ判定**: フラグではなく人数から導出（`memberCount <= 1`）。割り勘は2人前提のため。
 - 購入導線（設定の premium 欄・ペイウォール）は `NEXT_PUBLIC_BILLING_ENABLED` が
   `true` のときだけ描画される。未設定の間は一切出ない。
@@ -41,7 +41,7 @@
 | Google トークン | user_tokens | **本人のみ**（AES-256-GCM で暗号化して保存） |
 | 表示名・カレンダー色 | member_profiles | 世帯 |
 | 課金状態 | subscriptions | 本人（RevenueCat の webhook が書く） |
-| 運営による付与 | premium_grants | だれも読めない（`premium_source()` 経由でのみ本人に伝わる） |
+| 運営による付与 | premium_grants | だれも読めない（`premium_status()` 経由で本人に伝わる。相手には有無だけ） |
 
 画像（レシピ写真）は Supabase Storage の `recipes` バケット。**公開URLで配信される**ため、
 URL を知っていれば誰でも見られる。推測は困難だが、秘密ではない。

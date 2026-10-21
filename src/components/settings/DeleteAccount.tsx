@@ -32,8 +32,9 @@ export function DeleteAccount() {
 
   const solo = memberCount !== null && memberCount <= 1;
   const partnerName = members.find((m) => m.userId !== user?.id)?.displayName || "相手";
-  // 解約を求めるのは本人が App Store で払っているときだけ。付与や相手のプランで
-  // 使っている人には、解約するものが無い。理由が取れていなければ安全側に倒す。
+  // 解約を求めるのは本人が App Store で払っているときだけ。付与されている人には
+  // 解約するものが無い。相手待ちで有料機能が閉じていても、払っていれば請求は続くので
+  // entitled ではなく source で見る。理由が取れていなければ安全側に倒す。
   const subscribed = source === "subscription" || (entitled === true && source === null);
   const canDelete = !subscribed || cancelAcknowledged;
 

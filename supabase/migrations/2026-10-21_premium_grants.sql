@@ -21,7 +21,7 @@ create table if not exists public.premium_grants (
 );
 
 -- ポリシーは作らない。RLS が有効でポリシーが無いので、anon / authenticated からは
--- 一切読み書きできない。付与の有無は premium_source() 経由でだけ本人に伝わる。
+-- 一切読み書きできない。付与の有無は premium_status() 経由でだけ本人に伝わる。
 alter table public.premium_grants enable row level security;
 
 -- 以前の手順（docs/app-store.md）で subscriptions に手で入れた付与を移す。
@@ -34,17 +34,63 @@ where product_id = 'manual_grant'
 on conflict (user_id) do nothing;
 
 -- ------------------------------------------------------------
--- 有料機能がなぜ使えるか
+-- 有料機能の判定
 -- ------------------------------------------------------------
--- 'subscription' : 本人が App Store で購入している
--- 'grant'        : 本人に運営が付与している
--- 'household'    : 世帯のもう1人が購入 or 付与されている
--- null           : 使えない
+-- **2人で使う場合は、2人とも権利を持っていないと使えない。**
+-- 権利は1人ずつ持つ（App Store で購入しているか、運営が付与しているか）。
+-- 世帯の全員が権利を持っているときだけ、その世帯で有料機能が開く。
+-- 1人世帯なら本人だけを見る。
 --
--- 画面の出し分けに使う。たとえば解約の案内は 'subscription' の人にだけ要る
--- （付与されている人や、相手の契約で使っている人に「解約して」と言っても意味が無い）。
+-- 結果として、1人で加入していた人が相手を招待すると、相手が加入するまで
+-- 有料機能は使えなくなる（データは消えない。閲覧と削除はできる）。
+
+-- 1人分の権利。だれの分でも引けるので、アプリからは呼ばせない
+-- （下の関数は security definer なので、中からは呼べる）。
+create or replace function public.member_premium_source(p_user uuid)
+returns text
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select case
+    when exists (
+      select 1 from public.subscriptions s
+      where s.user_id = p_user
+        -- 手入力の付与は premium_grants に移してある。ここで拾うと「購入」扱いになり、
+        -- 払っていない人に解約を求めてしまう。
+        and s.product_id is distinct from 'manual_grant'
+        and s.status in ('active', 'in_grace')
+        and (s.expires_at is null or s.expires_at > now())
+    ) then 'subscription'
+    when exists (
+      select 1 from public.premium_grants g
+      where g.user_id = p_user
+        and (g.expires_at is null or g.expires_at > now())
+    ) then 'grant'
+    else null
+  end;
+$$;
+
+revoke all on function public.member_premium_source(uuid) from public, anon, authenticated;
+
+-- 自分の権利: 'subscription'（購入） / 'grant'（付与） / null
 create or replace function public.premium_source()
 returns text
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select public.member_premium_source(auth.uid());
+$$;
+
+revoke all on function public.premium_source() from public, anon;
+grant execute on function public.premium_source() to authenticated;
+
+-- 世帯で有料機能が開いているか。RLS の課金ゲートが見る関数。
+create or replace function public.household_entitled()
+returns boolean
 language sql
 security definer
 set search_path = public
@@ -56,49 +102,52 @@ as $$
     join public.household_members hm on hm.household_id = me.household_id
     where me.user_id = auth.uid()
     union
-    -- 世帯に入る前でも、本人の購入・付与は効くようにする
-    select auth.uid()
-  ),
-  paid as (
-    select s.user_id from public.subscriptions s
-    where s.user_id in (select user_id from mates)
-      and s.status in ('active', 'in_grace')
-      and (s.expires_at is null or s.expires_at > now())
-  ),
-  granted as (
-    select g.user_id from public.premium_grants g
-    where g.user_id in (select user_id from mates)
-      and (g.expires_at is null or g.expires_at > now())
+    select auth.uid()   -- 世帯に入る前は本人だけ
   )
-  select case
-    when exists (select 1 from paid    where user_id = auth.uid()) then 'subscription'
-    when exists (select 1 from granted where user_id = auth.uid()) then 'grant'
-    when exists (select 1 from paid) or exists (select 1 from granted) then 'household'
-    else null
-  end;
-$$;
-
-revoke all on function public.premium_source() from public, anon;
-grant execute on function public.premium_source() to authenticated;
-
--- RLS の課金ゲートが見る関数。判定を premium_source() に一本化して、
--- 画面の表示と書き込みの可否が食い違わないようにする。
-create or replace function public.household_entitled()
-returns boolean
-language sql
-security definer
-set search_path = public
-stable
-as $$
-  select public.premium_source() is not null;
+  select auth.uid() is not null
+     and not exists (
+       select 1 from mates where public.member_premium_source(mates.user_id) is null
+     );
 $$;
 
 revoke all on function public.household_entitled() from public, anon;
 grant execute on function public.household_entitled() to authenticated;
 
+-- 画面用にまとめて返す。
+--   own           : 自分の権利（上の premium_source と同じ）
+--   partner_ready : 自分以外の世帯メンバーが全員権利を持っているか（1人なら true）
+--   entitled      : 世帯で有料機能が開いているか（household_entitled と同じ）
+-- 「自分は加入済みだが相手待ち」「相手は加入済み」を出し分けるのに使う。
+-- 相手について分かるのは、権利があるかどうかだけ（購入か付与かは見せない）。
+create or replace function public.premium_status()
+returns jsonb
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select jsonb_build_object(
+    'own', public.premium_source(),
+    'partner_ready', not exists (
+      select 1
+      from public.household_members me
+      join public.household_members hm on hm.household_id = me.household_id
+      where me.user_id = auth.uid()
+        and hm.user_id <> auth.uid()
+        and public.member_premium_source(hm.user_id) is null
+    ),
+    'entitled', public.household_entitled()
+  );
+$$;
+
+revoke all on function public.premium_status() from public, anon;
+grant execute on function public.premium_status() to authenticated;
+
 -- ------------------------------------------------------------
 -- 運営用: 付与と取り消し
 -- ------------------------------------------------------------
+-- 付与は1人ずつ。2人で使っている世帯なら、2人とも付与しないと使えない。
+--
 -- 例:
 --   select public.grant_premium('someone@example.com');                         -- 無期限
 --   select public.grant_premium('someone@example.com', now() + interval '3 months', '友人');

@@ -44,6 +44,10 @@ export function PaywallModal() {
           </button>
         </div>
 
+        <p className="text-[11px] text-muted-foreground leading-relaxed">
+          2人で使う場合は、2人とも加入すると使えるようになります。
+        </p>
+
         <ul className="space-y-2">
           {FEATURES.map((f) => (
             <li key={f} className="flex items-baseline gap-2 text-[13px]">

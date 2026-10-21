@@ -38,6 +38,12 @@ function MainApp() {
     if (userId) useSubscriptionStore.getState().init(userId);
   }, [userId]);
 
+  // 有料機能は世帯の全員が権利を持っているときだけ開くので、相手が参加した・
+  // 抜けたときは判定し直す（1人で加入していた人が招待すると、相手が加入するまで閉じる）。
+  useEffect(() => {
+    if (userId && memberCount !== null) useSubscriptionStore.getState().refresh();
+  }, [userId, memberCount]);
+
   const premium = entitled === true;
   const solo = memberCount !== null && memberCount <= 1;
 

@@ -25,12 +25,29 @@ Supabase  subscriptions テーブル  ← 課金状態の唯一の正
 ブラウザからも同じ Supabase を叩ける。「購入済みかどうか」をクライアントが決めると、
 DevTools から自由に有料機能を使えてしまう。判定は必ず `household_entitled()`（DB 側）で行う。
 
-### 課金は世帯単位
+### 課金は1人ずつ、2人で使うなら2人とも必要
 
-世帯のだれか1人が課金していれば、同じ世帯のもう1人も使える。2人で使うアプリなので
-「片方だけレシピが見えない」状態を避けるための設計。1人1契約にしたい場合は
-`supabase/migrations/2026-09-11_subscriptions.sql` の `household_entitled()` から
-`household_members` 経由の JOIN を外す。
+権利（購入 or 運営の付与）は1人ずつ持つ。**世帯の全員が権利を持っているときだけ**、
+その世帯で有料機能が開く。1人世帯なら本人だけを見る（2026-10-21 に「どちらか1人で
+世帯全員」から変更）。
+
+- 1人で加入していた人が相手を招待すると、相手が加入するまで有料機能は閉じる。
+  データは消えず、閲覧と削除はできる（restrictive ポリシーは insert / update だけ）
+- 相手の契約が切れたときも同じく閉じる
+- 自分は加入済みで相手待ちの人には、設定に「お相手の加入待ち」と出る。
+  払っているので、アカウント削除の時は解約を求める
+- 無料体験は Apple ID ごとなので、2人ともそれぞれ1か月無料になる
+
+判定は `supabase/migrations/2026-10-21_premium_grants.sql` の関数:
+
+| 関数 | 返すもの | だれが呼ぶ |
+|---|---|---|
+| `member_premium_source(uid)` | その人の権利 `'subscription'` / `'grant'` / null | 下の関数の中だけ（アプリからは不可） |
+| `premium_source()` | 自分の権利 | アプリ |
+| `household_entitled()` | 世帯で開いているか | RLS の課金ゲート |
+| `premium_status()` | `{own, partner_ready, entitled}` | アプリの画面（`subscriptionStore`） |
+
+相手について画面に出るのは「権利があるかどうか」だけで、購入か付与かは見せない。
 
 ### 無料ユーザーの見え方
 
@@ -73,7 +90,7 @@ SQL Editor には**ファイルの中身**を貼る。ファイルのパスを�
 3. `supabase/migrations/2026-09-11_pairing_scope.sql`
    — 「部屋」（ペアの期間）の導入。割り勘と共有買い物リストを現在の部屋に限定する
 4. `supabase/migrations/2026-10-21_premium_grants.sql`
-   — 運営による有料機能の付与（下記）。`household_entitled()` を置き換える
+   — 運営による有料機能の付与と、2人とも必要な判定（下記）。`household_entitled()` を置き換える
 
 2 本目を流さないと、アカウント削除が外部キー違反で失敗する。
 流したあと、末尾のコメントにある確認クエリが 0 件になることを見ておくとよい。
@@ -122,7 +139,7 @@ from public.premium_grants g join auth.users u on u.id = g.user_id
 order by g.granted_at desc;
 ```
 
-- 付与された人と**同じ世帯のもう1人も使える**（購入と同じ扱い）
+- 付与は1人ずつ。**2人で使っている世帯なら2人とも付与する**（片方だけだと開かない）
 - 相手は先に一度アプリでログインしている必要がある（`auth.users` に行が無いと付与できない）
 - アプリ（anon / authenticated）からは `grant_premium` を呼べない。Supabase は public の関数に
   既定で実行権を付けるので、マイグレーションで名指しで外してある
@@ -133,8 +150,8 @@ order by g.granted_at desc;
 user_id 単位で上書きするので、その人が一度購入して解約すると、手で入れた行が
 `expired` に書き換わって付与が消える。付与は必ず `premium_grants` で行う。
 
-判定は `premium_source()` に一本化してある（`'subscription'` / `'grant'` / `'household'` / null）。
-RLS の課金ゲート（`household_entitled()`）もこれを見るので、画面の表示と書き込みの可否はずれない。
+判定は `member_premium_source()` に一本化してある。RLS の課金ゲート（`household_entitled()`）も
+画面（`premium_status()`）もこれを見るので、画面の表示と書き込みの可否はずれない。
 
 ### 2. App Store Connect
 
@@ -194,7 +211,8 @@ App Store Connect → ユーザーとアクセス → Sandbox テスターを作
 - [ ] 設定 → premium から購入画面が開き、価格が表示される
 - [ ] 購入するとタブが出る
 - [ ] アプリを消して入れ直し、「購入を復元」でタブが戻る
-- [ ] 世帯のもう1人のアカウントでもタブが出る
+- [ ] 2人世帯で片方だけ購入すると、どちらにもタブが出ず、購入した側に「お相手の加入待ち」と出る
+- [ ] もう1人も購入すると、2人ともタブが出る
 - [ ] Supabase の `subscriptions` に行ができている（= webhook が届いている）
 
 ## ソロモードとアカウント削除
