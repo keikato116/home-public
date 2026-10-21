@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useAuthStore } from "@/store/authStore";
+import { BILLING_ENABLED } from "@/lib/constants";
+import { setPendingJoin } from "@/lib/pendingJoin";
 
 export function HouseholdSetup() {
   const { user, setHouseholdId } = useAuthStore();
@@ -55,14 +57,19 @@ export function HouseholdSetup() {
         body: JSON.stringify({ invite_code: inviteInput.trim().toUpperCase() }),
       });
       const body = await res.json().catch(() => ({}));
+
+      // まだ加入していない。1人用の世帯を作って加入画面を出し、加入できたら
+      // このコードで自動的に参加する（src/lib/pendingJoin.ts）。
+      if (res.status === 402 && BILLING_ENABLED) {
+        setPendingJoin(inviteInput.trim().toUpperCase());
+        await createHousehold(false);
+        return;
+      }
+
       if (!res.ok) {
         throw new Error(
           body.error === "invite code not found" ? "この招待コードの世帯が見つかりません"
           : body.error === "household is full" ? "その世帯はすでに2人で使われています"
-          // すべての機能が有料で、2人とも加入が必要。加入（無料体験）は世帯を作ってから
-          // できるので、いったん1人で始めてもらう。
-          : body.error === "subscription required"
-            ? "参加するには、先に加入（1か月無料）が必要です。「1人で使う」で始めて加入したあと、設定 → household →「相手の世帯に参加する」から入ってください"
           : body.error === "partner subscription lapsed" ? "お相手の加入が切れているため参加できません"
           : body.error ?? "参加できませんでした"
         );

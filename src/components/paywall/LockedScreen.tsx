@@ -5,6 +5,7 @@ import { useAuthStore } from "@/store/authStore";
 import { SubscriptionSettings } from "@/components/settings/SubscriptionSettings";
 import { DeleteAccount } from "@/components/settings/DeleteAccount";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
+import { getPendingJoin } from "@/lib/pendingJoin";
 
 // 権利（購入 or 運営の付与）を持っていない人に出す画面。
 //
@@ -16,6 +17,7 @@ import { PaywallModal } from "@/components/paywall/PaywallModal";
 
 export function LockedScreen() {
   const signOut = useAuthStore((s) => s.signOut);
+  const pendingCode = typeof window === "undefined" ? null : getPendingJoin();
 
   return (
     <div className="min-h-screen overflow-y-auto bg-background">
@@ -28,6 +30,12 @@ export function LockedScreen() {
             はじめての方は、最初の1か月が無料です。
             保存したデータは、加入すれば元どおりお使いいただけます。
           </p>
+          {pendingCode && (
+            <p className="text-[12px] leading-relaxed">
+              加入すると、招待コード <span className="tracking-widest font-medium">{pendingCode}</span> の世帯に自動で参加します。
+              お相手も加入している必要があります。
+            </p>
+          )}
         </div>
 
         <SubscriptionSettings />

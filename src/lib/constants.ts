@@ -13,6 +13,8 @@ export const LS_SPLIT_CLOSING_DAY = "split_closing_day";
 export const LS_SPLIT_RATIO = "split_ratio";
 export const LS_CAL_CACHE_PREFIX = "cal_cache_";
 export const LS_ENTITLED_CACHE = "entitled";
+// 初回登録で招待コードを入れたが未加入だった人の、加入後に参加する世帯のコード
+export const LS_PENDING_JOIN = "pending_join_code";
 export const LS_CACHED_MEMBER_COUNT = "cached_member_count";
 // 「今日の家事」のローカル通知の設定（端末ごと。世帯では共有しない）
 export const LS_CHORE_NOTIFY = "chore_notify";

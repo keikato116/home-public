@@ -17,6 +17,9 @@ import {
 // （サブスクの契約相手は開発者ではなく Apple で、解約できるのは本人だけ）。
 // 黙って削除させると請求だけが残るので、課金中の人には解約画面を開くボタンを
 // 先に踏ませ、済ませたことを確認してから削除させる。
+//
+// 本人が登録したレシピと写真は必ず消す（相手に引き継ぐ選択肢は置かない）。
+// 退会したら本人のデータは残さない、で統一している。
 
 export function DeleteAccount() {
   const { user, members, memberCount, signOut } = useAuthStore();
@@ -26,9 +29,6 @@ export function DeleteAccount() {
   const [cancelAcknowledged, setCancelAcknowledged] = useState(false);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState("");
-  // 既定は「引き継ぐ」。消すほうを既定にすると、よく読まずに進んだ人が
-  // 相手のレシピまで消してしまう。
-  const [handOverRecipes, setHandOverRecipes] = useState(true);
 
   const solo = memberCount !== null && memberCount <= 1;
   const partnerName = members.find((m) => m.userId !== user?.id)?.displayName || "相手";
@@ -45,7 +45,7 @@ export function DeleteAccount() {
       const res = await fetch("/api/account", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ handOver: { recipes: handOverRecipes } }),
+        body: JSON.stringify({}),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -93,25 +93,15 @@ export function DeleteAccount() {
       <p className="text-[11px] text-muted-foreground leading-relaxed">
         {solo
           ? "予定・やること・買い物リスト・レシピ・献立・精算記録を含む、この世帯のデータがすべて削除されます。"
-          : "あなたのアカウントと、あなたにしか見えないデータが削除されます。"}
+          : "あなたのアカウントと、あなたにしか見えないデータ、あなたが登録したレシピとその写真が削除されます。"}
         <br />
         削除すると元に戻せません。
       </p>
 
       {!solo && (
         <div className="space-y-2 border border-border rounded-2xl p-4">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={handOverRecipes}
-              onChange={(e) => setHandOverRecipes(e.target.checked)}
-            />
-            <span className="text-[12px]">レシピを {partnerName} に引き継ぐ</span>
-          </label>
           <p className="text-[11px] text-muted-foreground leading-relaxed">
-            {handOverRecipes
-              ? `2人で貯めたレシピが ${partnerName} に残ります。`
-              : `レシピをすべて削除します。${partnerName} が追加したレシピも消え、献立で選んでいたレシピも空になります。`}
+            あなたが登録したレシピは {partnerName} の画面からも消えます。{partnerName} が登録したレシピは残ります。
           </p>
           <p className="text-[11px] text-muted-foreground leading-relaxed">
             割り勘の記録と共有の買い物リストは、{partnerName} が1人に戻るため表示されなくなります。

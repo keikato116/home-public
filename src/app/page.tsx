@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { useCalendarStore } from "@/store/calendarStore";
 import { useSubscriptionStore } from "@/store/subscriptionStore";
@@ -20,6 +20,8 @@ import { LockedScreen } from "@/components/paywall/LockedScreen";
 import { PREMIUM_TABS, PAIR_ONLY_TABS, BILLING_ENABLED } from "@/lib/constants";
 import { initDeepLinkAuth } from "@/lib/nativeAuth";
 import { hydratePrefs } from "@/store/prefsStore";
+import { getPendingJoin, clearPendingJoin, completePendingJoin } from "@/lib/pendingJoin";
+import { LS_CACHED_HOUSEHOLD, LS_CACHED_INVITE, LS_CACHED_IS_OWNER, LS_CACHED_MEMBER_COUNT } from "@/lib/constants";
 
 function MainApp() {
   const { activeTab, settingsOpen, householdId, accessToken, user, setActiveTab, memberCount } = useAuthStore();
@@ -45,6 +47,26 @@ function MainApp() {
   useEffect(() => {
     if (userId && memberCount !== null) useSubscriptionStore.getState().refresh();
   }, [userId, memberCount]);
+
+  // 初回登録で招待コードを入れたが未加入だった人は、加入できた時点でその世帯に参加する
+  const [joinError, setJoinError] = useState<string | null>(null);
+  useEffect(() => {
+    if (!BILLING_ENABLED || source === null) return;
+    const code = getPendingJoin();
+    if (!code) return;
+    clearPendingJoin();
+    completePendingJoin(code).then((err) => {
+      if (err) {
+        setJoinError(err);
+        return;
+      }
+      // 所属もデータも入れ替わるので、読み込み直す
+      for (const key of [LS_CACHED_HOUSEHOLD, LS_CACHED_INVITE, LS_CACHED_IS_OWNER, LS_CACHED_MEMBER_COUNT]) {
+        try { localStorage.removeItem(key); } catch {}
+      }
+      window.location.href = "/";
+    });
+  }, [source]);
 
   const premium = entitled === true;
   const solo = memberCount !== null && memberCount <= 1;
@@ -79,6 +101,17 @@ function MainApp() {
         {activeTab === "shopping" && <ShoppingTab />}
         {activeTab === "split" && !solo && <SplitTab />}
       </main>
+
+      {joinError && (
+        <div className="fixed top-0 inset-x-0 z-50 max-w-xl mx-auto px-5 pt-[calc(env(safe-area-inset-top)+12px)]">
+          <div className="bg-background border border-border rounded-xl px-4 py-3 flex items-start gap-3 shadow-sm">
+            <p className="text-[11px] leading-relaxed flex-1">{joinError}</p>
+            <button onClick={() => setJoinError(null)} className="text-[11px] text-muted-foreground underline">
+              閉じる
+            </button>
+          </div>
+        </div>
+      )}
 
       <BottomTabBar />
       {settingsOpen && <SettingsPage />}
