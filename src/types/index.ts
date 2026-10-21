@@ -53,6 +53,8 @@ export interface Recipe {
   title: string;
   url: string | null;
   ingredients: string | null;
+  /** 作り方。1行が1手順。 */
+  steps: string | null;
   thumbnail_url: string | null;
   photo_urls: string[] | null;
   cook_time_min: number | null;

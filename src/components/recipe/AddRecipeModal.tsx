@@ -343,6 +343,15 @@ export function AddRecipeModal({ onClose }: Props) {
                         className="w-full bg-transparent border-b border-border pb-1 text-[12px] focus:outline-none focus:border-foreground/40 resize-none"
                       />
                     </Field>
+                    <Field label="steps">
+                      <textarea
+                        value={r.steps ?? ""}
+                        onChange={(e) => updateRecipe(i, { steps: e.target.value || null })}
+                        rows={6}
+                        placeholder="1行に1手順"
+                        className="w-full bg-transparent border-b border-border pb-1 text-[12px] focus:outline-none focus:border-foreground/40 resize-none"
+                      />
+                    </Field>
                   </div>
                 )}
               </div>

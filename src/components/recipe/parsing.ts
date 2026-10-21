@@ -9,6 +9,7 @@ export interface ParsedRecipe {
   servings: number | null;
   cook_time_min: number | null;
   ingredients: string | null;
+  steps: string | null;
   memo: string | null;
   thumbnail_url: string | null;
   url: string | null;
@@ -25,6 +26,7 @@ export const makeEmpty = (): ParsedRecipe => ({
   servings: null,
   cook_time_min: null,
   ingredients: null,
+  steps: null,
   memo: null,
   thumbnail_url: null,
   url: null,

@@ -162,6 +162,9 @@ SQL Editor には**ファイルの中身**を貼る。ファイルのパスを�
 8. `supabase/migrations/2026-10-21_recipe_import_limit.sql`
    — レシピ取り込みの上限（月30品、裏で読み取り月100回）。流す前は数えずに通る
 
+9. `supabase/migrations/2026-10-21_recipe_steps.sql`
+   — レシピに作り方の列を足す。流す前は作り方を外して読み書きする（保存は止まらない）
+
    **適用状況（2026-10-21）**: 1〜7 すべて本番に適用済み。全19表で RLS がオン、
    ポリシーは監査後の想定どおり（ダッシュボード由来の残りなし）。運営の2人に付与済み。
    `NEXT_PUBLIC_BILLING_ENABLED` はまだオフ（RevenueCat の設定待ち）。

@@ -12,7 +12,18 @@ export const SUBCATEGORIES: Partial<Record<string, string[]>> = {
   main: ["meat", "fish", "others"],
 };
 
-const PRESET_RECIPES: Omit<Recipe, "id" | "owner_id" | "times_made" | "last_made_at" | "created_at" | "thumbnail_url" | "photo_urls" | "url" | "subcategory">[] = [
+// recipes.steps はマイグレーション（2026-10-21_recipe_steps.sql）で足した列。
+// 流す前のデプロイでもレシピの読み込み・保存が止まらないよう、列が無いと言われたら
+// steps を外してやり直す。流し終えたら、この分岐は通らない。
+function missingStepsColumn(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  return (error.code === "42703" || error.code === "PGRST204") && /steps/.test(error.message ?? "");
+}
+
+const RECIPE_COLUMNS =
+  "id, owner_id, title, url, ingredients, steps, thumbnail_url, photo_urls, cook_time_min, servings, category, subcategory, memo, times_made, last_made_at, created_at";
+
+const PRESET_RECIPES: Omit<Recipe, "id" | "owner_id" | "times_made" | "last_made_at" | "created_at" | "thumbnail_url" | "photo_urls" | "url" | "subcategory" | "steps">[] = [
   {
     title: "魚の煮つけ",
     category: "main",
@@ -176,7 +187,7 @@ interface RecipeState {
   load: () => Promise<void>;
   loadPreset: (userId: string) => Promise<void>;
   add: (userId: string, input: Partial<Recipe> & { title: string }, file?: File) => Promise<void>;
-  updateRecipe: (id: string, patch: Partial<Pick<Recipe, "category" | "subcategory" | "title" | "ingredients" | "memo" | "servings">>) => Promise<void>;
+  updateRecipe: (id: string, patch: Partial<Pick<Recipe, "category" | "subcategory" | "title" | "ingredients" | "steps" | "memo" | "servings">>) => Promise<void>;
   recordMade: (id: string, date?: string) => Promise<void>;
   unrecordMade: (id: string) => Promise<void>;
   deleteRecipe: (id: string) => Promise<void>;
@@ -193,13 +204,18 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
     try {
       const supabase = createClient();
       await ensureSession();
-      const { data, error } = await supabase
-        .from("recipes")
-        .select("id, owner_id, title, url, ingredients, thumbnail_url, photo_urls, cook_time_min, servings, category, subcategory, memo, times_made, last_made_at, created_at")
-        // 自分のものと、同じ世帯にいる人のものだけが返る（RLS で絞られる）
-        .order("created_at", { ascending: false });
+      const select = (columns: string) =>
+        supabase
+          .from("recipes")
+          .select(columns)
+          // 自分のものと、同じ世帯にいる人のものだけが返る（RLS で絞られる）
+          .order("created_at", { ascending: false });
+      let { data, error } = await select(RECIPE_COLUMNS);
+      if (missingStepsColumn(error)) {
+        ({ data, error } = await select(RECIPE_COLUMNS.replace(" steps,", "")));
+      }
       if (error) set({ loadError: error.message, loading: false, recipes: [] });
-      else set({ recipes: (data ?? []) as Recipe[], loading: false });
+      else set({ recipes: (data ?? []) as unknown as Recipe[], loading: false });
     } catch {
       set({ loadError: "failed to load recipes", loading: false });
     }
@@ -251,9 +267,7 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
       }
     }
 
-    const { data, error } = await supabase
-      .from("recipes")
-      .insert({
+    const row = {
         owner_id: userId,
         title: input.title,
         category: input.category ?? null,
@@ -261,13 +275,19 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
         cook_time_min: input.cook_time_min ?? null,
         servings: input.servings ?? null,
         ingredients: input.ingredients ?? null,
+        steps: input.steps ?? null,
         url: input.url ?? null,
         thumbnail_url,
         photo_urls: input.photo_urls ?? null,
         memo: input.memo ?? null,
-      })
-      .select()
-      .single();
+    };
+    const insert = (r: Record<string, unknown>) => supabase.from("recipes").insert(r).select().single();
+    let { data, error } = await insert(row);
+    if (missingStepsColumn(error)) {
+      const { steps: _omit, ...withoutSteps } = row;
+      void _omit;
+      ({ data, error } = await insert(withoutSteps));
+    }
     if (error) throw new Error(error.message);
     if (data) set((s) => ({ recipes: [data as Recipe, ...s.recipes] }));
   },
@@ -302,7 +322,12 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
   updateRecipe: async (id, patch) => {
     const supabase = createClient();
     await ensureSession();
-    await supabase.from("recipes").update(patch).eq("id", id);
+    const { error } = await supabase.from("recipes").update(patch).eq("id", id);
+    if (missingStepsColumn(error) && "steps" in patch) {
+      const { steps: _omit, ...withoutSteps } = patch;
+      void _omit;
+      await supabase.from("recipes").update(withoutSteps).eq("id", id);
+    }
     set((s) => ({
       recipes: s.recipes.map((r) => r.id === id ? { ...r, ...patch } : r),
     }));

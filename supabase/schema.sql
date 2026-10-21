@@ -108,6 +108,7 @@ create table public.recipes (
   subcategory   text,
   url           text,
   ingredients   text,
+  steps         text,          -- 作り方。1行が1手順（URL から取り込むとサイトの手順を書き写す）
   memo          text,
   thumbnail_url text,
   photo_urls    text[],

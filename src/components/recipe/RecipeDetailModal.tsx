@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Recipe } from "@/types";
 import { useRecipeStore, RECIPE_CATEGORIES, SUBCATEGORIES } from "@/store/recipeStore";
 import { ExternalLink, X, Loader2, Pencil, Check } from "lucide-react";
+import { stepLines, hostOf } from "@/lib/recipeSteps";
 
 interface Props {
   recipe: Recipe;
@@ -59,6 +60,7 @@ export function RecipeDetailModal({ recipe, onClose }: Props) {
   const [editCategory, setEditCategory] = useState(recipe.category ?? "");
   const [editSubcategory, setEditSubcategory] = useState(recipe.subcategory ?? "");
   const [editIngredients, setEditIngredients] = useState(recipe.ingredients ?? "");
+  const [editSteps, setEditSteps] = useState(recipe.steps ?? "");
   const [editMemo, setEditMemo] = useState(recipe.memo ?? "");
   const [editServings, setEditServings] = useState<string>(recipe.servings != null ? String(recipe.servings) : "");
   const [saving, setSaving] = useState(false);
@@ -98,6 +100,7 @@ export function RecipeDetailModal({ recipe, onClose }: Props) {
         category: editCategory || null,
         subcategory: editSubcategory || null,
         ingredients: editIngredients || null,
+        steps: editSteps || null,
         memo: editMemo || null,
         servings: editServings ? Number(editServings) : null,
       });
@@ -183,6 +186,15 @@ export function RecipeDetailModal({ recipe, onClose }: Props) {
                 />
               </div>
               <div>
+                <p className="text-[9px] tracking-widest text-muted-foreground uppercase mb-1">steps（1行に1手順）</p>
+                <textarea
+                  value={editSteps}
+                  onChange={(e) => setEditSteps(e.target.value)}
+                  rows={8}
+                  className="w-full bg-background rounded px-2 py-1.5 text-[12px] leading-relaxed focus:outline-none resize-none"
+                />
+              </div>
+              <div>
                 <p className="text-[9px] tracking-widest text-muted-foreground uppercase mb-1">memo</p>
                 <textarea
                   value={editMemo}
@@ -235,7 +247,7 @@ export function RecipeDetailModal({ recipe, onClose }: Props) {
               className="flex items-center gap-2 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
             >
               <ExternalLink size={11} />
-              <span className="truncate">{recipe.url}</span>
+              <span className="truncate">元のページを開く（{hostOf(recipe.url)}）</span>
             </a>
           )}
 
@@ -275,6 +287,24 @@ export function RecipeDetailModal({ recipe, onClose }: Props) {
               )}
 
               <p className="text-[12px] leading-relaxed whitespace-pre-wrap">{displayIngredients}</p>
+            </div>
+          )}
+
+          {recipe.steps && (
+            <div>
+              <p className="text-[10px] tracking-widest text-muted-foreground uppercase mb-3">steps</p>
+              <ol className="space-y-2.5">
+                {stepLines(recipe.steps).map((step, i) =>
+                  step.heading ? (
+                    <li key={i} className="text-[11px] text-muted-foreground pt-1">{step.text}</li>
+                  ) : (
+                    <li key={i} className="flex gap-3 text-[12px] leading-relaxed">
+                      <span className="text-muted-foreground tabular-nums flex-shrink-0 w-4 text-right">{step.n}</span>
+                      <span>{step.text}</span>
+                    </li>
+                  )
+                )}
+              </ol>
             </div>
           )}
 
@@ -331,7 +361,7 @@ export function RecipeDetailModal({ recipe, onClose }: Props) {
             save
           </button>
           <button
-            onClick={() => { setEditing(false); setEditIngredients(recipe.ingredients ?? ""); setEditMemo(recipe.memo ?? ""); setEditServings(recipe.servings != null ? String(recipe.servings) : ""); }}
+            onClick={() => { setEditing(false); setEditIngredients(recipe.ingredients ?? ""); setEditSteps(recipe.steps ?? ""); setEditMemo(recipe.memo ?? ""); setEditServings(recipe.servings != null ? String(recipe.servings) : ""); }}
             className="text-[12px] text-muted-foreground px-4 py-2"
           >
             cancel

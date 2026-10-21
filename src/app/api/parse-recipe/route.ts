@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { RECIPE_IMPORT_DISH_LIMIT, RECIPE_ANALYSIS_LIMIT } from "@/lib/recipeImportLimit";
 import { fetchPublicText } from "@/lib/server/safeFetch";
+import { extractJsonLdRecipe } from "@/lib/server/recipeJsonLd";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -70,6 +71,7 @@ const FIELDS = `- title: recipe name (string)
 - servings: number of servings as integer (number or null)
 - cook_time_min: total cooking time in minutes as integer (number or null)
 - ingredients: ONLY ingredients explicitly listed in the ingredients/materials section of the recipe. Do NOT include items mentioned in instructions, steps, or notes that are not listed in the ingredients section. One item per line (string or null)
+- steps: the cooking steps in order, transcribed as written, one step per line, without step numbers (string or null)
 - memo: tips, notes, or variations (string or null)`;
 
 const SCHEMA_PROMPT = `Analyze the recipe content. There may be one or multiple recipes.
@@ -120,9 +122,17 @@ export async function POST(req: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   const admin = createAdminClient();
-  const counted = (body.type === "photo" || body.type === "url") && user && admin;
-  if (counted) {
+  // Claude に読ませた分だけ数える。URL でもサイトの埋め込みデータで読めたら数えない。
+  let consumed = false;
+  const consume = async (): Promise<NextResponse | null> => {
+    if (!user || !admin) return null;
     const limited = await consumeAnalysis(admin, user.id);
+    if (!limited) consumed = true;
+    return limited;
+  };
+
+  if (body.type === "photo") {
+    const limited = await consume();
     if (limited) return limited;
   }
 
@@ -172,12 +182,30 @@ export async function POST(req: Request) {
         "User-Agent": "Mozilla/5.0 AppleWebKit/537.36 Chrome/120 Safari/537.36",
       });
 
-      const ogImage =
-        html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)?.[1] ??
-        html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i)?.[1] ??
-        null;
+      // 1. サイトが埋め込んでいるレシピ情報（JSON-LD）があれば、それを書き写す。
+      //    Claude を使わないので費用ゼロ・読み取り回数にも数えない。
+      // 画像はどちらの経路でも持たない（保存も表示もしない）。元のページへは url から飛べる。
+      const embedded = extractJsonLdRecipe(html);
+      if (embedded) {
+        return NextResponse.json([{
+          ...embedded,
+          subcategory: null,
+          memo: null,
+          thumbnail_url: null,
+          url,
+        }]);
+      }
 
-      const text = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").slice(0, 8000);
+      // 2. 無ければ Haiku で読む。script や style の中身はレシピではないので先に外す
+      //    （外さないと、8000文字の枠がページの裏側のコードで埋まる）。
+      const limited = await consume();
+      if (limited) return limited;
+
+      const text = html
+        .replace(/<(script|style|noscript|svg)[^>]*>[\s\S]*?<\/\1>/gi, " ")
+        .replace(/<[^>]+>/g, " ")
+        .replace(/\s+/g, " ")
+        .slice(0, 8000);
 
       const msg = await client.messages.create({
         model: MODEL,
@@ -191,13 +219,15 @@ export async function POST(req: Request) {
 
       const rawUrl = textOf(msg);
       const recipes = parseJson(rawUrl);
-      return NextResponse.json(recipes.map((r) => ({ ...r, thumbnail_url: ogImage, url })));
+      return NextResponse.json(recipes.map((r) => ({ ...r, thumbnail_url: null, url })));
     }
 
     return NextResponse.json({ error: "invalid type" }, { status: 400 });
   } catch (e) {
     // 読み取れなかった分で上限が減らないよう、1回分を戻す
-    if (counted) await admin.rpc("refund_recipe_analysis", { p_user: user.id }).then(() => {}, () => {});
+    if (consumed && user && admin) {
+      await admin.rpc("refund_recipe_analysis", { p_user: user.id }).then(() => {}, () => {});
+    }
     const message = e instanceof Error ? e.message : String(e);
     return NextResponse.json({ error: message }, { status: 500 });
   }
