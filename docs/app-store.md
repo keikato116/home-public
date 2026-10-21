@@ -72,6 +72,8 @@ SQL Editor には**ファイルの中身**を貼る。ファイルのパスを�
    — auth.users を参照する外部キーを ON DELETE SET NULL / CASCADE に張り直す
 3. `supabase/migrations/2026-09-11_pairing_scope.sql`
    — 「部屋」（ペアの期間）の導入。割り勘と共有買い物リストを現在の部屋に限定する
+4. `supabase/migrations/2026-10-21_premium_grants.sql`
+   — 運営による有料機能の付与（下記）。`household_entitled()` を置き換える
 
 2 本目を流さないと、アカウント削除が外部キー違反で失敗する。
 流したあと、末尾のコメントにある確認クエリが 0 件になることを見ておくとよい。
@@ -99,30 +101,52 @@ join pg_attribute att on att.attrelid = cl.oid and att.attnum = k.attnum
 where con.contype = 'f' and rf.relname = 'users' and con.confdeltype in ('a','r');
 ```
 
-#### 自分（と審査員）を課金済みにする
+#### 特定のユーザーに有料機能を付ける（運営による付与）
 
-**既存の Supabase プロジェクトにそのまま流した場合、この作業は必須。**
-`premium required%` のポリシーは全ユーザーに効くので、`subscriptions` に行が無いと
-レシピと献立が保存できなくなる（今まで使っていた人も含めて）。
+`supabase/migrations/2026-10-21_premium_grants.sql` を流しておくと、SQL Editor から
+メールアドレスで付与・取り消しができる。自分たち、審査用アカウント、知り合いなどに使う。
 
 ```sql
--- メールアドレスから user_id を引いて、期限なしの有効な行を入れる
-insert into public.subscriptions (user_id, product_id, status, expires_at, environment)
-select id, 'manual_grant', 'active', null, 'MANUAL'
-from auth.users
-where email in ('自分のメールアドレス', '審査用アカウントのメールアドレス')
-on conflict (user_id) do update
-  set status = 'active', expires_at = null, product_id = 'manual_grant';
+-- 無期限で付与
+select public.grant_premium('someone@example.com');
+
+-- 期限つき・メモつき
+select public.grant_premium('someone@example.com', now() + interval '3 months', '友人');
+
+-- 取り消し
+select public.revoke_premium('someone@example.com');
+
+-- 付与している人の一覧
+select u.email, g.expires_at, g.note, g.granted_at
+from public.premium_grants g join auth.users u on u.id = g.user_id
+order by g.granted_at desc;
 ```
 
-`expires_at` が null なので期限切れにならない。取り消すときはその行を削除する。
+- 付与された人と**同じ世帯のもう1人も使える**（購入と同じ扱い）
+- 相手は先に一度アプリでログインしている必要がある（`auth.users` に行が無いと付与できない）
+- アプリ（anon / authenticated）からは `grant_premium` を呼べない。Supabase は public の関数に
+  既定で実行権を付けるので、マイグレーションで名指しで外してある
+- 付与された人の設定画面には「特別にご招待しています」と出て、解約の案内は出ない。
+  アカウント削除の時も「先に解約して」とは聞かれない
+
+**`subscriptions` に手で行を入れないこと。** あのテーブルは RevenueCat の webhook が
+user_id 単位で上書きするので、その人が一度購入して解約すると、手で入れた行が
+`expired` に書き換わって付与が消える。付与は必ず `premium_grants` で行う。
+
+判定は `premium_source()` に一本化してある（`'subscription'` / `'grant'` / `'household'` / null）。
+RLS の課金ゲート（`household_entitled()`）もこれを見るので、画面の表示と書き込みの可否はずれない。
 
 ### 2. App Store Connect
 
 1. 新規 App を作成（Bundle ID: `com.keikato.homeapp` — `capacitor.config.ts` と一致させる）
 2. サブスクリプショングループを作成し、商品を登録
-   - 月額: `com.keikato.homeapp.premium.monthly`
+   - 月額: `com.keikato.homeapp.premium.monthly`（**300円**）
    - 年額（任意）: `com.keikato.homeapp.premium.yearly`
+   - 月額に**導入オファー**を付ける: 種類「無料」、期間「1か月」、対象の国は日本。
+     これで「最初の1か月無料 → 自動で月額に移行」になる。切り替えは Apple が行うので
+     コードは何もしない。ペイウォールは StoreKit が「対象」と確定させた人にだけ
+     「最初の1か月無料」と出す（`src/lib/trial.ts`）。無料体験は Apple ID ごと・
+     サブスクグループごとに1回まで
 3. 各商品に審査用のスクリーンショットと説明を登録（未登録だと商品が審査に出せない）
 4. 「契約、税金、および口座情報」で有料App契約を締結する
    — **これが済んでいないと商品が一切取得できず、購入画面が空になる**
@@ -264,7 +288,7 @@ now() にすると、いま入っている割り勘データが一斉に見え�
 
 | 項目 | なぜ必要か |
 |---|---|
-| **審査用デモアカウント** | Google サインインがあるので必須。課金済み状態にしておく（`subscriptions` に手で status='active' の行を入れる） |
+| **審査用デモアカウント** | Google サインインがあるので必須。`grant_premium()` で有料機能を付けておく |
 | **スクリーンショット** | 6.9インチ・6.5インチの2サイズ |
 | **App プライバシー申告** | 収集項目の申告。`/privacy` の内容と食い違わせない |
 | **サポートURL** | App Store Connect の必須項目 |
@@ -308,5 +332,5 @@ EU のデジタルサービス法により、**有料アプリまたはアプリ
 「取引者（trader）」とみなされ、**氏名・住所・電話番号・メールアドレスがアプリページに
 公開される**。2025年2月の期限で、未提出のアプリは EU の App Store から一斉に削除された。
 
-初回リリースは課金なしなので直ちには対象外だが、**あとでサブスクを入れた時点で対象になる**。
-日本限定である限り適用されないので、課金を入れるときも配信国は日本のままにしておくこと。
+初回リリースからサブスクがあるので、**EU に配信すれば対象になる**。
+日本限定である限り適用されないので、配信国は日本のままにしておくこと。

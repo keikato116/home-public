@@ -13,7 +13,7 @@ export const metadata = {
   title: "Privacy Policy | Imbrex",
 };
 
-const UPDATED = "18 September 2026";
+const UPDATED = "21 October 2026";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -53,9 +53,10 @@ export default function PrivacyEnPage() {
       <Section title="Information we collect">
         <UL>
           <li>・Account details — the email address and display name from the Google or Apple account used to sign in</li>
-          <li>・Content you enter — tasks, chores and their completion records, shopping lists, recipes, meal plans, expense records</li>
+          <li>・Content you enter — tasks, chores and their completion records, shopping lists, recipes and their photos, meal plans, expense records</li>
           <li>・Google Calendar events — read only, and only if you connect your calendar</li>
           <li>・Approximate location — latitude and longitude, used solely to show the weather</li>
+          <li>・Paid plan status — whether you are subscribed, the product purchased, and its expiry</li>
         </UL>
         <P>
           We do not collect payment card details or contacts, and we do not access your photo
@@ -92,6 +93,11 @@ export default function PrivacyEnPage() {
             ・<strong>Anthropic</strong> — recipe import. Only when you use the import feature, the
             contents of the page you import from, or the photo you choose, are sent for analysis.
             Nothing is sent unless you use it.
+          </li>
+          <li>
+            ・<strong>RevenueCat</strong> — managing the status of the paid plan. An in-app user ID
+            (a random identifier) and the purchased product and its expiry are sent. Your name and
+            email address are not.
           </li>
           <li>
             ・<strong>OpenWeatherMap</strong> — weather. Latitude and longitude are sent when you
@@ -173,8 +179,10 @@ export default function PrivacyEnPage() {
 
       <Section title="Payments">
         <P>
-          The app currently has no paid features and collects no payment information. If that
-          changes, we will update this policy and let you know.
+          Payments for the paid plan are processed by Apple. <strong>The app never receives your
+          card number or any other payment details.</strong> It receives only the status of your
+          purchase — whether you are subscribed, which product, and when it expires — and uses it
+          solely to decide whether paid features are available.
         </P>
       </Section>
 

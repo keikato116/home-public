@@ -7,7 +7,7 @@ import { ensureSession } from "@/lib/supabase/helpers";
 import { getJSON, setJSON } from "@/lib/storage";
 import { LS_ENTITLED_CACHE } from "@/lib/constants";
 import {
-  purchasesAvailable, configurePurchases, fetchPackages,
+  purchasesAvailable, configurePurchases, fetchPackages, fetchTrialEligibility,
   purchasePackage, restorePurchases, hasEntitlement, isUserCancelled,
 } from "@/lib/purchases";
 
@@ -17,10 +17,22 @@ import {
 // localStorage のキャッシュは「起動直後にタブが一瞬消える」のを防ぐためだけのもの。
 // 書き換えられても DB 側の RLS があるので、有料データが漏れるわけではない。
 
+/**
+ * 有料機能が使える理由。DB の premium_source() と同じ値。
+ * - subscription: 本人が App Store で購入している
+ * - grant:        運営が本人に付与している（supabase/migrations/2026-10-21_premium_grants.sql）
+ * - household:    世帯のもう1人が購入 or 付与されている
+ */
+export type PremiumSource = "subscription" | "grant" | "household";
+
 interface SubscriptionState {
   /** null = 判定前。true/false が確定するまでプレミアムタブは出さない。 */
   entitled: boolean | null;
+  /** null = 使えない、または未取得。解約の案内を出すかどうかの判断に使う。 */
+  source: PremiumSource | null;
   packages: PurchasesPackage[];
+  /** 商品ID → 無料体験の対象か。確定していない商品は入らない（= 出さない）。 */
+  trialEligible: Record<string, boolean>;
   paywallOpen: boolean;
   purchasing: boolean;
   restoring: boolean;
@@ -33,17 +45,32 @@ interface SubscriptionState {
   restore: () => Promise<boolean>;
 }
 
-async function fetchEntitlementFromDb(): Promise<boolean> {
+async function fetchFromDb(): Promise<{ entitled: boolean; source: PremiumSource | null }> {
   const supabase = createClient();
   await ensureSession();
-  const { data, error } = await supabase.rpc("household_entitled");
-  if (error) throw error;
-  return data === true;
+  // RLS の課金ゲート（household_entitled）も同じ関数を見ているので、
+  // ここで null 以外なら書き込みも通る。
+  const { data, error } = await supabase.rpc("premium_source");
+  if (error) {
+    // マイグレーション（2026-10-21_premium_grants.sql）を流す前のデプロイでも
+    // 有料機能が消えないように、古い関数で判定する。理由は分からないので source は
+    // null のまま（解約の案内は安全側で出る）。流し終えたらこの分岐は通らない。
+    if (error.code === "PGRST202") {
+      const legacy = await supabase.rpc("household_entitled");
+      if (legacy.error) throw legacy.error;
+      return { entitled: legacy.data === true, source: null };
+    }
+    throw error;
+  }
+  const source = data === "subscription" || data === "grant" || data === "household" ? data : null;
+  return { entitled: source !== null, source };
 }
 
 export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
   entitled: null,
+  source: null,
   packages: [],
+  trialEligible: {},
   paywallOpen: false,
   purchasing: false,
   restoring: false,
@@ -59,6 +86,10 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
         await configurePurchases(userId);
         const pkgs = await fetchPackages();
         set({ packages: pkgs });
+        // 失敗しても購入はできる。無料体験の表示が出ないだけ。
+        fetchTrialEligibility(pkgs.map((p) => p.product.identifier))
+          .then((trialEligible) => set({ trialEligible }))
+          .catch(() => {});
       } catch {
         // 課金プラグインが落ちても、DB 側の判定でアプリは成立する
       }
@@ -69,9 +100,9 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
 
   refresh: async () => {
     try {
-      const entitled = await fetchEntitlementFromDb();
+      const { entitled, source } = await fetchFromDb();
       setJSON(LS_ENTITLED_CACHE, entitled);
-      set({ entitled });
+      set({ entitled, source });
     } catch {
       // オフライン等。キャッシュがなければ「未購入」に倒す
       if (get().entitled === null) set({ entitled: false });
@@ -87,7 +118,7 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
       if (hasEntitlement(info)) {
         // 先読みで即開放。webhook が届けば refresh で DB 由来の値に上書きされる。
         setJSON(LS_ENTITLED_CACHE, true);
-        set({ entitled: true, paywallOpen: false });
+        set({ entitled: true, source: "subscription", paywallOpen: false });
         setTimeout(() => { get().refresh().catch(() => {}); }, 4000);
         return true;
       }
@@ -110,7 +141,7 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
       const ok = hasEntitlement(info);
       if (ok) {
         setJSON(LS_ENTITLED_CACHE, true);
-        set({ entitled: true, paywallOpen: false });
+        set({ entitled: true, source: "subscription", paywallOpen: false });
         setTimeout(() => { get().refresh().catch(() => {}); }, 4000);
       } else {
         set({ error: "復元できる購入が見つかりませんでした。" });

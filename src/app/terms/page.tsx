@@ -1,14 +1,14 @@
 // App Store Connect の「利用規約（EULA）URL」と、Google の OAuth 審査に出す URL。
 //
 // Apple の標準 EULA を使う場合でも、サブスクリプションの条件はここに書いておく必要がある。
-// NEXT_PUBLIC_BILLING_ENABLED を true にするときは「5. 有料プラン」を
-// 提供中の内容に書き換えること。いまは提供していない前提で書いてある。
+// 「5. 有料プラン」の料金・内容は App Store Connect の商品と必ず一致させること。
+// 価格を変えたら、ここと /privacy、/about も直す。
 
 export const metadata = {
   title: "利用規約 | Imbrex",
 };
 
-const UPDATED = "2026年9月12日";
+const UPDATED = "2026年10月21日";
 
 export default function TermsPage() {
   return (
@@ -77,9 +77,39 @@ export default function TermsPage() {
       <section className="space-y-2">
         <h2 className="text-[13px] tracking-wide">5. 有料プラン</h2>
         <p className="text-[12px] text-muted-foreground leading-relaxed">
-          現在、本アプリは有料の機能を提供していません。
-          今後、有料の機能を提供する場合は、本規約を更新したうえで、
-          料金・更新条件・解約方法を明示します。
+          本アプリは、一部の機能を有料プラン「premium」として提供します。
+        </p>
+        <ul className="text-[12px] text-muted-foreground leading-relaxed space-y-1">
+          <li>・<strong>内容</strong> — レシピの保存・取り込み、献立カレンダーの保存</li>
+          <li>・<strong>料金</strong> — 月額300円（税込）。App Store を通じて Apple ID に請求されます</li>
+          <li>
+            ・<strong>無料体験</strong> — はじめて加入する方は、最初の1か月を無料で利用できます。
+            無料期間が終わると<strong>自動的に月額300円の有料プランに移行</strong>します。
+            無料期間の終了24時間前までに解約すれば、料金はかかりません。
+            無料体験を受けられるのは、Apple ID ごとに1回かぎりです
+          </li>
+          <li>
+            ・<strong>自動更新</strong> — 期間終了の24時間前までに解約しないかぎり、
+            同じ期間・同じ料金で自動的に更新されます
+          </li>
+          <li>
+            ・<strong>解約</strong> — iPhone の「設定 → Apple ID → サブスクリプション」から、いつでも行えます。
+            <strong>アプリの削除やアカウントの削除では解約されません。</strong>
+            解約後も、期間の終了までは引き続き利用できます
+          </li>
+          <li>・<strong>返金</strong> — Apple の定めに従います。運営者から返金を行うことはできません</li>
+          <li>
+            ・<strong>世帯での共有</strong> — 世帯のどちらか1人が加入していれば、
+            同じ世帯のもう1人も有料プランの機能を利用できます
+          </li>
+          <li>
+            ・<strong>解約後のデータ</strong> — 保存したレシピと献立は引き続き閲覧・削除できます。
+            新しく保存・編集することはできなくなります
+          </li>
+        </ul>
+        <p className="text-[12px] text-muted-foreground leading-relaxed">
+          運営者は、特定の利用者に有料プランの機能を無償で提供することがあります。
+          料金や内容を変更する場合は、事前にアプリ内または本ページでお知らせします。
         </p>
       </section>
 

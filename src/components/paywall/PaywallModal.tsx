@@ -3,6 +3,7 @@
 import { useSubscriptionStore } from "@/store/subscriptionStore";
 import { purchasesAvailable } from "@/lib/purchases";
 import { TERMS_URL, PRIVACY_URL } from "@/lib/constants";
+import { freeTrialLabel, priceLabel } from "@/lib/trial";
 import { X } from "lucide-react";
 
 // 購入画面。App Store の審査要件（3.1.2 / 3.1.1）を満たすために、
@@ -18,7 +19,7 @@ const FEATURES = [
 
 export function PaywallModal() {
   const {
-    paywallOpen, setPaywallOpen, packages, purchase, restore,
+    paywallOpen, setPaywallOpen, packages, trialEligible, purchase, restore,
     purchasing, restoring, error,
   } = useSubscriptionStore();
 
@@ -54,23 +55,37 @@ export function PaywallModal() {
 
         {!purchasesAvailable() ? (
           <p className="text-[12px] text-muted-foreground leading-relaxed">
-            購入は iPhone アプリからのみ行えます。App Store から home をインストールしてご購入ください。
+            購入は iPhone アプリからのみ行えます。App Store から Imbrex をインストールしてご購入ください。
           </p>
         ) : packages.length === 0 ? (
           <p className="text-[12px] text-muted-foreground">プランを読み込めませんでした。通信環境を確認してもう一度お試しください。</p>
         ) : (
           <div className="space-y-2">
-            {packages.map((pkg) => (
-              <button
-                key={pkg.identifier}
-                disabled={busy}
-                onClick={() => purchase(pkg)}
-                className="w-full flex items-center justify-between px-5 py-4 border border-border rounded-2xl disabled:opacity-50 transition-colors hover:border-foreground/40"
-              >
-                <span className="text-[13px] tracking-wide">{pkg.product.title}</span>
-                <span className="text-[13px]">{pkg.product.priceString}</span>
-              </button>
-            ))}
+            {packages.map((pkg) => {
+              const trial = freeTrialLabel(pkg.product, trialEligible[pkg.product.identifier] === true);
+              const price = priceLabel(pkg.product);
+              return (
+                <div key={pkg.identifier} className="space-y-2">
+                  <button
+                    disabled={busy}
+                    onClick={() => purchase(pkg)}
+                    className="w-full flex items-center justify-between px-5 py-4 border border-border rounded-2xl disabled:opacity-50 transition-colors hover:border-foreground/40"
+                  >
+                    <span className="text-[13px] tracking-wide text-left">
+                      {trial ?? pkg.product.title}
+                    </span>
+                    <span className="text-[13px]">{trial ? `その後 ${price}` : price}</span>
+                  </button>
+                  {/* 3.1.2: 無料期間のあと自動で課金が始まることを、ボタンのすぐそばに書く */}
+                  {trial && (
+                    <p className="text-[11px] text-muted-foreground leading-relaxed px-1">
+                      無料期間が終わると、自動的に {price} の課金が始まります。
+                      無料期間の終了24時間前までに解約すれば、料金はかかりません。
+                    </p>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
 
@@ -86,7 +101,8 @@ export function PaywallModal() {
 
         <div className="space-y-3 pt-2 border-t border-border">
           <p className="text-[10px] text-muted-foreground leading-relaxed">
-            お支払いは購入確定時に Apple ID に請求されます。期間終了の 24 時間前までに解約しない限り自動更新され、
+            お支払いは購入確定時（無料体験がある場合は体験期間の終了時）に Apple ID に請求されます。
+            期間終了の 24 時間前までに解約しない限り自動更新され、
             同額が請求されます。解約は iPhone の「設定 → Apple ID → サブスクリプション」からいつでも行えます。
           </p>
           <div className="flex gap-4">

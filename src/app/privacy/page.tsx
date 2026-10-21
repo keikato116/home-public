@@ -2,8 +2,8 @@
 //
 // 内容はこのアプリが実際に行っている処理に合わせてある。機能を足したら必ず更新すること。
 // とくに次を変えたら、ここも直さないと申告と実装がずれる:
-//   ・外部サービスへの送信（現在: Supabase / Google / Anthropic / OpenWeatherMap）
-//   ・NEXT_PUBLIC_BILLING_ENABLED を true にしたとき（購入情報の取得が始まる）
+//   ・外部サービスへの送信（現在: Supabase / Google / Anthropic / OpenWeatherMap / RevenueCat）
+//   ・課金の内容（価格・対象機能）を変えたとき
 //   ・新しい種類のデータを保存するとき
 //
 // 「Google ユーザーデータの取り扱い」の節は、sensitive scope（calendar.readonly）の
@@ -13,7 +13,7 @@ export const metadata = {
   title: "プライバシーポリシー | Imbrex",
 };
 
-const UPDATED = "2026年9月12日";
+const UPDATED = "2026年10月21日";
 
 export default function PrivacyPage() {
   return (
@@ -39,9 +39,10 @@ export default function PrivacyPage() {
         <h2 className="text-[13px] tracking-wide">取得する情報</h2>
         <ul className="text-[12px] text-muted-foreground leading-relaxed space-y-1">
           <li>・アカウント情報（サインインに使用した Google または Apple のアカウントのメールアドレス、表示名）</li>
-          <li>・アプリ内で入力・保存した内容（やること、家事の予定と実施記録、買い物リスト、レシピ、献立、精算の記録）</li>
+          <li>・アプリ内で入力・保存した内容（やること、家事の予定と実施記録、買い物リスト、レシピとその写真、献立、精算の記録）</li>
           <li>・Google カレンダーの予定（読み取りのみ。お客様が連携を許可した場合）</li>
           <li>・おおよその位置情報（緯度経度。天気の表示にのみ使用します）</li>
+          <li>・有料プランの購入状態（加入の有無、購入した商品、有効期限）</li>
         </ul>
         <p className="text-[12px] text-muted-foreground leading-relaxed">
           クレジットカード情報、連絡先、写真ライブラリ全体へのアクセスは行いません。
@@ -97,6 +98,11 @@ export default function PrivacyPage() {
             使用しないかぎり送信は発生しません。
           </li>
           <li>
+            ・<strong>RevenueCat</strong> — 有料プランの購入状態の管理。
+            アプリ内の利用者ID（ランダムな識別子）と、購入した商品・有効期限が送信されます。
+            氏名やメールアドレスは送信しません
+          </li>
+          <li>
             ・<strong>OpenWeatherMap</strong> — 天気の取得。
             ホーム画面を開いたときに<strong>緯度経度</strong>が送信されます。
             端末から位置情報を取得できない場合は、接続元から推定したおおよその位置を使用します。
@@ -143,8 +149,10 @@ export default function PrivacyPage() {
       <section className="space-y-2">
         <h2 className="text-[13px] tracking-wide">お支払い情報</h2>
         <p className="text-[12px] text-muted-foreground leading-relaxed">
-          現在、本アプリは有料の機能を提供していません。お支払いに関する情報は取得しません。
-          今後、有料の機能を提供する場合は、本ポリシーを更新したうえでお知らせします。
+          有料プランの決済は Apple が行います。<strong>クレジットカード番号などの支払い情報を、
+          本アプリが取得することはありません。</strong>
+          本アプリが受け取るのは、加入しているかどうか・購入した商品・有効期限といった購入状態だけで、
+          有料機能を使えるかどうかの判定にのみ使います。
         </p>
       </section>
 

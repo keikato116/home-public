@@ -7,7 +7,7 @@ import { MANAGE_SUBSCRIPTION_URL } from "@/lib/constants";
 // 設定から必ず購入・復元できること、解約導線が示されていることが審査上の必須要件。
 
 export function SubscriptionSettings() {
-  const { entitled, setPaywallOpen, restore, restoring } = useSubscriptionStore();
+  const { entitled, source, setPaywallOpen, restore, restoring } = useSubscriptionStore();
 
   return (
     <div className="space-y-3">
@@ -17,16 +17,24 @@ export function SubscriptionSettings() {
         <>
           <p className="text-[13px]">ご利用中</p>
           <p className="text-[11px] text-muted-foreground leading-relaxed">
-            レシピと献立カレンダーが使えます。世帯のもう1人も同じ機能を使えます。
+            {source === "grant"
+              ? "特別にご招待しています。お支払いは不要です。世帯のもう1人も同じ機能を使えます。"
+              : source === "household"
+                ? "世帯のもう1人のプランで、レシピと献立カレンダーが使えます。"
+                : "レシピと献立カレンダーが使えます。世帯のもう1人も同じ機能を使えます。"}
           </p>
-          <a
-            href={MANAGE_SUBSCRIPTION_URL}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-block text-[11px] text-muted-foreground underline"
-          >
-            サブスクリプションを管理・解約
-          </a>
+          {/* 解約の導線は、本人が App Store で払っている（か、まだ判定できていない）ときだけ。
+              付与や相手のプランで使っている人に解約画面を見せても、そこには何も無い。 */}
+          {(source === "subscription" || source === null) && (
+            <a
+              href={MANAGE_SUBSCRIPTION_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-block text-[11px] text-muted-foreground underline"
+            >
+              サブスクリプションを管理・解約
+            </a>
+          )}
         </>
       ) : (
         <>

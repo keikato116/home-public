@@ -73,7 +73,10 @@ export default function AboutPage() {
 
       <Section title="料金">
         <p className="text-[12px] text-muted-foreground leading-relaxed">
-          無料で利用できます。アプリ内に広告はありません。
+          予定・家事・買い物・割り勘は無料で利用できます。
+          レシピの保存と献立カレンダーは、有料プラン（月額300円・税込）でご利用いただけます。
+          はじめての方は最初の1か月が無料です。
+          世帯のどちらか1人が加入すれば、2人とも使えます。アプリ内に広告はありません。
         </p>
       </Section>
 
