@@ -3,6 +3,7 @@
 import { create } from "zustand";
 import { createClient } from "@/lib/supabase/client";
 import { ensureSession } from "@/lib/supabase/helpers";
+import { resizeImage, STORAGE_MAX_EDGE } from "@/lib/imageResize";
 import { Recipe } from "@/types";
 
 export const RECIPE_CATEGORIES = ["main", "side", "soup", "rice & bowl", "pasta", "noodles", "dessert", "seasonal", "bento"] as const;
@@ -237,10 +238,12 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
     let thumbnail_url = input.thumbnail_url ?? null;
 
     if (file) {
-      const ext = file.name.split(".").pop() ?? "jpg";
+      // 長辺 2048px の JPEG に縮めてから置く（src/lib/imageResize.ts）
+      const upload = await resizeImage(file, STORAGE_MAX_EDGE);
+      const ext = upload.name.split(".").pop() ?? "jpg";
       // 持ち主ごとのフォルダに置く。世帯で分けると、移ったときに迷子になる
       const path = `${userId}/${crypto.randomUUID()}.${ext}`;
-      const { error: uploadError } = await supabase.storage.from("recipes").upload(path, file);
+      const { error: uploadError } = await supabase.storage.from("recipes").upload(path, upload);
       if (uploadError) {
         console.warn("storage upload failed, saving without photo:", uploadError.message);
       } else {

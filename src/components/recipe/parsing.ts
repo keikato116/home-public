@@ -1,5 +1,7 @@
 // Recipe analysis / merging / upload logic for AddRecipeModal
 
+import { resizeImage, STORAGE_MAX_EDGE, ANALYZE_MAX_EDGE } from "@/lib/imageResize";
+
 export interface ParsedRecipe {
   title: string;
   category: string | null;
@@ -65,8 +67,11 @@ export async function analyzePhotos(
   // Step 1: analyze each photo individually
   for (let i = 0; i < files.length; i++) {
     onProgress(files.length > 1 ? `analyzing photo ${i + 1} / ${files.length}...` : "analyzing...");
-    const base64 = await fileToBase64(files[i]);
-    const mediaType = (files[i].type || "image/jpeg") as "image/jpeg" | "image/png" | "image/webp";
+    // Claude は長辺 1568px より大きい画像を自分で縮めて読むので、送る前に縮めておく
+    // （精度は変わらず、送信が速くなり、Vercel の送信サイズ上限にもかからない）
+    const forAnalysis = await resizeImage(files[i], ANALYZE_MAX_EDGE);
+    const base64 = await fileToBase64(forAnalysis);
+    const mediaType = (forAnalysis.type || "image/jpeg") as "image/jpeg" | "image/png" | "image/webp";
     const res = await fetch("/api/parse-recipe", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -156,11 +161,12 @@ export async function uploadRecipeFiles(
   const fileUrlMap = new Map<File, string | null>();
   await Promise.allSettled(files.map(async (f) => {
     try {
-      const ext = f.name.split(".").pop() ?? "jpg";
+      const upload = await resizeImage(f, STORAGE_MAX_EDGE);
+      const ext = upload.name.split(".").pop() ?? "jpg";
       // 持ち主ごとのフォルダに置く。ストレージのポリシーが自分のフォルダにしか
       // 書かせない（2026-10-21_security_hardening.sql）。
       const path = `${ownerId}/${crypto.randomUUID()}.${ext}`;
-      const uploadPromise = supabase.storage.from("recipes").upload(path, f);
+      const uploadPromise = supabase.storage.from("recipes").upload(path, upload);
       const uploadTimeout = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error("upload timeout")), 60000)
       );

@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRecipeStore, RECIPE_CATEGORIES, SUBCATEGORIES } from "@/store/recipeStore";
 import { useAuthStore } from "@/store/authStore";
 import { X, Loader2, ChevronDown, ChevronUp } from "lucide-react";
 import { ParsedRecipe, analyzePhotos, analyzeUrl, mergeRecipes, uploadRecipeFiles } from "./parsing";
+import { createClient } from "@/lib/supabase/client";
+import { RECIPE_IMPORT_DISH_LIMIT } from "@/lib/recipeImportLimit";
 
 interface Props {
   onClose: () => void;
@@ -27,6 +29,17 @@ export function AddRecipeModal({ onClose }: Props) {
 
   const { add } = useRecipeStore();
   const { householdId, user, loading: authLoading } = useAuthStore();
+
+  // 今月あと何品取り込めるか（月30品まで。src/lib/recipeImportLimit.ts）。
+  // null は「まだ分からない／数えていない（マイグレーション前）」で、そのときは止めない。
+  const [remaining, setRemaining] = useState<number | null>(null);
+  useEffect(() => {
+    createClient()
+      .rpc("recipe_imports_remaining", { p_limit: RECIPE_IMPORT_DISH_LIMIT })
+      .then(({ data, error }) => {
+        if (!error && typeof data === "number") setRemaining(data);
+      });
+  }, []);
 
   const handleFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
     // Sort by lastModified ascending so photos appear in the order they were taken
@@ -77,6 +90,14 @@ export function AddRecipeModal({ onClose }: Props) {
     if (!householdId || !user) { setError("not ready, please try again"); return; }
     const toSave = recipes.filter((r) => r.selected && r.title.trim());
     if (toSave.length === 0) { setError("select at least one recipe"); return; }
+    if (remaining !== null && toSave.length > remaining) {
+      setError(
+        remaining === 0
+          ? `今月の取り込みは${RECIPE_IMPORT_DISH_LIMIT}品までです。来月1日にまた取り込めるようになります。`
+          : `今月はあと${remaining}品まで取り込めます。保存する品を${remaining}品以下にしてください。`
+      );
+      return;
+    }
     setSaving(true);
     setError("");
     try {
@@ -101,6 +122,8 @@ export function AddRecipeModal({ onClose }: Props) {
         doSave(),
         new Promise<never>((_, reject) => setTimeout(() => reject(new Error("save timed out")), 120000)),
       ]);
+      // 保存できた品数を今月の取り込みに数える
+      await createClient().rpc("record_recipe_imports", { p_count: toSave.length }).then(() => {}, () => {});
       onClose();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "something went wrong");
@@ -115,7 +138,14 @@ export function AddRecipeModal({ onClose }: Props) {
     <div className="fixed inset-0 bg-background z-50 flex flex-col">
       <div className="flex-1 overflow-y-auto px-7 py-8">
         <div className="flex items-center justify-between mb-6">
-          <p className="text-[10px] tracking-widest text-muted-foreground uppercase">add recipe</p>
+          <div>
+            <p className="text-[10px] tracking-widest text-muted-foreground uppercase">add recipe</p>
+            {remaining !== null && (
+              <p className="text-[10px] text-muted-foreground mt-1">
+                今月あと {remaining} 品（{RECIPE_IMPORT_DISH_LIMIT}品まで・毎月1日にリセット）
+              </p>
+            )}
+          </div>
           <button onClick={onClose}><X size={16} className="text-muted-foreground hover:text-foreground" /></button>
         </div>
 
