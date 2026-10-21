@@ -1,7 +1,14 @@
 import { NextResponse } from "next/server";
 import { requestGoogleTokenRefresh } from "@/lib/server/google";
+import { requireUser } from "@/lib/server/entitlement";
 
+// Google のアクセストークンを更新する。こちらのクライアントシークレットを使うので、
+// ログインしていない人には使わせない（使わせると、だれかのリフレッシュトークンを
+// 手に入れた人が、このアプリになりすまして更新し続けられる）。
 export async function POST(request: Request) {
+  const denied = await requireUser();
+  if (denied) return denied;
+
   const { refreshToken } = await request.json();
 
   if (!refreshToken) {

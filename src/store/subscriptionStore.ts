@@ -5,7 +5,8 @@ import type { PurchasesPackage } from "@revenuecat/purchases-capacitor";
 import { createClient } from "@/lib/supabase/client";
 import { ensureSession } from "@/lib/supabase/helpers";
 import { getJSON, setJSON } from "@/lib/storage";
-import { LS_ENTITLED_CACHE } from "@/lib/constants";
+import { LS_ENTITLED_CACHE, BILLING_ENABLED } from "@/lib/constants";
+import { useAuthStore } from "@/store/authStore";
 import {
   purchasesAvailable, configurePurchases, fetchPackages, fetchTrialEligibility,
   purchasePackage, restorePurchases, hasEntitlement, isUserCancelled,
@@ -76,6 +77,17 @@ async function fetchFromDb(): Promise<DbStatus> {
   return { entitled: d.entitled === true, source, partnerReady: d.partner_ready !== false };
 }
 
+async function exitLapsedPartners(): Promise<number> {
+  try {
+    const res = await fetch("/api/household/enforce-pair", { method: "POST" });
+    if (!res.ok) return 0;
+    const body = (await res.json().catch(() => ({}))) as { exited?: number };
+    return body.exited ?? 0;
+  } catch {
+    return 0;
+  }
+}
+
 export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
   entitled: null,
   source: null,
@@ -111,7 +123,18 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
 
   refresh: async () => {
     try {
-      const { entitled, source, partnerReady } = await fetchFromDb();
+      let status = await fetchFromDb();
+      // 自分は権利を持っているのに相手の権利が切れていたら、相手を自動で抜いて
+      // 自分はソロで使い続ける。ふだんは webhook が期限切れの時点で同じことを
+      // するので、ここは取りこぼしと運営の付与の期限切れ用。
+      if (BILLING_ENABLED && status.source !== null && !status.partnerReady) {
+        const exited = await exitLapsedPartners();
+        if (exited > 0) {
+          await useAuthStore.getState().refreshMembers();
+          status = await fetchFromDb();
+        }
+      }
+      const { entitled, source, partnerReady } = status;
       setJSON(LS_ENTITLED_CACHE, entitled);
       set({ entitled, source, partnerReady });
     } catch {

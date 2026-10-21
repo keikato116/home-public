@@ -16,6 +16,7 @@ import { CookTab } from "@/components/cook/CookTab";
 import { SplitTab } from "@/components/split/SplitTab";
 import { SettingsPage } from "@/components/settings/SettingsPage";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
+import { LockedScreen } from "@/components/paywall/LockedScreen";
 import { PREMIUM_TABS, PAIR_ONLY_TABS, BILLING_ENABLED } from "@/lib/constants";
 import { initDeepLinkAuth } from "@/lib/nativeAuth";
 import { hydratePrefs } from "@/store/prefsStore";
@@ -23,6 +24,7 @@ import { hydratePrefs } from "@/store/prefsStore";
 function MainApp() {
   const { activeTab, settingsOpen, householdId, accessToken, user, setActiveTab, memberCount } = useAuthStore();
   const entitled = useSubscriptionStore((s) => s.entitled);
+  const source = useSubscriptionStore((s) => s.source);
 
   // Prefetch slow data sources immediately on app load, before tabs are opened
   useEffect(() => {
@@ -56,6 +58,13 @@ function MainApp() {
       (solo && (PAIR_ONLY_TABS as readonly string[]).includes(activeTab));
     if (gone) setActiveTab("home");
   }, [entitled, solo, activeTab, setActiveTab]);
+
+  // すべての機能が有料。自分が権利を持っていなければ、加入の画面しか出さない。
+  // 自分は持っているが相手が切れている場合は、相手が自動で抜けて（subscriptionStore）
+  // こちらはソロで使い続けるので、ここでは閉じない。
+  if (BILLING_ENABLED && entitled === false && source === null) {
+    return <LockedScreen />;
+  }
 
   return (
     <div className="relative flex flex-col h-screen max-w-xl mx-auto">

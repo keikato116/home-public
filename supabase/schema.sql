@@ -266,14 +266,9 @@ create policy "member can read household"
     )
   );
 
--- 招待コードで参加するために、ログイン済みなら世帯を引ける必要がある
-create policy "authenticated can lookup household"
-  on public.households for select
-  using (auth.uid() is not null);
-
-create policy "authenticated users can create household"
-  on public.households for insert
-  with check (auth.uid() is not null);
+-- 世帯の作成と、招待コードでの参加はサーバー（service role）が行う。
+-- クライアントに「全世帯を読める」「どの世帯にも入れる」ポリシーを渡すと、
+-- 招待されていない世帯に入り込めてしまう（2026-10-21_close_household_join.sql）。
 
 -- メンバー
 -- 同じ世帯のメンバーどうしが、お互いの所属行を見られるようにする。
@@ -304,9 +299,8 @@ create policy "member can read memberships"
   on public.household_members for select
   using (public.is_household_member(household_id));
 
-create policy "user can insert own membership"
-  on public.household_members for insert
-  with check (user_id = auth.uid());
+-- household_members への insert / update / delete のポリシーは無い。
+-- 所属の変更はすべてサーバー（/api/household/*）が service role で行う。
 
 -- 世帯メンバーなら読み書きできる表
 create policy "household members can manage shared todos"
@@ -382,6 +376,25 @@ create policy "owner or partner can update recipes"
 create policy "owner can delete recipes"
   on public.recipes for delete
   using (owner_id = auth.uid());
+
+-- 相手もレシピを更新できるが、持ち主（owner_id）は変えさせない。
+-- RLS では変更前の値を見られないのでトリガーで止める。
+create or replace function public.keep_recipe_owner()
+returns trigger
+language plpgsql
+set search_path = public
+as $fn$
+begin
+  if new.owner_id is distinct from old.owner_id then
+    raise exception 'recipes.owner_id は変更できません';
+  end if;
+  return new;
+end;
+$fn$;
+
+create trigger recipes_keep_owner
+  before update on public.recipes
+  for each row execute function public.keep_recipe_owner();
 
 create policy "household members can manage meal plans"
   on public.meal_plans for all
@@ -475,13 +488,9 @@ create policy "household members can manage shopping items"
   );
 
 -- Google トークン
-create policy "user can manage own token"
-  on public.user_tokens for all
-  using (user_id = auth.uid())
-  with check (user_id = auth.uid());
-
--- トークンを同居人に読ませるポリシーは置かないこと。相手のカレンダーは
--- /api/partner-calendar が service_role で取りに行くので、必要ない。
+-- クライアントには何も許さない（ポリシーを置かない）。読み書きはすべて
+-- サーバー（/api/tokens、暗号化つき）と /api/partner-calendar が service_role で行う。
+-- 同居人に読ませるポリシーは絶対に置かないこと。
 
 create policy "user can manage own profile"
   on public.member_profiles for all

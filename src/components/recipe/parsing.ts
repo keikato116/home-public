@@ -142,7 +142,7 @@ export async function analyzeUrl(url: string): Promise<ParsedRecipe[]> {
 
 /** Uploads files to Supabase storage; failed uploads map to null. */
 export async function uploadRecipeFiles(
-  householdId: string,
+  ownerId: string,
   files: File[]
 ): Promise<Map<File, string | null>> {
   const { createClient } = await import("@/lib/supabase/client");
@@ -157,7 +157,9 @@ export async function uploadRecipeFiles(
   await Promise.allSettled(files.map(async (f) => {
     try {
       const ext = f.name.split(".").pop() ?? "jpg";
-      const path = `${householdId}/${crypto.randomUUID()}.${ext}`;
+      // 持ち主ごとのフォルダに置く。ストレージのポリシーが自分のフォルダにしか
+      // 書かせない（2026-10-21_security_hardening.sql）。
+      const path = `${ownerId}/${crypto.randomUUID()}.${ext}`;
       const uploadPromise = supabase.storage.from("recipes").upload(path, f);
       const uploadTimeout = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error("upload timeout")), 60000)

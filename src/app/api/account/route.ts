@@ -19,6 +19,54 @@ import { createAdminClient } from "@/lib/supabase/admin";
 // auth.users の削除に張り直した外部キー経由で必ず消える
 // （supabase/migrations/2026-09-11_account_deletion.sql）。
 
+type Admin = NonNullable<ReturnType<typeof createAdminClient>>;
+
+/** 公開 URL からバケット内のパスを取り出す */
+function storagePath(url: unknown): string | null {
+  if (typeof url !== "string") return null;
+  const m = url.match(/\/object\/public\/recipes\/(.+)$/);
+  return m ? decodeURIComponent(m[1]) : null;
+}
+
+/**
+ * その人のレシピ写真をストレージから消す。
+ *   - いまの置き場所: {user_id}/ の下（フォルダごと一覧して消す）
+ *   - 以前の置き場所: {household_id}/ の下。レシピの行に残っている URL から拾う
+ */
+async function deletePhotosOf(admin: Admin, userId: string): Promise<string | null> {
+  const paths = new Set<string>();
+
+  const { data: recipes, error: rErr } = await admin
+    .from("recipes")
+    .select("thumbnail_url, photo_urls")
+    .eq("owner_id", userId);
+  if (rErr) return rErr.message;
+  for (const r of recipes ?? []) {
+    const p = storagePath(r.thumbnail_url);
+    if (p) paths.add(p);
+    for (const u of (r.photo_urls as string[] | null) ?? []) {
+      const q = storagePath(u);
+      if (q) paths.add(q);
+    }
+  }
+
+  for (let offset = 0; ; offset += 1000) {
+    const { data: files, error } = await admin.storage
+      .from("recipes")
+      .list(userId, { limit: 1000, offset });
+    if (error) return error.message;
+    for (const f of files ?? []) paths.add(`${userId}/${f.name}`);
+    if (!files || files.length < 1000) break;
+  }
+
+  const all = Array.from(paths);
+  for (let i = 0; i < all.length; i += 100) {
+    const { error } = await admin.storage.from("recipes").remove(all.slice(i, i + 100));
+    if (error) return error.message;
+  }
+  return null;
+}
+
 async function parseHandOverRecipes(req: NextRequest): Promise<boolean> {
   try {
     const body = await req.json();
@@ -85,6 +133,13 @@ export async function DELETE(req: NextRequest) {
         }
       }
     }
+  }
+
+  // レシピの写真を消す。レシピの行は owner_id の on delete cascade で消えるが、
+  // ストレージのファイルは残り、公開 URL で見られたままになる。
+  const photoError = await deletePhotosOf(admin, user.id);
+  if (photoError) {
+    return NextResponse.json({ error: photoError }, { status: 500 });
   }
 
   const { error } = await admin.auth.admin.deleteUser(user.id);

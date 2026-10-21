@@ -3,6 +3,8 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { fetchEventsFromAllCalendars, filterByColors, requestGoogleTokenRefresh } from "@/lib/server/google";
 import { encryptToken, decryptToken } from "@/lib/server/tokenCrypto";
+import { requireEntitled } from "@/lib/server/entitlement";
+import { BILLING_ENABLED } from "@/lib/constants";
 
 async function refreshGoogleToken(refreshToken: string): Promise<string | null> {
   try {
@@ -54,6 +56,13 @@ export async function GET(request: Request) {
   const { data: { user } } = await supabaseAnon.auth.getUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
+  // 相手の予定は、サーバーが相手の鍵で取りに行くので、ここで止めないと
+  // ブラウザから直接叩けば加入しなくても見られる。
+  if (BILLING_ENABLED) {
+    const denied = await requireEntitled();
+    if (denied) return denied;
+  }
+
   // Use service role to bypass RLS
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!serviceKey) {
@@ -75,12 +84,22 @@ export async function GET(request: Request) {
     .maybeSingle();
   if (!membership) return NextResponse.json({ error: "not in household" }, { status: 403 });
 
-  // Fetch all partner tokens
+  // 相手が誰かは household_members で決める。user_tokens.household_id は
+  // 以前クライアントから書けた列なので、それで引くと他人の鍵が紛れ込みうる。
+  const { data: mates } = await supabase
+    .from("household_members")
+    .select("user_id")
+    .eq("household_id", householdId)
+    .neq("user_id", user.id);
+  const mateIds = (mates ?? []).map((m) => m.user_id as string);
+  if (mateIds.length === 0) {
+    return NextResponse.json({ events: [] });
+  }
+
   const { data: partners } = await supabase
     .from("user_tokens")
     .select("user_id, google_access_token, google_refresh_token")
-    .eq("household_id", householdId)
-    .neq("user_id", user.id);
+    .in("user_id", mateIds);
 
   if (!partners || partners.length === 0) {
     return NextResponse.json({ events: [] });

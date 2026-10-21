@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
+import { requireUser } from "@/lib/server/entitlement";
 
 export async function GET(request: Request) {
+  // OpenWeatherMap の利用枠を、ログインしていない人に使わせない
+  const denied = await requireUser();
+  if (denied) return denied;
+
   const { searchParams } = new URL(request.url);
   const lat = searchParams.get("lat") ?? request.headers.get("x-vercel-ip-latitude");
   const lon = searchParams.get("lon") ?? request.headers.get("x-vercel-ip-longitude");

@@ -38,7 +38,7 @@
 | 予定 | local_calendar_events, calendar_settings | 世帯（user_id は作成者） |
 | 割り勘 | split_sessions, split_subscriptions, family_card_totals | 世帯 + **現在の部屋のみ** |
 | 割り勘の設定 | split_settings（締め日・負担比率） | 世帯 |
-| Google トークン | user_tokens | **本人のみ**（AES-256-GCM で暗号化して保存） |
+| Google トークン | user_tokens | **クライアントからは本人も不可**。サーバーだけが読み書きする（AES-256-GCM で暗号化） |
 | 表示名・カレンダー色 | member_profiles | 世帯 |
 | 課金状態 | subscriptions | 本人（RevenueCat の webhook が書く） |
 | 運営による付与 | premium_grants | だれも読めない（`premium_status()` 経由で本人に伝わる。相手には有無だけ） |
@@ -178,3 +178,39 @@ restricted scope（Gmail や Drive 全体）ではないので、第三者によ
 
 なお `calendar.readonly` を捨ててローカル予定だけにすれば審査は不要になるが、
 Google カレンダー連携はこのアプリの主要機能なので現実的ではない。
+
+
+## 3. 個人データへのアクセス（2026-10-21 監査）
+
+全テーブルのポリシー、ストレージ、全 API を見直した。見つかって塞いだもの:
+
+| 穴 | 何ができたか | 対処 |
+|---|---|---|
+| `households` の「ログインしていれば全件読める」ポリシー | 全世帯の id と招待コードの一覧を取れた | 削除。自分の世帯しか読めない |
+| `household_members` の「自分の行なら insert できる」ポリシー | **招待されていない世帯に入り込み、その世帯のデータと相手の Google カレンダーを見られた**。定員・課金の確認もすり抜けた | 削除。作成と参加はサーバーだけ（`/api/household/create`, `join`） |
+| `user_tokens` をクライアントから書けた | 他人の世帯を指す鍵の行を作れた | ポリシー削除（サーバーだけ）。`/api/partner-calendar` は相手を `household_members` から引く |
+| レシピの `owner_id` を相手が書き換えられた | 相手のレシピを自分のものにできた | トリガーで変更禁止 |
+| レシピ写真のストレージにポリシーがリポジトリに無かった（手作業） | 設定次第で他人の写真の削除・一覧の列挙ができた | recipes バケットのポリシーを作り直し、自分のフォルダ（`{user_id}/`）だけに。画像のみ・10MB まで |
+| アカウント削除で写真が消えなかった | 退会後も写真が公開 URL で見られた | 削除時にストレージからも消す |
+| `/api/recipe/og` がログイン不要で任意の URL を取りに行った | サーバーを踏み台に内部アドレスを叩けた（SSRF） | ログイン必須。`safeFetch` で内部アドレス・リダイレクト・大きさを制限 |
+| `/api/parse-recipe` の URL 取り込み | 同上 | `safeFetch` |
+| `/api/refresh-token` がログイン不要 | 他人のリフレッシュトークンを持つ人が、このアプリのクライアントシークレットで更新できた | ログイン必須 |
+| `/api/weather` がログイン不要 | 天気 API の利用枠を使われる | ログイン必須 |
+
+修正前の状態を手元の Postgres で再現し、攻撃が通ること（全世帯の招待コードの取得、他人の世帯への参加と
+データの閲覧、他人の写真の削除）と、修正後はすべて拒否されることを確かめた。
+
+**ルール（今後これを崩さないこと）**
+- 世帯の所属を変える操作（作成・参加・解散・退出）はサーバーだけ。`household_members` と
+  `households` にクライアント向けの insert / update / delete ポリシーを置かない
+- だれでも全件読める select ポリシー（`using (true)` や `auth.uid() is not null`）を置かない
+- `user_tokens` にクライアント向けのポリシーを置かない
+- 利用者の入れた URL をサーバーから取りに行くときは `src/lib/server/safeFetch.ts` を通す
+- 外部の有料 API を呼ぶルートはログイン必須（`requireUser` / `requireEntitled`）
+- ストレージは `{user_id}/` の下だけ。ポリシーはリポジトリのマイグレーションで管理する
+
+**まだ残っているもの**
+- レシピ写真は公開 URL で配信している。URL を知っていればだれでも見られる（一覧は取れない）。
+  非公開にするには、バケットを private にして署名付き URL に切り替える必要がある
+- アカウント削除の「レシピを引き継ぐ」は実際には効いていない。`recipes.owner_id` が
+  `on delete cascade` なので、退会した人のレシピは選択にかかわらず消える

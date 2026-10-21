@@ -11,10 +11,11 @@ import { X } from "lucide-react";
 // をすべて同じ画面に置いている。どれかを消すとリジェクト理由になる。
 
 const FEATURES = [
-  "レシピの保存と検索",
-  "URL からのレシピ自動取り込み",
-  "献立カレンダーの保存",
-  "作った回数の記録",
+  "2人の予定を1つのカレンダーで",
+  "家事の分担と記録、時刻のお知らせ",
+  "買い物リストの共有",
+  "献立とレシピ（URL・写真から取り込み）",
+  "割り勘と精算",
 ];
 
 export function PaywallModal() {
@@ -33,7 +34,7 @@ export function PaywallModal() {
         <div className="flex items-start justify-between">
           <div>
             <p className="text-[10px] tracking-widest text-muted-foreground uppercase">premium</p>
-            <h2 className="text-[22px] tracking-wide">レシピと献立</h2>
+            <h2 className="text-[22px] tracking-wide">すべての機能</h2>
           </div>
           <button
             onClick={() => setPaywallOpen(false)}

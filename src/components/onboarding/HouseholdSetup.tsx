@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useAuthStore } from "@/store/authStore";
-import { createClient } from "@/lib/supabase/client";
 
 export function HouseholdSetup() {
   const { user, setHouseholdId } = useAuthStore();
@@ -17,36 +16,27 @@ export function HouseholdSetup() {
 
   // 1人でも成立するアプリなので、世帯 = 1人で始められる。
   // あとから招待コードを渡せばペアになるし、外せばソロに戻る。
+  //
+  // 作成も参加もサーバーで行う。クライアントから households / household_members に
+  // 直接書けると、他人の世帯に勝手に入れてしまうため（2026-10-21_close_household_join.sql）。
   const createHousehold = async (pair: boolean) => {
     if (!user) return;
     setLoading(true);
     setError("");
     try {
-      const supabase = createClient();
-
-      const { data: household, error: hErr } = await supabase
-        .from("households")
-        .insert({ name: pair ? "our home" : "my home" })
-        .select()
-        .single();
-      if (hErr || !household) throw new Error(hErr?.message ?? "failed to create household");
-
-      const { error: mErr } = await supabase
-        .from("household_members")
-        .insert({ household_id: household.id, user_id: user.id });
-      if (mErr) throw new Error(mErr.message);
-
-      await supabase.from("calendar_settings").insert({
-        household_id: household.id,
-        selected_colors: [],
-        start_date: new Date().toISOString().split("T")[0],
+      const res = await fetch("/api/household/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pair }),
       });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok || !body.household_id) throw new Error(body.error ?? "failed to create household");
 
       if (pair) {
-        setCreatedId(household.id);
-        setCreatedCode(household.invite_code);
+        setCreatedId(body.household_id);
+        setCreatedCode(body.invite_code ?? "");
       } else {
-        setHouseholdId(household.id, household.invite_code);
+        setHouseholdId(body.household_id, body.invite_code ?? undefined);
       }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "something went wrong");
@@ -59,21 +49,25 @@ export function HouseholdSetup() {
     setLoading(true);
     setError("");
     try {
-      const supabase = createClient();
-
-      const { data: household, error: hErr } = await supabase
-        .from("households")
-        .select("id, invite_code")
-        .eq("invite_code", inviteInput.toUpperCase())
-        .single();
-      if (hErr || !household) throw new Error("invite code not found");
-
-      const { error: mErr } = await supabase
-        .from("household_members")
-        .insert({ household_id: household.id, user_id: user.id });
-      if (mErr && !mErr.message.includes("duplicate")) throw new Error(mErr.message);
-
-      setHouseholdId(household.id);
+      const res = await fetch("/api/household/join", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ invite_code: inviteInput.trim().toUpperCase() }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(
+          body.error === "invite code not found" ? "この招待コードの世帯が見つかりません"
+          : body.error === "household is full" ? "その世帯はすでに2人で使われています"
+          // すべての機能が有料で、2人とも加入が必要。加入（無料体験）は世帯を作ってから
+          // できるので、いったん1人で始めてもらう。
+          : body.error === "subscription required"
+            ? "参加するには、先に加入（1か月無料）が必要です。「1人で使う」で始めて加入したあと、設定 → household →「相手の世帯に参加する」から入ってください"
+          : body.error === "partner subscription lapsed" ? "お相手の加入が切れているため参加できません"
+          : body.error ?? "参加できませんでした"
+        );
+      }
+      setHouseholdId(body.household_id, body.invite_code ?? undefined);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "something went wrong");
     }

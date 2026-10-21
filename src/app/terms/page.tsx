@@ -77,10 +77,11 @@ export default function TermsPage() {
       <section className="space-y-2">
         <h2 className="text-[13px] tracking-wide">5. 有料プラン</h2>
         <p className="text-[12px] text-muted-foreground leading-relaxed">
-          本アプリは、一部の機能を有料プラン「premium」として提供します。
+          本アプリの<strong>すべての機能</strong>は、有料プラン「premium」として提供します。
+          加入していない間に利用できるのは、加入の手続き・購入の復元・ログアウト・アカウントの削除のみです。
         </p>
         <ul className="text-[12px] text-muted-foreground leading-relaxed space-y-1">
-          <li>・<strong>内容</strong> — レシピの保存・取り込み、献立カレンダーの保存</li>
+          <li>・<strong>内容</strong> — 予定・家事・買い物・献立・レシピ・割り勘など、本アプリのすべての機能</li>
           <li>・<strong>料金</strong> — 月額300円（税込）。App Store を通じて Apple ID に請求されます</li>
           <li>
             ・<strong>無料体験</strong> — はじめて加入する方は、最初の1か月を無料で利用できます。
@@ -100,18 +101,21 @@ export default function TermsPage() {
           <li>・<strong>返金</strong> — Apple の定めに従います。運営者から返金を行うことはできません</li>
           <li>
             ・<strong>2人で使う場合</strong> — 有料プランの機能は、<strong>世帯の2人がともに
-            加入している場合にかぎり</strong>利用できます
+            加入している場合にかぎり</strong>利用できます。招待コードで世帯に参加するには、
+            参加する方と参加先の方の両方が加入している必要があります
           </li>
           <li>
             ・<strong>相手の課金状態が切れた場合</strong> — <strong>解散します。</strong>
-            加入が終了した方は世帯から自動的に退出し、1人で使う状態になります。
+            加入が終了した方は世帯から自動的に退出します。加入を続けている方は、
+            自動的に1人で使う状態になり、そのまま利用を続けられます。
             2人で使っていたデータは世帯に残ります。退出した方が再び加入し、
             同じ招待コードで入り直すと、元どおり再開します。
             ただし、退出しているあいだに別の方が世帯に参加した場合は再開できません
           </li>
           <li>
-            ・<strong>解約後のデータ</strong> — 保存したレシピと献立は引き続き閲覧・削除できます。
-            新しく保存・編集することはできなくなります
+            ・<strong>解約後のデータ</strong> — 加入期間が終わると、本アプリの機能は利用できなくなります。
+            保存したデータは削除されず、再び加入すれば元どおり利用できます。
+            データを消したい場合は、アカウントの削除を行ってください
           </li>
         </ul>
         <p className="text-[12px] text-muted-foreground leading-relaxed">

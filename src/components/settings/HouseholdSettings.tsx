@@ -84,7 +84,8 @@ export function HouseholdSettings() {
         throw new Error(
           body.error === "invite code not found" ? "この招待コードの世帯が見つかりません"
           : body.error === "household is full" ? "その世帯はすでに2人で使われています"
-          : body.error === "resubscribe to return" ? "入り直すには、先に有料プランに加入し直してください（設定 → premium）"
+          : body.error === "subscription required" ? "参加するには、先に加入してください（設定 → premium）"
+          : body.error === "partner subscription lapsed" ? "お相手の加入が切れているため参加できません"
           : body.error ?? "参加できませんでした"
         );
       }

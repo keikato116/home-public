@@ -4,8 +4,8 @@ import { useSubscriptionStore } from "@/store/subscriptionStore";
 import { useAuthStore } from "@/store/authStore";
 import { MANAGE_SUBSCRIPTION_URL, PAIR_LAPSE_NOTICE } from "@/lib/constants";
 
-// プレミアムタブは未購入だと丸ごと隠れるので、購入への導線はここが唯一になる。
-// 設定から必ず購入・復元できること、解約導線が示されていることが審査上の必須要件。
+// 購入・復元・解約の導線。設定と、未加入の人に出す LockedScreen の両方に置く。
+// 購入・復元ができること、解約導線が示されていることが審査上の必須要件。
 
 export function SubscriptionSettings() {
   const { entitled, source, partnerReady, setPaywallOpen, restore, restoring } = useSubscriptionStore();
@@ -35,7 +35,7 @@ export function SubscriptionSettings() {
           <p className="text-[11px] text-muted-foreground leading-relaxed">
             {source === "grant"
               ? "特別にご招待しています。お支払いは不要です。"
-              : "レシピと献立カレンダーが使えます。"}
+              : "すべての機能が使えます。"}
           </p>
           {manageLink}
         </>
@@ -45,14 +45,14 @@ export function SubscriptionSettings() {
           <p className="text-[13px]">お相手の加入待ち</p>
           <p className="text-[11px] text-muted-foreground leading-relaxed">
             {source === "grant" ? "あなたには有料プランを特別にご招待しています。" : "あなたは加入済みです。"}
-            2人で使う場合は、お相手も加入すると、レシピと献立カレンダーが使えるようになります。
+            2人で使う場合は、お相手も加入すると使えるようになります。
           </p>
           {manageLink}
         </>
       ) : (
         <>
           <p className="text-[11px] text-muted-foreground leading-relaxed">
-            レシピの保存・URL 取り込み・献立カレンダーの保存が使えるようになります。
+            予定・家事・買い物・献立・割り勘のすべてが使えるようになります。はじめての方は最初の1か月が無料です。
             {paired && (partnerReady
               ? "お相手は加入済みです。あなたも加入すると、2人とも使えるようになります。"
               : "2人で使う場合は、2人とも加入が必要です。")}

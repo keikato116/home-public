@@ -85,7 +85,7 @@ export function AddRecipeModal({ onClose }: Props) {
         if (mode === "photo") {
           const allFiles = toSave.flatMap((r) => r.sourceFiles ?? []);
           const uniqueFiles = allFiles.filter((f, i) => allFiles.indexOf(f) === i);
-          fileUrlMap = await uploadRecipeFiles(householdId, uniqueFiles);
+          fileUrlMap = await uploadRecipeFiles(user.id, uniqueFiles);
         }
         await Promise.all(toSave.map(async (r) => {
           const uploadedUrls = (r.sourceFiles ?? [])

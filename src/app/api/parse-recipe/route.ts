@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { requireEntitled } from "@/lib/server/entitlement";
+import { fetchPublicText } from "@/lib/server/safeFetch";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -97,11 +98,10 @@ export async function POST(req: Request) {
     } else if (body.type === "url") {
       const { url } = body as { url: string };
 
-      const res = await fetch(url, {
-        headers: { "User-Agent": "Mozilla/5.0 AppleWebKit/537.36 Chrome/120 Safari/537.36" },
+      // 内部のアドレスには行かせない（safeFetch）
+      const html = await fetchPublicText(String(url), {
+        "User-Agent": "Mozilla/5.0 AppleWebKit/537.36 Chrome/120 Safari/537.36",
       });
-      if (!res.ok) throw new Error("fetch failed");
-      const html = await res.text();
 
       const ogImage =
         html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)?.[1] ??

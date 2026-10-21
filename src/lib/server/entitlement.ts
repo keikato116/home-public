@@ -2,6 +2,17 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
 /**
+ * ログインしていなければ 401 を返す。返り値が null なら通してよい。
+ * 外部の有料 API（天気・Google）を呼ぶ口や、サーバーに URL を取りに行かせる口を、
+ * ログインしていない人に使わせないため。
+ */
+export async function requireUser(): Promise<NextResponse | null> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  return user ? null : NextResponse.json({ error: "unauthorized" }, { status: 401 });
+}
+
+/**
  * 有料機能の API を守る。
  *
  * 返り値が null なら通してよい。NextResponse が返ったらそれをそのまま返す。

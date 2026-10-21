@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { transferHouseholdData } from "@/lib/server/householdTransfer";
-import { resumeRoomIfReturning, mustResubscribeToReturn } from "@/lib/server/lapseExit";
+import { resumeRoomIfReturning, billingBlocksJoin } from "@/lib/server/lapseExit";
+import { BILLING_ENABLED } from "@/lib/constants";
 
 // 招待コードで世帯に参加する。
 //
@@ -42,7 +43,7 @@ export async function POST(request: Request) {
 
   const { data: target } = await admin
     .from("households")
-    .select("id")
+    .select("id, invite_code")
     .eq("invite_code", code)
     .maybeSingle();
 
@@ -50,6 +51,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "invite code not found" }, { status: 404 });
   }
   const targetId = target.id as string;
+  const targetCode = target.invite_code as string;
 
   // いまの所属を調べる
   const { data: current } = await admin
@@ -60,7 +62,7 @@ export async function POST(request: Request) {
   const currentId = (current?.household_id as string | undefined) ?? null;
 
   if (currentId === targetId) {
-    return NextResponse.json({ ok: true, household_id: targetId, moved: false });
+    return NextResponse.json({ ok: true, household_id: targetId, invite_code: targetCode, moved: false });
   }
 
   // 相手の世帯がすでに2人なら入れない。3人は想定していない
@@ -73,14 +75,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "household is full" }, { status: 409 });
   }
 
-  // 課金切れで抜けた人は、加入し直してから戻ってもらう
-  try {
-    if (await mustResubscribeToReturn(admin, targetId, user.id)) {
-      return NextResponse.json({ error: "resubscribe to return" }, { status: 402 });
+  // 2人とも権利が要る。課金切れで抜けた人も、加入し直してから戻ってもらう。
+  if (BILLING_ENABLED) {
+    try {
+      const block = await billingBlocksJoin(admin, targetId, user.id);
+      if (block) {
+        return NextResponse.json({ error: block }, { status: block === "subscription required" ? 402 : 409 });
+      }
+    } catch (e) {
+      console.error("[join] billing check failed", e);
+      return NextResponse.json({ error: "failed to check subscription" }, { status: 500 });
     }
-  } catch (e) {
-    console.error("[join] resubscribe check failed", e);
-    return NextResponse.json({ error: "failed to check subscription" }, { status: 500 });
   }
 
   // まだ世帯が無い人はそのまま入れる
@@ -102,7 +107,7 @@ export async function POST(request: Request) {
       .eq("user_id", user.id);
     const resumeError = await resumeRoom(admin, targetId, user.id);
     if (resumeError) return resumeError;
-    return NextResponse.json({ ok: true, household_id: targetId, moved: false });
+    return NextResponse.json({ ok: true, household_id: targetId, invite_code: targetCode, moved: false });
   }
 
   // すでに誰かと使っている世帯からは移れない。先に解散してもらう。
@@ -160,7 +165,7 @@ export async function POST(request: Request) {
   const resumeError = await resumeRoom(admin, targetId, user.id);
   if (resumeError) return resumeError;
 
-  return NextResponse.json({ ok: true, household_id: targetId, moved: true });
+  return NextResponse.json({ ok: true, household_id: targetId, invite_code: targetCode, moved: true });
 }
 
 // 課金切れで自動退出した人が同じ招待コードで戻ってきたら、元の部屋を再開する

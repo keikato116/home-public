@@ -136,41 +136,71 @@ async function leaveKeepingRoom(
     .eq("user_id", userId);
 }
 
+export type JoinBlock = "subscription required" | "partner subscription lapsed";
+
 /**
- * 参加する前に呼ぶ（/api/household/join）。課金切れで抜けた人が、まだ加入し直して
- * いないのに同じ世帯へ戻ろうとしているなら true（= 断る）。
+ * 参加する前に呼ぶ（/api/household/join）。課金をオンにしている間だけ。
  *
- * 戻ってしまうと、払い続けている相手の有料機能まで閉じる（2人とも権利が要るため）。
- * 抜けた理由がそもそも「相手は払っているのに自分が切れた」なので、
- * 戻るには加入し直してもらう。相手ももう権利を持っていなければ、止める理由は無い。
+ * すべての機能が有料で、2人で使うなら2人とも権利が要る。
+ *   - 参加する本人が権利を持っていない → 断る。入ると、払っている相手まで
+ *     何も使えなくなる。課金切れで抜けた人が戻るときも同じ（加入し直してから）
+ *   - 参加先のだれかが権利を持っていない → 断る。入った直後に、その人が
+ *     自動で抜ける（exitLapsedPartners）ことになり、世帯の持ち主が追い出される
  */
-export async function mustResubscribeToReturn(
+export async function billingBlocksJoin(
   admin: SupabaseClient,
   householdId: string,
   userId: string
-): Promise<boolean> {
-  const { data: pause, error } = await admin
-    .from("room_pauses")
-    .select("user_id")
-    .eq("household_id", householdId)
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (error) {
-    // マイグレーション（2026-10-21_room_pauses.sql）前なら控えは無い。参加を止めない。
-    if (error.code === "42P01" || error.code === "PGRST205") return false;
-    throw new Error(error.message);
-  }
-  if (!pause) return false;
+): Promise<JoinBlock | null> {
+  if ((await rightOf(admin, userId)) === null) return "subscription required";
 
-  if ((await rightOf(admin, userId)) !== null) return false;
+  const { data: members, error } = await admin
+    .from("household_members")
+    .select("user_id")
+    .eq("household_id", householdId);
+  if (error) throw new Error(error.message);
+  const rights = await Promise.all((members ?? []).map((m) => rightOf(admin, m.user_id as string)));
+  if (rights.some((r) => r === null)) return "partner subscription lapsed";
+  return null;
+}
+
+/**
+ * 呼んだ人（権利あり）の世帯から、権利の無いメンバーを自動で抜く。
+ * 「相手の課金が切れたら、払っている人は自動でソロになる」を、webhook を
+ * 取りこぼした場合や運営の付与が期限切れになった場合にも成り立たせるため、
+ * 払っている人がアプリを開いたときに呼ぶ（/api/household/enforce-pair）。
+ * 抜けた人数を返す。
+ */
+export async function exitLapsedPartners(
+  admin: SupabaseClient,
+  callerId: string
+): Promise<number> {
+  if ((await rightOf(admin, callerId)) === null) return 0;
+
+  const { data: membership, error: mErr } = await admin
+    .from("household_members")
+    .select("household_id")
+    .eq("user_id", callerId)
+    .maybeSingle();
+  if (mErr) throw new Error(mErr.message);
+  if (!membership?.household_id) return 0;
+  const householdId = membership.household_id as string;
 
   const { data: members, error: listErr } = await admin
     .from("household_members")
     .select("user_id")
     .eq("household_id", householdId);
   if (listErr) throw new Error(listErr.message);
-  const rights = await Promise.all((members ?? []).map((m) => rightOf(admin, m.user_id as string)));
-  return rights.some((r) => r !== null);
+
+  let exited = 0;
+  for (const m of members ?? []) {
+    const id = m.user_id as string;
+    if (id === callerId) continue;
+    if ((await rightOf(admin, id)) !== null) continue;
+    await leaveKeepingRoom(admin, householdId, id);
+    exited += 1;
+  }
+  return exited;
 }
 
 /**
