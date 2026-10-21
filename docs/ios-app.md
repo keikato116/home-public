@@ -212,7 +212,7 @@ Xcode Organizer の **"Uploaded to Apple" は転送が終わっただけ**で、
 |---|---|
 | WebView の Google ログイン | ✅ 実装済み。**Xcode の URL Types と Supabase の Redirect URLs の登録が残り** |
 | Sign in with Apple | ⚠️ コードは入った。Apple / Supabase の設定が残り |
-| Google OAuth の審査 | ❌ 未対応（独自ドメインが要る。`docs/data-and-privacy.md` 参照） |
+| Google OAuth の審査 | ✅ 承認済み（2026-10）。同意画面を変えると再審査（`docs/handoff.md` 参照） |
 | 利用規約・プライバシーポリシー | ⚠️ ドラフト。法的レビュー未実施 |
 
 ## ウィジェット
