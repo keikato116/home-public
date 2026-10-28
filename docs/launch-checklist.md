@@ -7,7 +7,7 @@
 - App Store Connect: 有料App契約・口座・税務（W-8BEN）・DSA がすべて Active
 - Google OAuth の審査: 承認済み（同意画面の設定は変えないこと）
 
-## 1. Supabase（今すぐ）
+## 1. Supabase（2026-10-28 に SQL は適用済み。recipes バケットも作成済み）
 1. Authentication → Sign In / Providers → **Allow manual linking をオン**
    （Apple で登録した人が Google カレンダーを繋ぐのに必要）
 2. SQL Editor で順に流す
