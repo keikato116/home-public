@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { useSubscriptionStore } from "@/store/subscriptionStore";
+import { clearRecipePhotoCache } from "@/lib/recipePhotos";
 import {
   MANAGE_SUBSCRIPTION_URL,
   LS_CACHED_USER, LS_CACHED_HOUSEHOLD, LS_CACHED_INVITE, LS_CACHED_IS_OWNER,
@@ -59,6 +60,7 @@ export function DeleteAccount() {
       } catch {
         // 握りつぶす。下でキャッシュを直接消してリロードする。
       }
+      await clearRecipePhotoCache();
       // 通常のサインアウトは SIGNED_OUT イベント経由でキャッシュを消すが、
       // ユーザーが消えているとそのイベントが来ないことがあるので自分で消す。
       for (const key of [

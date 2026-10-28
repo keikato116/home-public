@@ -4,6 +4,7 @@ import { create } from "zustand";
 import { createClient } from "@/lib/supabase/client";
 import { ensureSession } from "@/lib/supabase/helpers";
 import { resizeImage, STORAGE_MAX_EDGE } from "@/lib/imageResize";
+import { pruneRecipePhotoCache } from "@/lib/recipePhotos";
 import { Recipe } from "@/types";
 
 export const RECIPE_CATEGORIES = ["main", "side", "soup", "rice & bowl", "pasta", "noodles", "dessert", "seasonal", "bento"] as const;
@@ -215,7 +216,12 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
         ({ data, error } = await select(RECIPE_COLUMNS.replace(" steps,", "")));
       }
       if (error) set({ loadError: error.message, loading: false, recipes: [] });
-      else set({ recipes: (data ?? []) as unknown as Recipe[], loading: false });
+      else {
+        const recipes = (data ?? []) as unknown as Recipe[];
+        set({ recipes, loading: false });
+        // 一覧に出なくなった写真（削除したレシピ、世帯を抜けた相手の写真）を端末から消す
+        pruneRecipePhotoCache(recipes.flatMap((r) => [r.thumbnail_url, ...(r.photo_urls ?? [])])).catch(() => {});
+      }
     } catch {
       set({ loadError: "failed to load recipes", loading: false });
     }

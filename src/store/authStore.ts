@@ -9,6 +9,7 @@ import {
   LS_ENTITLED_CACHE, LS_CACHED_MEMBER_COUNT,
 } from "@/lib/constants";
 import { logOutPurchases } from "@/lib/purchases";
+import { clearRecipePhotoCache } from "@/lib/recipePhotos";
 import { normalizeDisplayName } from "@/lib/displayName";
 import { storeAccessToken, upsertUserToken, refreshAccessToken, ensureValidAccessToken, connectGoogleCalendar } from "@/lib/googleToken";
 
@@ -348,6 +349,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (periodicRefreshInterval) { clearInterval(periodicRefreshInterval); periodicRefreshInterval = null; }
     isSigningOut = true;
     await logOutPurchases();
+    // 端末に保存したレシピ写真を消す（次にこの端末でログインする人に残さない）
+    await clearRecipePhotoCache();
     const supabase = createClient();
     await supabase.auth.signOut();
   },

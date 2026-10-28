@@ -167,8 +167,10 @@ export default function PrivacyEnPage() {
           <strong>Only you, and the person you share your household with while you share it, can
           see them.</strong> Each time a photo is shown, a link that expires after one hour is
           issued, so a link passed to someone else stops working once it expires. Recipes imported
-          from a web page never include that site&apos;s images. Photos are deleted together with
-          your account.
+          from a web page never include that site&apos;s images. To load faster, a photo you have
+          viewed is kept on your device and shown from there next time; these copies are removed
+          when you sign out or delete your account, and when the photo no longer appears in your
+          list. Photos are deleted together with your account.
         </P>
       </Section>
 
