@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { getBillingPeriod, fmtYen, getSessionRatio } from "./lib";
-import { SplitSession } from "@/types";
+import { getBillingPeriod, fmtYen, getSessionRatio, computeSettlement } from "./lib";
+import { SplitSession, SplitSubscription, SplitUtility } from "@/types";
 
 describe("getBillingPeriod", () => {
   it("uses the calendar month when closingDay is 0", () => {
@@ -43,5 +43,67 @@ describe("getSessionRatio", () => {
   it("falls back to the household default when her_ratio is null or missing", () => {
     expect(getSessionRatio(base, 0.5)).toBe(0.5);
     expect(getSessionRatio({ ...base, her_ratio: null }, 0.5)).toBe(0.5);
+  });
+});
+
+const receipt = (card: "mine" | "family", amount: number, her_ratio: number | null = null) =>
+  ({ id: Math.random().toString(), household_id: "h", date: "2026-11-01", store: "x", card, shared_amount: amount, her_ratio, items: [] }) as unknown as SplitSession;
+const sub = (card: "mine" | "family", amount: number) =>
+  ({ id: Math.random().toString(), household_id: "h", name: "s", amount, card, active: true, created_at: "" }) as SplitSubscription;
+const util = (id: string, card: "mine" | "family") =>
+  ({ id, household_id: "h", name: id, card, created_at: "" }) as SplitUtility;
+
+describe("computeSettlement", () => {
+  it("引き継ぎ資料の検算例（50:50）: her owes ¥5,606", () => {
+    const r = computeSettlement({
+      sessions: [receipt("mine", 1959), receipt("mine", 9428), receipt("family", 6116)],
+      subscriptions: [sub("mine", 5940)],
+      utilities: [],
+      utilityAmounts: {},
+      splitRatio: 0.5,
+      herCardBill: 0,
+    });
+    expect(r.himSplits).toBe(8663.5);
+    expect(r.herSplits).toBe(3058);
+    expect(Math.round(r.herOwes)).toBe(5606);
+  });
+
+  it("固定費はその月に入力された分だけ。未入力は 0", () => {
+    const r = computeSettlement({
+      sessions: [],
+      subscriptions: [],
+      utilities: [util("elec", "mine"), util("gas", "family"), util("water", "mine")],
+      utilityAmounts: { elec: 8000, gas: 4000 },
+      splitRatio: 0.5,
+      herCardBill: 0,
+    });
+    expect(r.himSplits).toBe(4000);
+    expect(r.herSplits).toBe(2000);
+    expect(r.herOwes).toBe(2000);
+  });
+
+  it("レシートごとの割合を優先し、無い古いデータは全体の割合", () => {
+    const r = computeSettlement({
+      sessions: [receipt("mine", 1000, 1), receipt("mine", 1000, null)],
+      subscriptions: [],
+      utilities: [],
+      utilityAmounts: {},
+      splitRatio: 0.3,
+      herCardBill: 0,
+    });
+    expect(r.himSplits).toBe(1300);
+  });
+
+  it("her のカード請求は全額が her owes に入る。マイナスなら him owes", () => {
+    const r = computeSettlement({
+      sessions: [receipt("family", 10000)],
+      subscriptions: [],
+      utilities: [],
+      utilityAmounts: {},
+      splitRatio: 0.5,
+      herCardBill: 2000,
+    });
+    expect(r.herOwes).toBe(-3000);
+    expect(r.himSplits + r.herCardBill - r.herSplits).toBe(r.herOwes);
   });
 });

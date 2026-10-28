@@ -4,20 +4,16 @@ import { useState } from "react";
 import { SplitSession } from "@/types";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { fmtYen, getSessionRatio } from "./lib";
+import { fmtYen } from "./lib";
 
-export function SessionRow({ session, fallbackRatio, onDelete, onUpdateStore, onUpdateCard }: {
+export function SessionRow({ session, onDelete, onUpdateStore, onUpdateCard }: {
   session: SplitSession;
-  /** Household default, used only when this receipt has no ratio of its own. */
-  fallbackRatio: number;
   onDelete: () => void;
   onUpdateStore: (store: string) => void;
   onUpdateCard: (card: "mine" | "family") => void;
 }) {
   const [editingStore, setEditingStore] = useState(false);
   const [storeInput, setStoreInput] = useState(session.store === "−" ? "" : session.store);
-  // Honour the per-receipt ratio saved on the sheet; the household default is only a fallback.
-  const gfOwed = Math.round(session.shared_amount * getSessionRatio(session, fallbackRatio));
   const isCredit = session.card === "family";
 
   const saveStore = () => {
@@ -65,8 +61,8 @@ export function SessionRow({ session, fallbackRatio, onDelete, onUpdateStore, on
         </div>
       </div>
       <div className="text-right flex-shrink-0">
-        <p className="text-[9px] text-muted-foreground tracking-wider">{isCredit ? "him owes" : "her owes"}</p>
-        <p className={cn("text-[15px] tabular-nums", isCredit && "text-blue-500")}>{fmtYen(gfOwed)}</p>
+        <p className="text-[9px] text-muted-foreground tracking-wider">{isCredit ? "her paid" : "him paid"}</p>
+        <p className={cn("text-[15px] tabular-nums", isCredit && "text-blue-500")}>{fmtYen(session.shared_amount)}</p>
       </div>
       <button onClick={onDelete} className="text-muted-foreground/40 hover:text-muted-foreground flex-shrink-0">
         <X size={14} />

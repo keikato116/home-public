@@ -38,6 +38,8 @@
 | 予定 | local_calendar_events, calendar_settings | 世帯（user_id は作成者） |
 | 割り勘 | split_sessions, split_subscriptions, family_card_totals | 世帯 + **現在の部屋のみ** |
 | 割り勘の設定 | split_settings（締め日・負担比率） | 世帯 |
+| 固定費の項目 | split_utilities（通信・電気など） | 世帯（部屋をまたぐ） |
+| 固定費の金額 | split_utility_amounts | 世帯 + **現在の部屋のみ**。書き込みは関数（`set_split_utility_amount`）経由 |
 | Google トークン | user_tokens | **クライアントからは本人も不可**。サーバーだけが読み書きする（AES-256-GCM で暗号化） |
 | 表示名・カレンダー色 | member_profiles | 世帯 |
 | 課金状態 | subscriptions | 本人（RevenueCat の webhook が書く） |

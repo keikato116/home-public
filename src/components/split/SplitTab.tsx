@@ -11,16 +11,18 @@ import { toDateStr, MONTH_NAMES } from "@/lib/dates";
 import { LS_SPLIT_CLOSING_DAY, LS_SPLIT_RATIO } from "@/lib/constants";
 import { ReceiptSheet } from "./ReceiptSheet";
 import { SessionRow } from "./SessionRow";
-import { getBillingPeriod, getCurrentPeriod, getSessionRatio, formatDateHeader, fmtYen, inputStyle } from "./lib";
+import { UtilitiesSection } from "./UtilitiesSection";
+import { getBillingPeriod, getCurrentPeriod, computeSettlement, formatDateHeader, fmtYen, inputStyle } from "./lib";
 
 // ─── Main Tab ─────────────────────────────────────────────────────────────────
 
 export function SplitTab() {
   const { householdId } = useAuthStore();
   const {
-    sessions, familyTotal, subscriptions, loading, settings,
+    sessions, familyTotal, subscriptions, utilities, utilityAmounts, loading, settings,
     load, loadSettings, saveSettings, addSession, deleteSession, setFamilyTotal,
     addSubscription, deleteSubscription, updateSessionStore, updateSessionCard, updateSubscriptionCard,
+    addUtility, deleteUtility, updateUtilityCard, setUtilityAmount,
   } = useSplitStore();
 
   // 締め日と比率は Supabase にあり、世帯で共有する（精算が合わなくなるため）。
@@ -120,18 +122,11 @@ export function SplitTab() {
     setEditingClosingDay(false);
   };
 
-  // Settlement calculation (includes subscriptions)
-  // Use per-session ratio; fall back to global splitRatio
-  const herFromMine = sessions.filter(s => s.card === "mine").reduce((sum, s) => sum + s.shared_amount * getSessionRatio(s, splitRatio), 0);
-  const herFromFamily = sessions.filter(s => s.card === "family").reduce((sum, s) => sum + s.shared_amount * getSessionRatio(s, splitRatio), 0);
-  const subsMine = subscriptions.filter(s => s.card === "mine").reduce((sum, s) => sum + s.amount, 0);
-  const subsFamily = subscriptions.filter(s => s.card === "family").reduce((sum, s) => sum + s.amount, 0);
-  // Her share of each side, per-session ratio included, so the breakdown below always
-  // adds up to the headline figure (himSplits + herCardBill − herSplits = gfOwesRaw).
-  const himSplits = herFromMine + subsMine * splitRatio;
-  const herSplits = herFromFamily + subsFamily * splitRatio;
+  // 精算（レシート・サブスク・固定費）。式と検算例は lib.ts の computeSettlement
   const familyCardTotal = familyTotal?.total ?? 0;
-  const gfOwesRaw = himSplits + familyCardTotal - herSplits;
+  const { himSplits, herSplits, herOwes: gfOwesRaw } = computeSettlement({
+    sessions, subscriptions, utilities, utilityAmounts, splitRatio, herCardBill: familyCardTotal,
+  });
   const netPositive = gfOwesRaw >= 0;
 
   const byDate: Record<string, SplitSession[]> = {};
@@ -150,7 +145,12 @@ export function SplitTab() {
     if (!householdId) return;
     const n = parseInt(familyInput, 10);
     if (isNaN(n) || n < 0) return;
-    await setFamilyTotal(householdId, viewYear, viewMonth, n);
+    try {
+      await setFamilyTotal(householdId, viewYear, viewMonth, n);
+    } catch {
+      // 保存できなかった（加入切れ・通信など）。画面を DB の値に戻す
+      refresh();
+    }
     setEditingFamily(false);
   };
 
@@ -285,6 +285,19 @@ export function SplitTab() {
         </div>
       </div>
 
+      {/* 固定費。レシートの一覧と違い、スクロールせず常に見える位置に置く */}
+      <UtilitiesSection
+        utilities={utilities}
+        amounts={utilityAmounts}
+        onSetAmount={(id, amount) => {
+          // 先に画面へ反映している。保存できなければ DB の値に戻す
+          if (householdId) setUtilityAmount(householdId, id, viewYear, viewMonth, amount).catch(() => refresh());
+        }}
+        onAdd={async (name) => { if (householdId) await addUtility(householdId, name); }}
+        onDelete={deleteUtility}
+        onUpdateCard={updateUtilityCard}
+      />
+
       <div className="flex-1 overflow-y-auto overflow-x-hidden px-6 pb-6">
         {/* Session list */}
         {loading && <p className="text-[10px] text-muted-foreground text-center py-4">loading...</p>}
@@ -300,7 +313,6 @@ export function SplitTab() {
               <SessionRow
                 key={session.id}
                 session={session}
-                fallbackRatio={splitRatio}
                 onDelete={() => deleteSession(session.id)}
                 onUpdateStore={(store) => updateSessionStore(session.id, store)}
                 onUpdateCard={(card) => updateSessionCard(session.id, card)}

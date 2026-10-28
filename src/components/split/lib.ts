@@ -1,4 +1,4 @@
-import { SplitSession } from "@/types";
+import { SplitSession, SplitSubscription, SplitUtility } from "@/types";
 import { toDateStr, MON_SHORT } from "@/lib/dates";
 
 export function formatDateHeader(dateStr: string) {
@@ -51,4 +51,34 @@ export const inputStyle = { fontSize: "16px" };
 
 export function getSessionRatio(session: SplitSession, fallback: number): number {
   return typeof session.her_ratio === "number" ? session.her_ratio : fallback;
+}
+
+/**
+ * 精算額。
+ *   him splits = Σ(him が払ったレシート × その割合) + (him のサブスク + him の固定費) × her%
+ *   her splits = Σ(her が払ったレシート × その割合) + (her のサブスク + her の固定費) × her%
+ *   her owes   = him splits + her のカード請求 − her splits（マイナスなら him owes）
+ * サブスクは有効なもの全部が毎月、固定費はその月に入力された分だけが入る（未入力 = 0）。
+ * 内訳（himSplits / herCardBill / herSplits）は必ず herOwes に足し引きで一致する。
+ */
+export function computeSettlement(input: {
+  sessions: SplitSession[];
+  subscriptions: SplitSubscription[];
+  utilities: SplitUtility[];
+  utilityAmounts: Record<string, number>;
+  splitRatio: number;
+  herCardBill: number;
+}) {
+  const { sessions, subscriptions, utilities, utilityAmounts, splitRatio, herCardBill } = input;
+  const receipts = (card: "mine" | "family") =>
+    sessions.filter((s) => s.card === card).reduce((sum, s) => sum + s.shared_amount * getSessionRatio(s, splitRatio), 0);
+  const subs = (card: "mine" | "family") =>
+    subscriptions.filter((s) => s.card === card).reduce((sum, s) => sum + s.amount, 0);
+  const utils = (card: "mine" | "family") =>
+    utilities.filter((u) => u.card === card).reduce((sum, u) => sum + (utilityAmounts[u.id] ?? 0), 0);
+
+  const himSplits = receipts("mine") + (subs("mine") + utils("mine")) * splitRatio;
+  const herSplits = receipts("family") + (subs("family") + utils("family")) * splitRatio;
+  const herOwes = himSplits + herCardBill - herSplits;
+  return { himSplits, herSplits, herCardBill, herOwes };
 }

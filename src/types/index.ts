@@ -155,6 +155,26 @@ export interface SplitSubscription {
   created_at: string;
 }
 
+/** 固定費の項目（通信・電気・ガス・水道など、月ごとに金額が変わるもの）。 */
+export interface SplitUtility {
+  id: string;
+  household_id: string;
+  name: string;
+  /** mine = him が払う、family = her が払う */
+  card: "mine" | "family";
+  created_at: string;
+}
+
+/** 固定費の、ある月の金額。month は 1-12。 */
+export interface SplitUtilityAmount {
+  id: string;
+  household_id: string;
+  utility_id: string;
+  year: number;
+  month: number;
+  amount: number;
+}
+
 /** 割り勘の設定。世帯で共有する（端末ごとではない）。 */
 export interface SplitSettings {
   household_id: string;

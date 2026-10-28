@@ -58,6 +58,18 @@ export async function POST(request: Request) {
     start_date: new Date().toISOString().split("T")[0],
   });
 
+  // 割り勘の固定費の既定の項目（あとから足し引きできる）。表がまだ無い
+  // （マイグレーション前）ときは何もしない。
+  const now = Date.now();
+  await admin.from("split_utilities").insert(
+    ["通信", "電気", "ガス", "水道"].map((name, i) => ({
+      household_id: household.id,
+      name,
+      // 並び順を保つため、作成時刻を少しずつずらす
+      created_at: new Date(now + i).toISOString(),
+    }))
+  );
+
   return NextResponse.json({
     household_id: household.id,
     invite_code: household.invite_code,
