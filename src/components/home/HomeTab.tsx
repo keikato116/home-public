@@ -1,5 +1,6 @@
 "use client";
 
+import { ConnectCalendarPrompt } from "./ConnectCalendarPrompt";
 import { useEffect, useRef, useState } from "react";
 import { useTodoStore } from "@/store/todoStore";
 import { useAuthStore } from "@/store/authStore";
@@ -118,6 +119,9 @@ export function HomeTab() {
       </div>
 
       <div className="flex-1 overflow-y-auto px-7 pb-8 space-y-6" style={{ scrollbarWidth: "none" }}>
+        {/* Apple などで登録して Google 未連携の人にだけ出る */}
+        <ConnectCalendarPrompt />
+
         {/* Shared todo card */}
         <div className="bg-muted/40 rounded-2xl px-5 py-4">
           <div className="flex items-center justify-between mb-3">

@@ -5,7 +5,7 @@ import {
   LS_GOOGLE_TOKEN, LS_GOOGLE_TOKEN_EXPIRY, LS_GOOGLE_REFRESH,
   LS_CACHED_USER, GOOGLE_CALENDAR_SCOPE,
 } from "@/lib/constants";
-import { startOAuth, isNativeApp } from "@/lib/nativeAuth";
+import { startOAuth, startLinkIdentity } from "@/lib/nativeAuth";
 
 // Google access-token lifecycle: storage, refresh, silent re-auth.
 // Kept separate from authStore (which owns session/household state);
@@ -33,33 +33,28 @@ export function startGoogleOAuth() {
 /**
  * カレンダーを繋ぐ。Apple でログインした人にも効くようにしてある。
  *
- * signInWithOAuth をそのまま呼ぶと「Google としてログインし直す」意味になるので、
- * Apple で登録した人が押すと別のアカウントに化けてしまう。すでにログイン済みで
- * Google の identity を持っていない場合は linkIdentity で今のアカウントに紐付ける。
+ * すでに Google でログインしている人（トークンの取り直し）は、今までどおり Google で
+ * ログインし直す。同じアカウントに戻るので問題ない。
  *
- * linkIdentity は Supabase の Authentication 設定で Manual linking が有効なときだけ動く。
- * 無効なら例外になるので、そのときは従来どおりの再ログインに落とす。
+ * Google を持っていない人（Apple で登録した人）は、今のアカウントに Google を紐付ける
+ * （startLinkIdentity）。以前はこれが失敗したときや iOS アプリでは Google での
+ * ログインに切り替えていたが、それだと Apple のアカウントとは別のアカウントに
+ * 入ってしまい、世帯もデータも無い状態になっていた。だから紐付けに失敗したら
+ * ログインには切り替えず、エラーにする。
  */
 export async function connectGoogleCalendar(supabase: ReturnType<typeof createClient>) {
   const { data: { user } } = await supabase.auth.getUser();
   const hasGoogle = user?.identities?.some((i) => i.provider === "google") ?? false;
-
-  // 未ログイン、または既に Google 連携済み（＝トークンの取り直し）は従来どおり。
-  // ネイティブでも linkIdentity は WebView 内で遷移してしまうので、Safari 経由に倒す。
-  if (!user || hasGoogle || isNativeApp()) return startGoogleOAuth();
+  if (!user || hasGoogle) return startGoogleOAuth();
 
   try {
-    const { error } = await supabase.auth.linkIdentity({
-      provider: "google",
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-        scopes: GOOGLE_CALENDAR_SCOPE,
-        queryParams: { access_type: "offline", prompt: "consent" },
-      },
+    await startLinkIdentity("google", {
+      scopes: GOOGLE_CALENDAR_SCOPE,
+      queryParams: { access_type: "offline", prompt: "consent" },
     });
-    if (error) throw error;
-  } catch {
-    return startGoogleOAuth();
+  } catch (e) {
+    console.error("[google] linkIdentity failed", e);
+    throw new Error("Google カレンダーを連携できませんでした。時間をおいてもう一度お試しください。");
   }
 }
 

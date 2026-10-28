@@ -11,6 +11,8 @@ export const LS_GACHA_HISTORY = "gacha_history";
 export const LS_MEAL_AUTO_DETECT = "meal_auto_detect";
 export const LS_SPLIT_CLOSING_DAY = "split_closing_day";
 export const LS_SPLIT_RATIO = "split_ratio";
+// ホームの「Google カレンダーを連携」の案内を「あとで」で閉じたか
+export const LS_CALENDAR_PROMPT_DISMISSED = "calendar_prompt_dismissed";
 export const LS_CAL_CACHE_PREFIX = "cal_cache_";
 export const LS_ENTITLED_CACHE = "entitled";
 // 初回登録で招待コードを入れたが未加入だった人の、加入後に参加する世帯のコード

@@ -27,6 +27,17 @@ export function CalendarTab() {
   const { plans, load: loadMealPlans } = useMealPlanStore();
   const currentUserId = user?.id;
 
+  // 連携に失敗したら（Apple で登録した人の紐付けが通らなかったなど）理由を出す
+  const [connectError, setConnectError] = useState<string | null>(null);
+  const connect = async () => {
+    setConnectError(null);
+    try {
+      await reAuthGoogle();
+    } catch (e) {
+      setConnectError(e instanceof Error ? e.message : "連携できませんでした");
+    }
+  };
+
   // JST-anchored so "today" and free-evening detection don't shift on a non-JST runtime.
   const today = useRef(getJSTToday()).current;
   const [viewMode, setViewMode] = useState<ViewMode>("month");
@@ -120,7 +131,10 @@ export function CalendarTab() {
             <div className="px-7 pb-2">
               {error && !error.startsWith("TOKEN") && <p className="text-[11px] text-muted-foreground">{error}</p>}
               {error && error.startsWith("TOKEN") && (
-                <button onClick={reAuthGoogle} className="text-[10px] text-muted-foreground underline underline-offset-2">connect google calendar</button>
+                <>
+                  <button onClick={connect} className="text-[10px] text-muted-foreground underline underline-offset-2">connect google calendar</button>
+                  {connectError && <p className="text-[11px] text-red-500 mt-1">{connectError}</p>}
+                </>
               )}
               {loading && <p className="text-[11px] text-muted-foreground">loading...</p>}
             </div>
@@ -154,9 +168,12 @@ export function CalendarTab() {
 
             {error && !error.startsWith("TOKEN") && <p className="text-[11px] text-muted-foreground mb-3">{error}</p>}
             {error && error.startsWith("TOKEN") && (
-              <button onClick={reAuthGoogle} className="text-[10px] text-muted-foreground underline underline-offset-2 mb-3 hover:text-foreground transition-colors">
-                connect google calendar
-              </button>
+              <>
+                <button onClick={connect} className="text-[10px] text-muted-foreground underline underline-offset-2 mb-3 hover:text-foreground transition-colors">
+                  connect google calendar
+                </button>
+                {connectError && <p className="text-[11px] text-red-500 mb-3">{connectError}</p>}
+              </>
             )}
             {loading && <p className="text-[11px] text-muted-foreground">loading...</p>}
 

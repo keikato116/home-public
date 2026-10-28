@@ -65,6 +65,43 @@ export async function startOAuth(
   await Browser.open({ url: data.url, presentationStyle: "popover" });
 }
 
+/**
+ * ログイン中のアカウントに、別のログイン方法（Google など）を紐付ける。
+ * Apple で登録した人が Google カレンダーを繋ぐときに使う。
+ *
+ * signInWithOAuth だと「Google としてログインし直す」ことになり、Apple のアカウントとは
+ * 別のアカウントに切り替わってしまう（世帯もデータも無いアカウントになる）。
+ * linkIdentity なら今のアカウントのまま Google が足される。
+ *
+ * iOS アプリでは startOAuth と同じく Safari に出し、戻りは initDeepLinkAuth が受ける
+ * （コード交換の手順はログインと同じ）。Supabase の Authentication 設定で
+ * Manual linking が有効でないと失敗する。
+ */
+export async function startLinkIdentity(
+  provider: Provider,
+  options: OAuthOptions = {}
+): Promise<void> {
+  const supabase = createClient();
+
+  if (!isNativeApp()) {
+    const { error } = await supabase.auth.linkIdentity({
+      provider,
+      options: { ...options, redirectTo: `${window.location.origin}/auth/callback` },
+    });
+    if (error) throw error;
+    return;
+  }
+
+  const { data, error } = await supabase.auth.linkIdentity({
+    provider,
+    options: { ...options, redirectTo: NATIVE_AUTH_REDIRECT, skipBrowserRedirect: true },
+  });
+  if (error || !data?.url) throw error ?? new Error("no link url");
+
+  const { Browser } = await import("@capacitor/browser");
+  await Browser.open({ url: data.url, presentationStyle: "popover" });
+}
+
 let deepLinkBound = false;
 
 /**

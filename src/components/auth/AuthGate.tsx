@@ -57,18 +57,11 @@ export function AuthGate() {
               the mark and the colours: Apple's HIG and Google's branding
               guidelines each require their own logo, drawn unmodified, on their
               own background. Apple's wording is fixed too, and reviewers check
-              it. The light/dark swap lives in globals.css. */}
-          <button
-            onClick={signInWithApple}
-            disabled={busy !== null}
-            className="btn-provider btn-apple w-full rounded min-h-[44px] px-4 py-3 text-[13px] flex items-center justify-center gap-2.5 disabled:opacity-50"
-          >
-            <svg viewBox="0 0 384 512" className="w-4 h-4 fill-current shrink-0" aria-hidden="true">
-              <path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z" />
-            </svg>
-            Sign in with Apple
-          </button>
+              it. The light/dark swap lives in globals.css.
 
+              Google is listed first because it is the one that brings the
+              calendar along. Apple must stay: Guideline 4.8 requires it beside
+              any third-party login, at the same size and prominence. */}
           <button
             onClick={signInWithGoogle}
             disabled={busy !== null}
@@ -83,6 +76,17 @@ export function AuthGate() {
               <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
             </svg>
             Sign in with Google
+          </button>
+
+          <button
+            onClick={signInWithApple}
+            disabled={busy !== null}
+            className="btn-provider btn-apple w-full rounded min-h-[44px] px-4 py-3 text-[13px] flex items-center justify-center gap-2.5 disabled:opacity-50"
+          >
+            <svg viewBox="0 0 384 512" className="w-4 h-4 fill-current shrink-0" aria-hidden="true">
+              <path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z" />
+            </svg>
+            Sign in with Apple
           </button>
         </div>
 
