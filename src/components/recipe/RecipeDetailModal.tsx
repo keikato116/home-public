@@ -5,6 +5,7 @@ import { Recipe } from "@/types";
 import { useRecipeStore, RECIPE_CATEGORIES, SUBCATEGORIES } from "@/store/recipeStore";
 import { ExternalLink, X, Loader2, Pencil, Check } from "lucide-react";
 import { stepLines, hostOf } from "@/lib/recipeSteps";
+import { RecipePhoto } from "./RecipePhoto";
 
 interface Props {
   recipe: Recipe;
@@ -313,8 +314,7 @@ export function RecipeDetailModal({ recipe, onClose }: Props) {
               <p className="text-[10px] tracking-widest text-muted-foreground uppercase">photo</p>
               {[recipe.thumbnail_url, ...(recipe.photo_urls ?? [])].filter(Boolean).map((url, i) => (
                 <button key={i} type="button" onClick={() => setZoomedPhoto(url!)} className="w-full">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={url!} alt={recipe.title} className="w-full h-auto rounded" />
+                  <RecipePhoto src={url} alt={recipe.title} className="w-full h-auto rounded" placeholderClassName="w-full aspect-[4/3] rounded bg-muted" />
                 </button>
               ))}
             </div>
@@ -325,8 +325,7 @@ export function RecipeDetailModal({ recipe, onClose }: Props) {
               className="fixed inset-0 bg-black/90 z-[60] flex items-center justify-center"
               onClick={() => setZoomedPhoto(null)}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={zoomedPhoto} alt="" className="max-w-full max-h-full object-contain" />
+              <RecipePhoto src={zoomedPhoto} alt="" className="max-w-full max-h-full object-contain" />
             </div>
           )}
 

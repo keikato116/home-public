@@ -1,6 +1,7 @@
 "use client";
 
 import { Recipe } from "@/types";
+import { RecipePhoto } from "./RecipePhoto";
 
 interface Props {
   recipe: Recipe;
@@ -15,8 +16,7 @@ export function RecipeCard({ recipe, onClick }: Props) {
     >
       <div className="aspect-video bg-muted flex items-center justify-center overflow-hidden">
         {recipe.thumbnail_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <RecipePhoto
             src={recipe.thumbnail_url}
             alt={recipe.title}
             className="w-full h-full object-cover"

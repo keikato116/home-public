@@ -13,7 +13,7 @@ export const metadata = {
   title: "プライバシーポリシー | Imbrex",
 };
 
-const UPDATED = "2026年10月21日";
+const UPDATED = "2026年10月28日";
 
 export default function PrivacyPage() {
   return (
@@ -130,10 +130,12 @@ export default function PrivacyPage() {
       <section className="space-y-2">
         <h2 className="text-[13px] tracking-wide">写真について</h2>
         <p className="text-[12px] text-muted-foreground leading-relaxed">
-          レシピに添付した写真は Supabase のストレージに保存され、
-          <strong>URL を知っている場合に閲覧できる形式</strong>で配信されます。
-          URL は推測が困難なものが自動で割り当てられますが、
-          第三者に知られたくない画像の登録はお控えください。
+          レシピに添付した写真は、非公開のストレージに保存されます。
+          <strong>見られるのは、登録したご本人と、同じ世帯で使っている間のお相手だけです。</strong>
+          表示のたびに1時間で失効する URL を発行するため、URL が他人に渡っても、
+          期限が切れれば見られなくなります。
+          URL から取り込んだレシピについては、取り込み先のサイトの画像を保存しません。
+          写真は、アカウントを削除すると併せて削除されます。
         </p>
       </section>
 

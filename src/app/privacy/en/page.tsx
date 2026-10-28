@@ -13,7 +13,7 @@ export const metadata = {
   title: "Privacy Policy | Imbrex",
 };
 
-const UPDATED = "21 October 2026";
+const UPDATED = "28 October 2026";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -163,9 +163,12 @@ export default function PrivacyEnPage() {
 
       <Section title="Photos">
         <P>
-          Photos attached to recipes are stored in Supabase Storage and served to anyone holding
-          the URL. URLs are assigned automatically and are hard to guess, but please do not upload
-          images you would not want a third party to see.
+          Photos attached to recipes are kept in private storage.{" "}
+          <strong>Only you, and the person you share your household with while you share it, can
+          see them.</strong> Each time a photo is shown, a link that expires after one hour is
+          issued, so a link passed to someone else stops working once it expires. Recipes imported
+          from a web page never include that site&apos;s images. Photos are deleted together with
+          your account.
         </P>
       </Section>
 
