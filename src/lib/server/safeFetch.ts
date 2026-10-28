@@ -43,6 +43,16 @@ export function isPrivateAddress(ip: string): boolean {
   return true; // IP として読めないものは通さない
 }
 
+/**
+ * Cloudflare Workers で動いているか。Workers ではサーバーからの fetch が
+ * 公開インターネットにしか届かない（wrangler.jsonc の global_fetch_strictly_public）ので、
+ * 名前解決して行き先を確かめる必要が無い。node:dns の名前解決は Workers では
+ * Cloudflare の DNS サービス経由になり、それが使えないと取り込みが全部止まるので、頼らない。
+ */
+function onCloudflareWorkers(): boolean {
+  return typeof navigator !== "undefined" && navigator.userAgent === "Cloudflare-Workers";
+}
+
 async function assertPublicUrl(raw: string): Promise<URL> {
   let url: URL;
   try {
@@ -54,6 +64,7 @@ async function assertPublicUrl(raw: string): Promise<URL> {
   if (url.username || url.password) throw new Error("credentials in url");
 
   const host = url.hostname.replace(/^\[|\]$/g, "");
+  if (!isIP(host) && onCloudflareWorkers()) return url;
   const addresses = isIP(host)
     ? [host]
     : (await lookup(host, { all: true })).map((a) => a.address);

@@ -43,3 +43,8 @@ next-env.d.ts
 DerivedData
 *.xcuserstate
 xcuserdata/
+
+# Cloudflare Workers のビルド成果物と、手元の秘密の値
+.open-next
+.wrangler
+.dev.vars

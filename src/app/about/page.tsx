@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 // 公開のアプリ紹介ページ。ログイン不要で読める。
 //
 // Google の OAuth 審査で「ホームページがログインの裏にある」として差し戻された
@@ -86,9 +88,9 @@ export default function AboutPage() {
       </Section>
 
       <nav className="flex gap-5 pt-2 border-t border-border">
-        <a href="/" className="text-[11px] underline underline-offset-4 text-muted-foreground hover:text-foreground">
+        <Link href="/" className="text-[11px] underline underline-offset-4 text-muted-foreground hover:text-foreground">
           アプリを開く
-        </a>
+        </Link>
         <a href="/privacy" className="text-[11px] underline underline-offset-4 text-muted-foreground hover:text-foreground">
           プライバシーポリシー
         </a>

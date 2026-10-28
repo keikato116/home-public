@@ -1,0 +1,19 @@
+// Cloudflare Workers の設定（Vercel からの移行先）。docs/cloudflare.md を参照。
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "imbrex",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": [
+    // Next.js とライブラリが使う Node の機能（暗号化、Buffer など）
+    "nodejs_compat",
+    // サーバーからの fetch を公開インターネットだけに限る。利用者が入れた URL を
+    // 取りに行くレシピ取り込みの SSRF 対策（src/lib/server/safeFetch.ts）を二重にする
+    "global_fetch_strictly_public"
+  ],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "observability": { "enabled": true }
+}
