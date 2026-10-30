@@ -1,7 +1,7 @@
 // Cloudflare Workers の設定（Vercel からの移行先）。docs/cloudflare.md を参照。
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "imbrex",
+  "name": "home-public",
   "main": ".open-next/worker.js",
   "compatibility_date": "2026-10-01",
   "compatibility_flags": [

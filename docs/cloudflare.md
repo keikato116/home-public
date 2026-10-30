@@ -34,10 +34,12 @@ Pro（月 $20）が要る。Cloudflare Workers の無料プランは商用利用
 1. Cloudflare のダッシュボード → **Workers & Pages** → **Create** → **Import a repository**
 2. GitHub の `keikato116/home-public` を選ぶ
 3. 設定
-   - Project name: `imbrex`（`wrangler.jsonc` の name と同じにする）
+   - Project name: `home-public`（`wrangler.jsonc` の name と同じにする。違うとビルドが失敗する）
    - Production branch: `main`
-   - Build command: `npx opennextjs-cloudflare build`
-   - Deploy command: `npx opennextjs-cloudflare deploy`
+   - Build command: 空欄
+   - Deploy command: `npm run cf:deploy`（Cloudflare 用にビルドしてからデプロイする。
+     `opennextjs-cloudflare deploy` だけだと、ビルドしていないので
+     「Could not find compiled Open Next config」で失敗する）
 
 ### 2. 環境変数を入れる
 **Settings → Variables and Secrets**（実行時）と、**Settings → Build → Variables and secrets**（ビルド時）の
@@ -66,7 +68,7 @@ Pro（月 $20）が要る。Cloudflare Workers の無料プランは商用利用
 **スクリーンショットに残す**。戻すときに使う。
 
 1. DNS → Records で、`imbrex.app` と `www` の Vercel 向きのレコードを削除
-2. Workers & Pages → `imbrex` → Settings → **Domains & Routes** → **Add** → Custom domain → `imbrex.app`
+2. Workers & Pages → `home-public` → Settings → **Domains & Routes** → **Add** → Custom domain → `imbrex.app`
 3. 数分で `https://imbrex.app` が Cloudflare から配信される
 
 ### 4. 切り替えたら確認
