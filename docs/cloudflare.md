@@ -99,7 +99,15 @@ Supabase → Authentication → URL Configuration
 - [ ] iPhone アプリでも同じように使える
 
 ### 戻すとき
-Domains & Routes から `imbrex.app` を外し、手順 3 で残したレコードを DNS に戻す。
+Domains & Routes から `imbrex.app` と `www.imbrex.app` を外し、DNS に次の2行を作り直す
+（2026-10-30 の切り替え前の値。Proxy は DNS only）。
+
+| Name | Type | Content |
+|---|---|---|
+| `imbrex.app` | CNAME | `0fd98a7a440893c2.vercel-dns-017.com` |
+| `www` | CNAME | `0fd98a7a440893c2.vercel-dns-017.com` |
+
+TXT（`google-site-verification=…`）は Google のドメイン所有確認なので、切り替えでも消さない。
 Vercel のプロジェクトは、1〜2週間問題なく動いてから削除する。
 
 ## 開発用のコマンド
