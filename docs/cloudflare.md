@@ -15,6 +15,16 @@ Pro（月 $20）が要る。Cloudflare Workers の無料プランは商用利用
 
 まだ確認できていないこと: 本物の Supabase・Google につないだ状態でのログインと各機能（切り替え後に確認する）。
 
+Vercel だけに頼っていた箇所は1つだけで、直してある: 天気の位置を Vercel が付けるヘッダー
+（`x-vercel-ip-latitude`）から取っていた。Cloudflare では `request.cf` の位置を使う（両方で動く）。
+
+### Vercel を消してよい時期
+- `imbrex.app` を Cloudflare に切り替えて、1〜2週間問題なく使えている
+- 2人の iPhone に、`imbrex.app` を読み込むビルド（Build 5 以降）が入っている
+  （それより前のビルドは `home-public.vercel.app` を読み込んでいるので、Vercel を消すと真っ白になる）
+
+そのとき、Supabase の Redirect URLs の `vercel.app` の行も消す。
+
 ## やり直さなくてよいもの
 
 ドメイン（`imbrex.app`）が変わらないので、外部の設定はほぼそのまま:
@@ -62,6 +72,15 @@ Pro（月 $20）が要る。Cloudflare Workers の無料プランは商用利用
 `NEXT_PUBLIC_` で始まるものは、ビルドの時点で画面のコードに埋め込まれるので、ビルド時にも要る。
 
 入れ終わったら **Deployments → Retry deployment**（または main に何か push）でビルドし直す。
+
+### 2.5 切り替える前に workers.dev でログインまで試す
+Supabase → Authentication → URL Configuration
+- **Site URL** を `https://imbrex.app` にする（`vercel.app` のままだと、許可されていない戻り先は
+  全部 Vercel に戻される）
+- **Redirect URLs** に `https://home-public.〇〇.workers.dev/**` を足す（〇〇 はアドレスバーのとおり）
+
+これで `workers.dev` の URL でもログインでき、本物のデータで動作を確かめられる。
+切り替えが済んだら、この行は消してよい。
 
 ### 3. ドメインを切り替える
 **切り替える前に**、Cloudflare の DNS で `imbrex.app` の今のレコード（Vercel を向いている A / CNAME）を

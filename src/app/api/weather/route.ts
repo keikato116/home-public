@@ -1,5 +1,24 @@
 import { NextResponse } from "next/server";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { requireUser } from "@/lib/server/entitlement";
+
+/**
+ * 接続元から推定したおおよその位置。端末の位置情報は使わない（天気にしか使わない）。
+ * Cloudflare Workers では request.cf に入っている。Vercel では x-vercel-ip-* ヘッダーに入る
+ * （移行が終わるまで両方で動くようにしてある）。
+ */
+function approximateLocation(request: Request): { lat: string | null; lon: string | null } {
+  try {
+    const cf = getCloudflareContext().cf as { latitude?: string; longitude?: string } | undefined;
+    if (cf?.latitude && cf?.longitude) return { lat: cf.latitude, lon: cf.longitude };
+  } catch {
+    // Cloudflare の外（Vercel・手元の next start）
+  }
+  return {
+    lat: request.headers.get("x-vercel-ip-latitude"),
+    lon: request.headers.get("x-vercel-ip-longitude"),
+  };
+}
 
 export async function GET(request: Request) {
   // OpenWeatherMap の利用枠を、ログインしていない人に使わせない
@@ -7,8 +26,9 @@ export async function GET(request: Request) {
   if (denied) return denied;
 
   const { searchParams } = new URL(request.url);
-  const lat = searchParams.get("lat") ?? request.headers.get("x-vercel-ip-latitude");
-  const lon = searchParams.get("lon") ?? request.headers.get("x-vercel-ip-longitude");
+  const approx = approximateLocation(request);
+  const lat = searchParams.get("lat") ?? approx.lat;
+  const lon = searchParams.get("lon") ?? approx.lon;
 
   if (!lat || !lon) {
     return NextResponse.json({ error: "location unavailable" }, { status: 400 });
