@@ -98,6 +98,13 @@ Supabase → Authentication → URL Configuration
 - [ ] レシピの URL 取り込み・写真取り込みができ、写真が表示される
 - [ ] iPhone アプリでも同じように使える
 
+ログインで失敗すると、ログイン画面に赤字で理由が出る（/auth/callback が渡す）。
+- `Unable to exchange external code` … Supabase の Google プロバイダに入っている
+  Client Secret が Google 側で消えている・違う。Google Cloud Console の OAuth クライアントで
+  有効な secret を確かめ、Supabase（Authentication → Sign In / Providers → Google）と
+  Cloudflare・Vercel の `GOOGLE_CLIENT_SECRET` を同じ値にそろえる（2026-10-30 に実際に起きた）
+- 何も出ずにログイン画面に戻る … Supabase の Site URL / Redirect URLs に、開いているドメインが無い
+
 ### 戻すとき
 Domains & Routes から `imbrex.app` と `www.imbrex.app` を外し、DNS に次の2行を作り直す
 （2026-10-30 の切り替え前の値。Proxy は DNS only）。
