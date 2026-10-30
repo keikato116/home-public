@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { startOAuth } from "@/lib/nativeAuth";
 import { GOOGLE_CALENDAR_SCOPE } from "@/lib/constants";
 
@@ -20,6 +20,17 @@ import { GOOGLE_CALENDAR_SCOPE } from "@/lib/constants";
 
 export function AuthGate() {
   const [busy, setBusy] = useState<"google" | "apple" | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
+
+  // /auth/callback がログインに失敗したときに付けてくる理由を出して、URL からは消す
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const reason = url.searchParams.get("auth_error");
+    if (!reason) return;
+    setAuthError(reason);
+    url.searchParams.delete("auth_error");
+    window.history.replaceState(null, "", url.pathname + url.search + url.hash);
+  }, []);
 
   const signInWithGoogle = async () => {
     setBusy("google");
@@ -89,6 +100,12 @@ export function AuthGate() {
             Sign in with Apple
           </button>
         </div>
+
+        {authError && (
+          <p role="alert" className="text-[11px] text-red-500 leading-relaxed break-words">
+            ログインできませんでした：{authError}
+          </p>
+        )}
 
         <p className="text-[10px] text-muted-foreground leading-relaxed">
           Google で入るとカレンダーの予定も表示されます。
