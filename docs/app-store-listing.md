@@ -57,8 +57,9 @@ Google カレンダーは読み取り専用で、予定をサーバーに保存�
 | 項目 | 値 |
 |---|---|
 | 参照名 | Premium Monthly |
-| 製品ID | `com.keikato.homeapp.premium.monthly` |
+| 製品ID | `com.keikato.homeapp.premium.month` |
 | 期間 | 1か月 |
+| ファミリー共有 | **オフ**（一度オンにすると戻せない。`…premium.monthly` はこれで作り直しになり、同じ ID は二度と使えない） |
 | 価格 | 300円 |
 | 導入オファー | 無料・1か月・日本 |
 | 表示名（日本語） | Imbrex プレミアム |
