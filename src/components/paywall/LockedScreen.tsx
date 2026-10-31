@@ -2,9 +2,8 @@
 
 import { LogOut } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
-import { SubscriptionSettings } from "@/components/settings/SubscriptionSettings";
 import { DeleteAccount } from "@/components/settings/DeleteAccount";
-import { PaywallModal } from "@/components/paywall/PaywallModal";
+import { PaywallContent } from "@/components/paywall/PaywallModal";
 import { getPendingJoin } from "@/lib/pendingJoin";
 
 // 権利（購入 or 運営の付与）を持っていない人に出す画面。
@@ -14,6 +13,10 @@ import { getPendingJoin } from "@/lib/pendingJoin";
 // （アカウント削除はアプリ内でできることが App Store の審査要件 5.1.1(v)）。
 //
 // データは消していない。加入すれば元どおり使える。
+//
+// 購入画面をそのまま載せている。以前は説明だけの画面から「プランを見る」で
+// 購入画面を開く2段構えだったが、どちらも同じこと（全機能・1か月無料・300円）を
+// 言っていて、価格にたどり着くまでに1回余計に押させていた。
 
 export function LockedScreen() {
   const signOut = useAuthStore((s) => s.signOut);
@@ -22,23 +25,19 @@ export function LockedScreen() {
   return (
     <div className="min-h-screen overflow-y-auto bg-background">
       <div className="max-w-xl mx-auto px-7 py-12 space-y-10">
-        <div className="space-y-2">
-          <p className="text-[10px] tracking-widest text-muted-foreground uppercase">imbrex</p>
-          <h1 className="text-[22px] tracking-wide">加入するとはじめられます</h1>
-          <p className="text-[12px] text-muted-foreground leading-relaxed">
-            Imbrex のすべての機能は、有料プラン（月額300円）でご利用いただけます。
-            はじめての方は、最初の1か月が無料です。
-            保存したデータは、加入すれば元どおりお使いいただけます。
-          </p>
-          {pendingCode && (
-            <p className="text-[12px] leading-relaxed">
-              加入すると、招待コード <span className="tracking-widest font-medium">{pendingCode}</span> の世帯に自動で参加します。
-              お相手も加入している必要があります。
+        <PaywallContent>
+          <div className="space-y-2">
+            <p className="text-[12px] text-muted-foreground leading-relaxed">
+              Imbrex は加入するとはじめられます。保存したデータは、加入すれば元どおりお使いいただけます。
             </p>
-          )}
-        </div>
-
-        <SubscriptionSettings />
+            {pendingCode && (
+              <p className="text-[12px] leading-relaxed">
+                加入すると、招待コード <span className="tracking-widest font-medium">{pendingCode}</span> の世帯に自動で参加します。
+                お相手も加入している必要があります。
+              </p>
+            )}
+          </div>
+        </PaywallContent>
 
         <div className="border-t border-border pt-6 space-y-6">
           <button
@@ -52,8 +51,6 @@ export function LockedScreen() {
           <DeleteAccount />
         </div>
       </div>
-
-      <PaywallModal />
     </div>
   );
 }
