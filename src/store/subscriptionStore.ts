@@ -104,6 +104,11 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
     const cached = getJSON<boolean | null>(LS_ENTITLED_CACHE, null);
     if (cached !== null) set({ entitled: cached });
 
+    // 権利の判定（DB）を先に走らせる。以前は課金プラグインの初期化と商品の取得を
+    // 待ってから判定していたので、StoreKit の応答が遅い・返ってこないと、付与されている
+    // 人まで前回のキャッシュ（未加入）のまま加入画面に閉じ込められた。
+    const status = get().refresh();
+
     if (purchasesAvailable()) {
       try {
         await configurePurchases(userId);
@@ -118,12 +123,16 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
       }
     }
 
-    await get().refresh();
+    await status;
   },
 
   refresh: async () => {
     try {
-      let status = await fetchFromDb();
+      // 起動直後やアプリの復帰直後は通信が一度こけることがある。1回だけやり直す
+      let status = await fetchFromDb().catch(async () => {
+        await new Promise((r) => setTimeout(r, 1500));
+        return fetchFromDb();
+      });
       // 自分は権利を持っているのに相手の権利が切れていたら、相手を自動で抜いて
       // 自分はソロで使い続ける。ふだんは webhook が期限切れの時点で同じことを
       // するので、ここは取りこぼしと運営の付与の期限切れ用。

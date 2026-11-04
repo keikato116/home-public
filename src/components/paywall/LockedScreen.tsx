@@ -20,6 +20,7 @@ import { getPendingJoin } from "@/lib/pendingJoin";
 
 export function LockedScreen() {
   const signOut = useAuthStore((s) => s.signOut);
+  const user = useAuthStore((s) => s.user);
   const pendingCode = typeof window === "undefined" ? null : getPendingJoin();
 
   return (
@@ -40,6 +41,15 @@ export function LockedScreen() {
         </PaywallContent>
 
         <div className="border-t border-border pt-6 space-y-6">
+          {/* Apple でログインするとメールが匿名のアドレスになり、Google で使っていた
+              アカウント（付与や加入のあるアカウント）とは別人になる。どのアカウントで
+              入っているか分からないと、加入画面から出られない理由が分からない。 */}
+          {user && (
+            <p className="text-[11px] text-muted-foreground leading-relaxed break-all">
+              ログイン中: {user.email ?? "メールアドレスなし"}
+              {user.app_metadata?.provider ? `（${user.app_metadata.provider}）` : ""}
+            </p>
+          )}
           <button
             onClick={signOut}
             className="flex items-center gap-2 text-[11px] text-muted-foreground hover:text-foreground transition-colors tracking-wider"
