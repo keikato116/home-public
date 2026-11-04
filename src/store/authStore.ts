@@ -11,6 +11,8 @@ import {
 import { logOutPurchases } from "@/lib/purchases";
 import { clearRecipePhotoCache } from "@/lib/recipePhotos";
 import { normalizeDisplayName } from "@/lib/displayName";
+import { traceAuth } from "@/lib/authTrace";
+import { isNativeApp } from "@/lib/nativeAuth";
 import { storeAccessToken, upsertUserToken, refreshAccessToken, ensureValidAccessToken, connectGoogleCalendar } from "@/lib/googleToken";
 
 export interface HouseholdMember {
@@ -183,6 +185,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
 
       const { data: { session } } = await supabase.auth.getSession();
+      if (isNativeApp()) traceAuth(session ? "起動時: セッションあり" : "起動時: セッションなし");
       if (session) {
         if (session.access_token) setJwt(session.access_token);
         if (session.provider_token) {
@@ -270,6 +273,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     });
 
     supabase.auth.onAuthStateChange(async (event: AuthChangeEvent, session: Session | null) => {
+      if (isNativeApp() && event !== "INITIAL_SESSION") traceAuth(`認証イベント: ${event}`);
       if (event === "SIGNED_IN" && session) {
         if (session.access_token) setJwt(session.access_token);
         if (session.provider_token) {
@@ -323,7 +327,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             isOwner: false, members: [], memberCount: null,
           });
         } else {
-          const { data: { session: recovered } } = await supabase.auth.refreshSession();
+          const { data: { session: recovered }, error: recoverError } = await supabase.auth.refreshSession();
+          if (isNativeApp()) traceAuth(recovered ? "復旧: 成功" : `復旧: 失敗 ${recoverError?.message ?? ""}`);
           if (recovered) {
             if (recovered.access_token) setJwt(recovered.access_token);
             localStorage.setItem(LS_CACHED_USER, JSON.stringify(recovered.user));
@@ -348,6 +353,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   signOut: async () => {
     if (periodicRefreshInterval) { clearInterval(periodicRefreshInterval); periodicRefreshInterval = null; }
     isSigningOut = true;
+    if (isNativeApp()) traceAuth("サインアウト（操作）");
     await logOutPurchases();
     // 端末に保存したレシピ写真を消す（次にこの端末でログインする人に残さない）
     await clearRecipePhotoCache();

@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { startOAuth, NATIVE_AUTH_ERROR_EVENT } from "@/lib/nativeAuth";
+import { startOAuth, NATIVE_AUTH_ERROR_EVENT, isNativeApp } from "@/lib/nativeAuth";
+import { readAuthTrace } from "@/lib/authTrace";
 import { GOOGLE_CALENDAR_SCOPE } from "@/lib/constants";
 
 // ログインの入口。
@@ -21,6 +22,11 @@ import { GOOGLE_CALENDAR_SCOPE } from "@/lib/constants";
 export function AuthGate() {
   const [busy, setBusy] = useState<"google" | "apple" | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
+  // iOS アプリでログインに失敗したときの経過（src/lib/authTrace.ts）
+  const [trace, setTrace] = useState<string[]>([]);
+  useEffect(() => {
+    if (isNativeApp()) setTrace(readAuthTrace());
+  }, [authError]);
 
   // /auth/callback がログインに失敗したときに付けてくる理由を出して、URL からは消す
   useEffect(() => {
@@ -118,6 +124,15 @@ export function AuthGate() {
           Google で入るとカレンダーの予定も表示されます。
           Apple で入った場合も、あとから設定できます。
         </p>
+
+        {trace.length > 0 && (
+          <div className="space-y-0.5">
+            <p className="text-[9px] tracking-widest text-muted-foreground uppercase">sign-in log</p>
+            {trace.map((line, i) => (
+              <p key={i} className="text-[9px] text-muted-foreground break-words">{line}</p>
+            ))}
+          </div>
+        )}
 
         {/* 審査で見られる3点への導線。Google は「ログインせずにアプリの説明が
             読めること」を求めており、Apple は規約とプライバシーポリシーが
