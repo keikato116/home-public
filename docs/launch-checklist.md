@@ -35,7 +35,7 @@
 
 ## 4. RevenueCat
 8. プロジェクトを作り、App Store と接続
-9. Entitlement `premium`、Offering `default` に月額の商品を入れる
+9. Entitlement `imbrex_pro`、Offering `default` に月額の商品を入れる
 10. Webhook: URL `https://imbrex.app/api/revenuecat/webhook`、Authorization に任意の秘密の文字列
 
 ## 5. Vercel（課金をオンにする）

@@ -45,8 +45,10 @@ export const BILLING_ENABLED = process.env.NEXT_PUBLIC_BILLING_ENABLED === "true
 export const PAIR_LAPSE_NOTICE =
   "相手の課金状態が切れたら解散します。データは残り、相手が再び加入して同じ招待コードで入り直すと、元どおり再開します。";
 
-// RevenueCat ダッシュボードで作る Entitlement の識別子。ここを変えるなら向こうも変える。
-export const RC_ENTITLEMENT_ID = "premium";
+// RevenueCat ダッシュボードの Entitlement の識別子。ここを変えるなら向こうも変える。
+// 初期設定のときに RevenueCat が自動で作った名前。識別子は後から変えられないので、
+// こちらを合わせてある。
+export const RC_ENTITLEMENT_ID = "imbrex_pro";
 // 課金しないと使えないタブ。BottomTabBar と page.tsx の両方がこれを見る。
 export const PREMIUM_TABS = ["cook", "recipe"] as const;
 // 1人世帯では成立しないタブ（割り勘は him/her の2人前提）。

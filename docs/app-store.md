@@ -261,7 +261,7 @@ user_id 単位で上書きするので、その人が一度購入して解約す
 ### 3. RevenueCat
 
 1. プロジェクトを作り、App Store Connect と連携（App-Specific Shared Secret が必要）
-2. Entitlement を **`premium`** という識別子で作る（`src/lib/constants.ts` の `RC_ENTITLEMENT_ID` と一致）
+2. Entitlement は **`imbrex_pro`**（初期設定で RevenueCat が作ったもの。`src/lib/constants.ts` の `RC_ENTITLEMENT_ID` と一致。識別子は後から変えられない）
 3. Offering（`default`）に上で作った商品を Package として登録
 4. Integrations → Webhooks に登録
    - URL: `https://<デプロイ先>/api/revenuecat/webhook`
