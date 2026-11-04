@@ -104,6 +104,14 @@ export async function startLinkIdentity(
 
 let deepLinkBound = false;
 
+// アプリでのログインに失敗した理由をログイン画面（AuthGate）に渡す。
+// ブラウザでは /auth/callback が ?auth_error= を付けて戻すが、アプリはそこを通らない。
+export const NATIVE_AUTH_ERROR_EVENT = "imbrex:native-auth-error";
+
+function reportAuthError(message: string) {
+  window.dispatchEvent(new CustomEvent(NATIVE_AUTH_ERROR_EVENT, { detail: message }));
+}
+
 /**
  * 戻ってきたディープリンクを受けてセッションを確立する。
  * アプリ起動時に一度だけ呼ぶ。ブラウザでは何もしない。
@@ -126,16 +134,26 @@ export async function initDeepLinkAuth(onSignedIn: () => void): Promise<void> {
     // カスタムスキームは URL として素直に解釈されないので、? 以降を自前で取る
     const query = url.includes("?") ? url.slice(url.indexOf("?") + 1) : "";
     const params = new URLSearchParams(query);
+    // Google / Apple 側や Supabase 側で失敗すると、code の代わりに error が付いて戻ってくる
+    const providerError = params.get("error_description") ?? params.get("error");
+    if (providerError) {
+      reportAuthError(providerError);
+      return;
+    }
     const code = params.get("code");
-    if (!code) return;
+    if (!code) {
+      reportAuthError("認証の結果を受け取れませんでした");
+      return;
+    }
 
     try {
       const supabase = createClient();
       const { error } = await supabase.auth.exchangeCodeForSession(code);
       if (error) throw error;
       onSignedIn();
-    } catch {
-      // 交換に失敗したらログイン画面のまま。利用者はもう一度押せる
+    } catch (e) {
+      // ログイン画面のまま理由を出す。利用者はもう一度押せる
+      reportAuthError(e instanceof Error ? e.message : String(e));
     }
   });
 }

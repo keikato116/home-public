@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { startOAuth } from "@/lib/nativeAuth";
+import { startOAuth, NATIVE_AUTH_ERROR_EVENT } from "@/lib/nativeAuth";
 import { GOOGLE_CALENDAR_SCOPE } from "@/lib/constants";
 
 // ログインの入口。
@@ -30,6 +30,13 @@ export function AuthGate() {
     setAuthError(reason);
     url.searchParams.delete("auth_error");
     window.history.replaceState(null, "", url.pathname + url.search + url.hash);
+  }, []);
+
+  // iOS アプリでの失敗は /auth/callback を通らないので、nativeAuth から受け取る
+  useEffect(() => {
+    const onError = (e: Event) => setAuthError(String((e as CustomEvent).detail));
+    window.addEventListener(NATIVE_AUTH_ERROR_EVENT, onError);
+    return () => window.removeEventListener(NATIVE_AUTH_ERROR_EVENT, onError);
   }, []);
 
   const signInWithGoogle = async () => {
