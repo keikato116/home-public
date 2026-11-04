@@ -70,6 +70,12 @@ Vercel だけに頼っていた箇所は1つだけで、直してある: 天気�
 | `REVENUECAT_WEBHOOK_SECRET` | | ✅ Secret | RevenueCat の Webhook に設定した文字列（課金を始めるとき） |
 
 `NEXT_PUBLIC_` で始まるものは、ビルドの時点で画面のコードに埋め込まれるので、ビルド時にも要る。
+（効くのはビルド時の値。サーバー側のコードにも、ビルド時に埋め込まれる）
+
+⚠️ 実行時の **Text（普通の変数）** は、ダッシュボードで足しても次の deploy で消える。
+デプロイは `wrangler deploy` で、`wrangler.jsonc` に無い変数を消すため。**Secret は消えない**。
+だから秘密でない実行時の変数は `wrangler.jsonc` の `vars` に書く（`NEXT_PUBLIC_BILLING_ENABLED` はそこにある）。
+`NEXT_PUBLIC_SUPABASE_URL` / `ANON_KEY` は実行時の一覧から消えていても、ビルド時に入っていれば動く。
 
 入れ終わったら **Deployments → Retry deployment**（または main に何か push）でビルドし直す。
 

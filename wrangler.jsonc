@@ -15,5 +15,12 @@
     "directory": ".open-next/assets",
     "binding": "ASSETS"
   },
-  "observability": { "enabled": true }
+  "observability": { "enabled": true },
+  // 実行時の普通の変数（Secret でないもの）はここに書く。ダッシュボードの
+  // Variables and Secrets で「Text」として足したものは、次の deploy で消される
+  // （Secret は残る）。NEXT_PUBLIC_ で始まるものは本当に効くのはビルド時の値なので、
+  // Settings → Build → Variables and secrets にも同じ値を入れること。
+  "vars": {
+    "NEXT_PUBLIC_BILLING_ENABLED": "true"
+  }
 }
