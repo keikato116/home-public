@@ -68,6 +68,7 @@ Vercel だけに頼っていた箇所は1つだけで、直してある: 天気�
 | `NEXT_PUBLIC_BILLING_ENABLED` | ✅ | ✅ | 課金を始めるまでは入れない |
 | `NEXT_PUBLIC_REVENUECAT_IOS_API_KEY` | ✅ | ✅ | RevenueCat（課金を始めるとき） |
 | `REVENUECAT_WEBHOOK_SECRET` | | ✅ Secret | RevenueCat の Webhook に設定した文字列（課金を始めるとき） |
+| `REVENUECAT_SECRET_API_KEY` | | ✅ Secret | RevenueCat → API keys → 秘密キー（`sk_…`、API バージョン v1）。webhook の取りこぼしやアカウントの作り直しで課金の記録が欠けたとき、サーバーが RevenueCat に問い合わせて直すのに使う（`src/lib/server/revenuecatSync.ts`） |
 
 `NEXT_PUBLIC_` で始まるものは、ビルドの時点で画面のコードに埋め込まれるので、ビルド時にも要る。
 （効くのはビルド時の値。サーバー側のコードにも、ビルド時に埋め込まれる）

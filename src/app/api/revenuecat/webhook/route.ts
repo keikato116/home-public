@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { exitIfPartnerStillPaying } from "@/lib/server/lapseExit";
+import { syncSubscriptionFromRevenueCat } from "@/lib/server/revenuecatSync";
 
 // RevenueCat webhook → subscriptions テーブル。
 // 課金状態の唯一の正はこのテーブル。クライアントの customerInfo は表示の先読みにしか使わない
@@ -18,7 +19,11 @@ type RcEvent = {
   product_id?: string;
   expiration_at_ms?: number | null;
   environment?: string;
+  transferred_from?: string[];
+  transferred_to?: string[];
 };
+
+const isUserId = (id: string) => /^[0-9a-f-]{36}$/i.test(id);
 
 // RevenueCat のイベント種別 → こちらで持つ status。
 // CANCELLATION は「自動更新を止めた」だけで期限までは使えるので active のまま
@@ -40,7 +45,7 @@ function statusFor(type: string): "active" | "in_grace" | "expired" | null {
     case "SUBSCRIPTION_PAUSED":
       return "expired";
     default:
-      // TRANSFER / SUBSCRIBER_ALIAS など、状態を変えないイベント
+      // SUBSCRIBER_ALIAS など、状態を変えないイベント（TRANSFER は POST の中で別に扱う）
       return null;
   }
 }
@@ -73,13 +78,27 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "missing app_user_id or type" }, { status: 400 });
   }
 
+  // 購入が別の ID に移った（アカウントを作り直して「購入を復元」したときなど）。
+  // TRANSFER には有効期限が載っていないので、移った先と元の両方を RevenueCat に
+  // 問い合わせて書き直す。これをしないと、移った先の人はアプリを開き直すたびに加入画面になる。
+  if (type === "TRANSFER") {
+    const ids = [...(event.transferred_to ?? []), ...(event.transferred_from ?? [])].filter(isUserId);
+    try {
+      const results = await Promise.all(ids.map((id) => syncSubscriptionFromRevenueCat(supabase, id)));
+      return NextResponse.json({ ok: true, transfer: results });
+    } catch (e) {
+      console.error("[revenuecat] sync after transfer failed", e);
+      return NextResponse.json({ error: "sync after transfer failed" }, { status: 500 });
+    }
+  }
+
   const status = statusFor(type);
   // 状態を変えないイベントも 200 で返す。4xx を返すと RevenueCat が再送し続ける。
   if (!status) return NextResponse.json({ ok: true, skipped: type });
 
   // 匿名 ID（$RCAnonymousID:…）は Supabase ユーザーに紐付かない。購入前に
   // Purchases.logIn() が走っていないケースなので、記録せず 200 を返す。
-  if (!/^[0-9a-f-]{36}$/i.test(userId)) {
+  if (!isUserId(userId)) {
     return NextResponse.json({ ok: true, skipped: "anonymous app_user_id" });
   }
 
@@ -97,6 +116,11 @@ export async function POST(req: NextRequest) {
   );
 
   if (error) {
+    // 削除済みのアカウント（auth.users に行が無い）あての通知。書く先が無いので受け取って終わる。
+    // 5xx を返すと RevenueCat が再送し続け、一覧が失敗で埋まる。
+    if (error.code === "23503") {
+      return NextResponse.json({ ok: true, skipped: "unknown user" });
+    }
     // 5xx で返すと RevenueCat が再送してくれる
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

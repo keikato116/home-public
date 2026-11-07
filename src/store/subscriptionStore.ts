@@ -9,7 +9,7 @@ import { LS_ENTITLED_CACHE, BILLING_ENABLED } from "@/lib/constants";
 import { useAuthStore } from "@/store/authStore";
 import {
   purchasesAvailable, configurePurchases, fetchPackages, fetchTrialEligibility,
-  purchasePackage, restorePurchases, hasEntitlement, isUserCancelled,
+  purchasePackage, restorePurchases, hasEntitlement, isUserCancelled, fetchCustomerInfo,
 } from "@/lib/purchases";
 
 // 課金状態の正は Supabase の subscriptions テーブル（RevenueCat webhook が書く）。
@@ -77,6 +77,19 @@ async function fetchFromDb(): Promise<DbStatus> {
   return { entitled: d.entitled === true, source, partnerReady: d.partner_ready !== false };
 }
 
+/**
+ * サーバーの課金記録を RevenueCat に問い合わせて直してもらう（/api/subscription/sync）。
+ * StoreKit では購入済みなのにサーバーの判定が未加入のとき（webhook の取りこぼし、
+ * アカウントを作り直して購入を復元したとき）に呼ぶ。失敗しても何もしない。
+ */
+async function syncServerSubscription(): Promise<void> {
+  try {
+    await fetch("/api/subscription/sync", { method: "POST" });
+  } catch {
+    // 次の起動でまた試す
+  }
+}
+
 async function exitLapsedPartners(): Promise<number> {
   try {
     const res = await fetch("/api/household/enforce-pair", { method: "POST" });
@@ -109,9 +122,12 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
     // 人まで前回のキャッシュ（未加入）のまま加入画面に閉じ込められた。
     const status = get().refresh();
 
+    let storeEntitled = false;
     if (purchasesAvailable()) {
       try {
         await configurePurchases(userId);
+        const info = await fetchCustomerInfo().catch(() => null);
+        storeEntitled = info !== null && hasEntitlement(info);
         const pkgs = await fetchPackages();
         set({ packages: pkgs });
         // 失敗しても購入はできる。無料体験の表示が出ないだけ。
@@ -124,6 +140,13 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
     }
 
     await status;
+
+    // StoreKit では購入済みなのに、サーバーの記録が追いついていない。
+    // サーバーに RevenueCat へ問い合わせてもらってから判定し直す
+    if (storeEntitled && get().source !== "subscription") {
+      await syncServerSubscription();
+      await get().refresh();
+    }
   },
 
   refresh: async () => {
@@ -159,13 +182,14 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
     try {
       const info = await purchasePackage(pkg);
       if (hasEntitlement(info)) {
-        // 先読みで即開放。webhook が届けば refresh で DB 由来の値に上書きされる。
+        // 先読みで即開放。サーバーの記録を直したあとの refresh で DB 由来の値に上書きされる。
         // 自分の購入だけでは開かない場合がある（2人世帯で相手が未加入）。
         // 先読みで開けてよいのは、相手がすでに権利を持っているときだけ。
         const entitled = get().partnerReady;
         setJSON(LS_ENTITLED_CACHE, entitled);
         set({ entitled, source: "subscription", paywallOpen: false });
-        setTimeout(() => { get().refresh().catch(() => {}); }, 4000);
+        // webhook を待たずに、サーバーの記録を RevenueCat に合わせてから判定し直す
+        syncServerSubscription().then(() => get().refresh()).catch(() => {});
         return true;
       }
       set({ error: "購入は完了しましたが、権利を確認できませんでした。時間をおいて『購入を復元』をお試しください。" });
@@ -191,7 +215,8 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
         const entitled = get().partnerReady;
         setJSON(LS_ENTITLED_CACHE, entitled);
         set({ entitled, source: "subscription", paywallOpen: false });
-        setTimeout(() => { get().refresh().catch(() => {}); }, 4000);
+        // webhook を待たずに、サーバーの記録を RevenueCat に合わせてから判定し直す
+        syncServerSubscription().then(() => get().refresh()).catch(() => {});
       } else {
         set({ error: "復元できる購入が見つかりませんでした。" });
       }

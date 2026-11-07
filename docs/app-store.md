@@ -267,6 +267,9 @@ user_id 単位で上書きするので、その人が一度購入して解約す
    - URL: `https://<デプロイ先>/api/revenuecat/webhook`
    - Authorization ヘッダー: `REVENUECAT_WEBHOOK_SECRET` と同じ値
 5. 公開APIキー（`appl_` で始まる）を `NEXT_PUBLIC_REVENUECAT_IOS_API_KEY` に設定
+6. 秘密キー（`sk_` で始まる、API バージョン v1）を作り、`REVENUECAT_SECRET_API_KEY`（Secret）に設定。
+   webhook が届かなかったときや、アカウントを作り直して「購入を復元」したときに、
+   サーバーが RevenueCat に直接問い合わせて `subscriptions` を直す（`/api/subscription/sync`）
 
 ### 4. Vercel
 

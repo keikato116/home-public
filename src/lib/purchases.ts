@@ -85,6 +85,13 @@ export async function restorePurchases(): Promise<CustomerInfo> {
   return customerInfo;
 }
 
+/** いまの購入状態。ネイティブ以外・初期化前は null。 */
+export async function fetchCustomerInfo(): Promise<CustomerInfo | null> {
+  if (!purchasesAvailable() || !configured) return null;
+  const { customerInfo } = await Purchases.getCustomerInfo();
+  return customerInfo;
+}
+
 /** StoreKit 側で権利が有効か。webhook が届くまでの数秒を埋めるための先読み。 */
 export function hasEntitlement(info: CustomerInfo): boolean {
   return Boolean(info.entitlements.active[RC_ENTITLEMENT_ID]);
