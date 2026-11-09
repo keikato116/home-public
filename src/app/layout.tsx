@@ -9,6 +9,12 @@ const dmMono = DM_Mono({
 });
 
 export const metadata: Metadata = {
+  // 同じページが imbrex.app・www.imbrex.app・vercel.app・workers.dev の複数の URL で
+  // 見えるので、Google に「正しいのはこれ」と伝える（Search Console の
+  // 「重複しています。ユーザーにより、正規ページとして選択されていません」の対策）。
+  // canonical はページごとに上書きする。ここの "/" はトップ（ログイン画面）の分。
+  metadataBase: new URL("https://imbrex.app"),
+  alternates: { canonical: "/" },
   title: "Imbrex",
   description: "household task sharing app",
   manifest: "/manifest.json",

@@ -11,6 +11,7 @@
 
 export const metadata = {
   title: "Privacy Policy | Imbrex",
+  alternates: { canonical: "/privacy/en", languages: { ja: "/privacy", en: "/privacy/en" } },
 };
 
 const UPDATED = "28 October 2026";

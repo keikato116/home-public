@@ -6,6 +6,7 @@
 
 export const metadata = {
   title: "利用規約 | Imbrex",
+  alternates: { canonical: "/terms" },
 };
 
 const UPDATED = "2026年10月21日";

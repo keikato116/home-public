@@ -13,6 +13,7 @@ import Link from "next/link";
 // （実際に、同意画面が旧名 `Home` のままで指摘を受けた）。
 
 export const metadata = {
+  alternates: { canonical: "/about" },
   title: "Imbrex — 二人の暮らしを一枚に",
   description:
     "Imbrex は、2人で暮らす人のための家事・予定・買い物の共有アプリです。" +
