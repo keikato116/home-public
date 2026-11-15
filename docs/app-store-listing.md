@@ -1,4 +1,6 @@
-# App Store Connect に入れる文章（2026-10-28 時点）
+# App Store Connect に入れる文章（2026-11-15 時点）
+
+画面の順に並べた入力シートは `docs/app-store-submit.md`。
 
 アプリの中身と食い違うと差し戻されるので、**機能や料金を変えたらここも直すこと**。
 利用規約（`/terms`）・プライバシーポリシー（`/privacy`）・/about と内容を揃えてある。
@@ -64,7 +66,7 @@ Google カレンダーは読み取り専用で、予定をサーバーに保存�
 | 導入オファー | 無料・1か月・日本 |
 | 表示名（日本語） | Imbrex プレミアム |
 | 説明（日本語） | 予定・家事・買い物・献立・割り勘のすべての機能が使えます |
-| 審査用スクリーンショット | 購入画面（設定 → premium →「プランを見る」）を撮ったもの |
+| 審査用スクリーンショット | `docs/app-store-assets/subscription-review.png`（加入前の人がログイン直後に見る購入画面） |
 
 **バージョンのページで、この商品を「App内課金とサブスクリプション」に追加してから提出すること。**
 忘れると商品が審査に出ず、購入画面が空のまま審査されて落ちる。
@@ -96,15 +98,16 @@ Google カレンダーは読み取り専用で、予定をサーバーに保存�
 ```
 Imbrex is a household-sharing app for one or two people living together. The UI is in Japanese.
 
-Sign-in: use "Google でログイン" with the demo account above, or "Apple でサインイン" with any Apple ID.
+Sign-in: tap "Sign in with Google" and use the demo account above. "Sign in with Apple" works with any Apple ID.
 
-Subscription: all features require the "Imbrex プレミアム" auto-renewable subscription (JPY 300 per month, with a one-month free trial for new subscribers). The demo account has complimentary access, so every feature is available without purchasing. To see the purchase flow, sign in with Apple using a different Apple ID: after entering a display name, the subscription screen appears, with the price, trial terms, Restore Purchases, Terms of Use and Privacy Policy. It is also reachable from Settings → premium.
+Subscription: all features require the "Imbrex プレミアム" auto-renewable subscription (JPY 300 per month, with a one-month free trial for new subscribers). The demo account has complimentary access, so every feature is available without purchasing.
+To see the purchase flow, sign in with Apple using a different Apple ID, choose "1人で使う", and enter a display name. The subscription screen then appears, showing the price, trial terms, Restore Purchases, Terms of Use and Privacy Policy. It is also reachable from Settings → premium.
 
 After signing in with the demo account:
-1. Home shows today's chores, to-dos and weather.
-2. Calendar: tap "Google カレンダーを連携" to show Google Calendar events (read-only, calendar.readonly; this app has passed Google's OAuth verification).
+1. Home shows today's chores, shared to-dos and the weather.
+2. Calendar shows the demo account's Google Calendar events (read-only, calendar.readonly; this app has passed Google's OAuth verification). Accounts that signed in with Apple can connect Google Calendar from the prompt on Home ("連携する").
 3. Recipes: add a recipe by pasting a recipe page URL or taking a photo.
-4. Chore reminders: Settings → notifications. Local notifications only; no push server.
+4. Chore reminders: Settings → notification. Local notifications only; no push server.
 5. Two-person features (shared view, expense splitting) appear after a second subscribed account joins with the invite code shown in Settings → household.
 
 Account deletion: Settings → bottom of the page → "アカウントを削除". It is available whether or not the user is subscribed.
