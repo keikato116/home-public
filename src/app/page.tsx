@@ -19,7 +19,7 @@ import { PaywallModal } from "@/components/paywall/PaywallModal";
 import { LockedScreen } from "@/components/paywall/LockedScreen";
 import { PREMIUM_TABS, PAIR_ONLY_TABS, BILLING_ENABLED } from "@/lib/constants";
 import { initDeepLinkAuth } from "@/lib/nativeAuth";
-import { hydratePrefs } from "@/store/prefsStore";
+import { hydratePrefs, usePrefsStore } from "@/store/prefsStore";
 import { getPendingJoin, clearPendingJoin, completePendingJoin } from "@/lib/pendingJoin";
 import { reloadAfterMembershipChange } from "@/lib/joinRequests";
 
@@ -68,16 +68,18 @@ function MainApp() {
 
   const premium = entitled === true;
   const solo = memberCount !== null && memberCount <= 1;
+  const hiddenTabs = usePrefsStore((s) => s.hiddenTabs);
 
-  // 課金が切れた（解約・支払い失敗）／パートナーが抜けた状態で、消えたタブに
+  // 課金が切れた（解約・支払い失敗）／パートナーが抜けた／設定で非表示にした状態で、消えたタブに
   // 留まったままにしない。タブ自体は BottomTabBar 側で消えているので、ここは表示の後始末。
   useEffect(() => {
     // entitled === null は「判定中」。確定するまで追い出さない。
     const gone =
       (entitled === false && (PREMIUM_TABS as readonly string[]).includes(activeTab)) ||
-      (solo && (PAIR_ONLY_TABS as readonly string[]).includes(activeTab));
+      (solo && (PAIR_ONLY_TABS as readonly string[]).includes(activeTab)) ||
+      (activeTab !== "home" && hiddenTabs.includes(activeTab));
     if (gone) setActiveTab("home");
-  }, [entitled, solo, activeTab, setActiveTab]);
+  }, [entitled, solo, hiddenTabs, activeTab, setActiveTab]);
 
   // すべての機能が有料。自分が権利を持っていなければ、加入の画面しか出さない。
   // 自分は持っているが相手が切れている場合は、相手が自動で抜けて（subscriptionStore）

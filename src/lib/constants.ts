@@ -9,6 +9,8 @@ export const LS_CACHED_IS_OWNER = "cached_is_owner";
 export const LS_GACHA_HISTORY = "gacha_history";
 /** 献立の「空いてそうな日」の自動判定を出すか。既定は出さない。 */
 export const LS_MEAL_AUTO_DETECT = "meal_auto_detect";
+// 設定で非表示にしたタブの id（端末ごと）
+export const LS_HIDDEN_TABS = "hidden_tabs";
 export const LS_SPLIT_CLOSING_DAY = "split_closing_day";
 export const LS_SPLIT_RATIO = "split_ratio";
 // ホームの「Google カレンダーを連携」の案内を「あとで」で閉じたか
@@ -53,6 +55,14 @@ export const RC_ENTITLEMENT_ID = "imbrex_pro";
 export const PREMIUM_TABS = ["cook", "recipe"] as const;
 // 1人世帯では成立しないタブ（割り勘は him/her の2人前提）。
 export const PAIR_ONLY_TABS = ["split"] as const;
+// 設定で出し入れできるタブ。ホームは開いたときの画面なので、いつも出す。
+export const HIDEABLE_TABS = [
+  { id: "calendar", label: "予定" },
+  { id: "cook", label: "献立" },
+  { id: "shopping", label: "買い物" },
+  { id: "split", label: "割り勘" },
+  { id: "recipe", label: "レシピ" },
+] as const;
 // 審査・サポート用の公開ページ。App Store Connect には
 // https://<デプロイ先>/terms · /privacy という絶対URLで登録する。
 export const TERMS_URL = "/terms";

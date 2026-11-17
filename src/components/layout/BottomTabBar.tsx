@@ -2,6 +2,7 @@
 
 import { useAuthStore } from "@/store/authStore";
 import { useSubscriptionStore } from "@/store/subscriptionStore";
+import { usePrefsStore } from "@/store/prefsStore";
 import { PREMIUM_TABS, PAIR_ONLY_TABS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import {
@@ -21,6 +22,7 @@ const TABS = [
 export function BottomTabBar() {
   const { activeTab, setActiveTab, setSettingsOpen, bumpCalendarView, memberCount } = useAuthStore();
   const entitled = useSubscriptionStore((s) => s.entitled);
+  const hiddenTabs = usePrefsStore((s) => s.hiddenTabs);
 
   // 判定が終わるまで（null）はプレミアムタブを出さない。先に出してから消すと
   // 起動のたびにタブがちらついて、購入済みユーザーには不具合に見える。
@@ -30,6 +32,8 @@ export function BottomTabBar() {
   const tabs = TABS.filter((t) => {
     if (!entitled && (PREMIUM_TABS as readonly string[]).includes(t.id)) return false;
     if (solo && (PAIR_ONLY_TABS as readonly string[]).includes(t.id)) return false;
+    // 設定で非表示にしたタブ（ホームは非表示にできない）
+    if (t.id !== "home" && hiddenTabs.includes(t.id)) return false;
     return true;
   });
 
