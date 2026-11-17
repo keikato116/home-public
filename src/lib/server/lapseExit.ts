@@ -3,8 +3,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 // 相手の課金が切れたら解散する（利用規約「5. 有料プラン」、設定・購入画面に明記）。
 //
 // 解散といっても、データは世帯に残して、切れた人だけが自動で抜ける。
-// 抜けた人が再び加入し、同じ招待コードで入り直すと、元の部屋が再開する
-// （割り勘・共有の買い物リストなど、部屋で区切っている記録がまた見える）。
+// 抜けた人が再び加入して「前の部屋に戻る申請」を出し、残っている人が承認すると、
+// 元の部屋が再開する（割り勘・共有の買い物リストなど、部屋で区切っている記録がまた見える）。
+// 戻る人はコードではなくアカウントで見分ける（room_pauses）。招待コードは抜けた時点で
+// 作り直すので、抜けた人が残っている人に断りなく入ってくることはない。
 //
 // RevenueCat の webhook が「期限切れ」を書いた直後に呼ぶ。EXPIRATION は Apple の
 // 支払いリトライ（猶予期間）が終わってから届くので、一時的な支払い失敗では抜けない。
@@ -134,6 +136,10 @@ async function leaveKeepingRoom(
     .from("member_profiles")
     .update({ household_id: soloId, updated_at: now })
     .eq("user_id", userId);
+
+  // 抜けた人が知っているコードを使えなくする（戻るのは承認制の申請で）
+  const { error: rotateErr } = await admin.rpc("rotate_invite_code", { p_household: householdId });
+  if (rotateErr) throw new Error(rotateErr.message);
 }
 
 export type JoinBlock = "subscription required" | "partner subscription lapsed";

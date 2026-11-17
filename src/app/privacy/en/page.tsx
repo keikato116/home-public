@@ -14,7 +14,7 @@ export const metadata = {
   alternates: { canonical: "/privacy/en", languages: { ja: "/privacy", en: "/privacy/en" } },
 };
 
-const UPDATED = "28 October 2026";
+const UPDATED = "17 November 2026";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -75,7 +75,7 @@ export default function PrivacyEnPage() {
 
       <Section title="Sharing within a household">
         <P>
-          When someone joins your household with an invite code, that household&apos;s data is
+          When you approve someone&apos;s request to join your household, that household&apos;s data is
           shared with them. Shopping list items you mark as your own remain visible only to you.
         </P>
         <P>

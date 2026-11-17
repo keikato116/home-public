@@ -2,12 +2,14 @@
 
 import { getJSON, setJSON } from "@/lib/storage";
 import { LS_PENDING_JOIN } from "@/lib/constants";
+import { joinErrorMessage } from "@/lib/joinRequests";
 
 // 招待された人が、初回登録の画面で招待コードを入れたが、まだ加入していなかった場合。
 //
 // すべての機能が有料で、参加には加入が要る。加入（無料体験）は世帯を作ってからでないと
 // 始められないので、いったん1人用の世帯を作って加入画面を出し、加入できたら
-// 控えておいたコードで自動的に参加する（src/app/page.tsx）。
+// 控えておいたコードで自動的に参加の申請を出す（src/app/page.tsx）。
+// 参加は承認制なので、相手が承認したときに世帯が移る。
 
 export function getPendingJoin(): string | null {
   return getJSON<string | null>(LS_PENDING_JOIN, null);
@@ -25,7 +27,7 @@ const RETRY_DELAY_MS = 2500;
 const MAX_TRIES = 6;
 
 /**
- * 控えたコードで参加する。成功したら null、だめなら利用者に見せる文言を返す。
+ * 控えたコードで参加を申請する。成功したら null、だめなら利用者に見せる文言を返す。
  *
  * 購入の直後は、RevenueCat の webhook がまだ届いておらず、サーバーからは
  * 未加入に見えることがある（402）。数秒おきに何度か試す。
@@ -44,10 +46,7 @@ export async function completePendingJoin(code: string): Promise<string | null> 
       await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
       continue;
     }
-    return body.error === "invite code not found" ? `招待コード ${code} の世帯が見つかりませんでした`
-      : body.error === "household is full" ? "その世帯はすでに2人で使われています"
-      : body.error === "partner subscription lapsed" ? "お相手の加入が切れているため参加できませんでした"
-      : "参加できませんでした。設定 → household から、もう一度お試しください";
+    return `${joinErrorMessage(body.error)}（設定 → household から、もう一度申請できます）`;
   }
-  return "加入の確認に時間がかかっています。少し待ってから、設定 → household →「相手の世帯に参加する」で入ってください";
+  return "加入の確認に時間がかかっています。少し待ってから、設定 → household →「相手の世帯に参加する」で申請してください";
 }

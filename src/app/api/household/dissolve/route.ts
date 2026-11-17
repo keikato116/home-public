@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { transferHouseholdData } from "@/lib/server/householdTransfer";
+import { rotateInviteCode } from "@/lib/server/householdJoin";
 
 // グループの解散。招待した側・された側のどちらからでも実行できる。
 //
@@ -110,6 +111,14 @@ export async function POST() {
     if (tokenError) {
       return NextResponse.json({ error: tokenError.message }, { status: 500 });
     }
+  }
+
+  // 抜けた人が知っている招待コードを使えなくする。作り直さないと、解散したあとも
+  // 元の相手が同じコードで申請を出し続けられる（入るには承認が要るが、受け付けない）。
+  try {
+    await rotateInviteCode(admin, oldHouseholdId);
+  } catch (e) {
+    console.error("[dissolve] rotate invite code failed", e);
   }
 
   return NextResponse.json({ ok: true, left: leaving.includes(user.id) });

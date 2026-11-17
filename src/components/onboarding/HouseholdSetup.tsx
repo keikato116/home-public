@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { BILLING_ENABLED } from "@/lib/constants";
 import { setPendingJoin } from "@/lib/pendingJoin";
+import { joinErrorMessage } from "@/lib/joinRequests";
 
 export function HouseholdSetup() {
   const { user, setHouseholdId } = useAuthStore();
@@ -66,15 +67,12 @@ export function HouseholdSetup() {
         return;
       }
 
-      if (!res.ok) {
-        throw new Error(
-          body.error === "invite code not found" ? "この招待コードの世帯が見つかりません"
-          : body.error === "household is full" ? "その世帯はすでに2人で使われています"
-          : body.error === "partner subscription lapsed" ? "お相手の加入が切れているため参加できません"
-          : body.error ?? "参加できませんでした"
-        );
-      }
-      setHouseholdId(body.household_id, body.invite_code ?? undefined);
+      if (!res.ok) throw new Error(joinErrorMessage(body.error));
+
+      // 参加は承認制。申請を出したら、いったん1人用の世帯で始めてもらう。
+      // 相手が承認すると、その世帯に移る（ホームに申請中の案内が出る）。
+      await createHousehold(false);
+      return;
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "something went wrong");
     }
@@ -168,7 +166,7 @@ export function HouseholdSetup() {
               disabled={loading || inviteInput.length < 6}
               className="w-full bg-foreground text-background rounded px-4 py-3 text-[12px] tracking-wider disabled:opacity-40"
             >
-              {loading ? "joining..." : "join"}
+              {loading ? "申請中..." : "参加を申請する"}
             </button>
             <button
               onClick={() => setMode("select")}

@@ -14,7 +14,7 @@ export const metadata = {
   alternates: { canonical: "/privacy", languages: { ja: "/privacy", en: "/privacy/en" } },
 };
 
-const UPDATED = "2026年10月28日";
+const UPDATED = "2026年11月17日";
 
 export default function PrivacyPage() {
   return (
@@ -62,7 +62,7 @@ export default function PrivacyPage() {
       <section className="space-y-2">
         <h2 className="text-[13px] tracking-wide">世帯内での共有</h2>
         <p className="text-[12px] text-muted-foreground leading-relaxed">
-          招待コードで同じ世帯に参加した方とは、その世帯のデータが共有されます。
+          参加の申請を承認して同じ世帯に入った方とは、その世帯のデータが共有されます。
           ただし、次のものは本人にしか表示されません。
         </p>
         <ul className="text-[12px] text-muted-foreground leading-relaxed space-y-1">

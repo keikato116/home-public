@@ -16,7 +16,7 @@
 ・献立とレシピ　その日の昼と夜に何を食べるかを共有。レシピは URL を貼るか写真を撮って取り込めます
 ・割り勘　立て替えや光熱費を記録して、締め日ごとに精算額を出します
 
-1人でも使えます。あとから招待コードで相手を招けば、2人用に切り替わります。
+1人でも使えます。あとから招待コードを相手に渡し、届いた参加の申請を承認すれば、2人用に切り替わります。
 
 【料金】
 すべての機能を、月額300円（税込）でご利用いただけます。
@@ -108,7 +108,7 @@ After signing in with the demo account:
 2. Calendar shows the demo account's Google Calendar events (read-only, calendar.readonly; this app has passed Google's OAuth verification). Accounts that signed in with Apple can connect Google Calendar from the prompt on Home ("連携する").
 3. Recipes: add a recipe by pasting a recipe page URL or taking a photo.
 4. Chore reminders: Settings → notification. Local notifications only; no push server.
-5. Two-person features (shared view, expense splitting) appear after a second subscribed account joins with the invite code shown in Settings → household.
+5. Two-person features (shared view, expense splitting) appear after a second subscribed account requests to join with the invite code shown in Settings → household, and the first account approves the request (Home or Settings → household).
 
 Account deletion: Settings → bottom of the page → "アカウントを削除". It is available whether or not the user is subscribed.
 ```

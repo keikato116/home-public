@@ -9,7 +9,7 @@ export const metadata = {
   alternates: { canonical: "/terms" },
 };
 
-const UPDATED = "2026年10月21日";
+const UPDATED = "2026年11月17日";
 
 export default function TermsPage() {
   return (
@@ -41,8 +41,9 @@ export default function TermsPage() {
       <section className="space-y-2">
         <h2 className="text-[13px] tracking-wide">3. 世帯の共有</h2>
         <p className="text-[12px] text-muted-foreground leading-relaxed">
-          招待コードを共有した相手とは、<strong>同じ世帯のデータが共有されます。</strong>
-          共有したくない相手に招待コードを渡さないようご注意ください。
+          招待コードを受け取った相手から参加の申請が届き、<strong>承認すると同じ世帯のデータが共有されます。</strong>
+          心当たりのない申請は承認しないでください。招待コードは、だれかが参加したり抜けたりするたびに変わり、
+          設定からいつでも作り直せます。
           共有される範囲は、プライバシーポリシーに記載しています。
         </p>
         <p className="text-[12px] text-muted-foreground leading-relaxed">
@@ -102,15 +103,15 @@ export default function TermsPage() {
           <li>・<strong>返金</strong> — Apple の定めに従います。運営者から返金を行うことはできません</li>
           <li>
             ・<strong>2人で使う場合</strong> — 有料プランの機能は、<strong>世帯の2人がともに
-            加入している場合にかぎり</strong>利用できます。招待コードで世帯に参加するには、
+            加入している場合にかぎり</strong>利用できます。招待コードで世帯への参加を申請・承認するには、
             参加する方と参加先の方の両方が加入している必要があります
           </li>
           <li>
             ・<strong>相手の課金状態が切れた場合</strong> — <strong>解散します。</strong>
             加入が終了した方は世帯から自動的に退出します。加入を続けている方は、
             自動的に1人で使う状態になり、そのまま利用を続けられます。
-            2人で使っていたデータは世帯に残ります。退出した方が再び加入し、
-            同じ招待コードで入り直すと、元どおり再開します。
+            2人で使っていたデータは世帯に残ります。退出した方が再び加入して戻る申請を出し、
+            世帯に残っている方が承認すると、元どおり再開します。
             ただし、退出しているあいだに別の方が世帯に参加した場合は再開できません
           </li>
           <li>

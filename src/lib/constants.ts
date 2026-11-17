@@ -43,7 +43,7 @@ export const BILLING_ENABLED = process.env.NEXT_PUBLIC_BILLING_ENABLED === "true
 // 2人で使う場合の課金切れの扱い。利用規約「5. 有料プラン」と同じ内容を、
 // 購入画面と設定にも出す（src/lib/server/lapseExit.ts が実際にこの通りに動く）。
 export const PAIR_LAPSE_NOTICE =
-  "相手の課金状態が切れたら解散します。データは残り、相手が再び加入して同じ招待コードで入り直すと、元どおり再開します。";
+  "相手の課金状態が切れたら解散します。データは残り、相手が再び加入して戻る申請を出し、承認すると元どおり再開します。";
 
 // RevenueCat ダッシュボードの Entitlement の識別子。ここを変えるなら向こうも変える。
 // 初期設定のときに RevenueCat が自動で作った名前。識別子は後から変えられないので、

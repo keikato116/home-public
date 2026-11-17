@@ -21,7 +21,7 @@ import { PREMIUM_TABS, PAIR_ONLY_TABS, BILLING_ENABLED } from "@/lib/constants";
 import { initDeepLinkAuth } from "@/lib/nativeAuth";
 import { hydratePrefs } from "@/store/prefsStore";
 import { getPendingJoin, clearPendingJoin, completePendingJoin } from "@/lib/pendingJoin";
-import { LS_CACHED_HOUSEHOLD, LS_CACHED_INVITE, LS_CACHED_IS_OWNER, LS_CACHED_MEMBER_COUNT } from "@/lib/constants";
+import { reloadAfterMembershipChange } from "@/lib/joinRequests";
 
 function MainApp() {
   const { activeTab, settingsOpen, householdId, accessToken, user, setActiveTab, memberCount } = useAuthStore();
@@ -48,7 +48,8 @@ function MainApp() {
     if (userId && memberCount !== null) useSubscriptionStore.getState().refresh();
   }, [userId, memberCount]);
 
-  // 初回登録で招待コードを入れたが未加入だった人は、加入できた時点でその世帯に参加する
+  // 初回登録で招待コードを入れたが未加入だった人は、加入できた時点でその世帯に参加を申請する
+  // （承認されると世帯が移る。ホームの申請の欄が見張っている）
   const [joinError, setJoinError] = useState<string | null>(null);
   useEffect(() => {
     if (!BILLING_ENABLED || source === null) return;
@@ -60,11 +61,8 @@ function MainApp() {
         setJoinError(err);
         return;
       }
-      // 所属もデータも入れ替わるので、読み込み直す
-      for (const key of [LS_CACHED_HOUSEHOLD, LS_CACHED_INVITE, LS_CACHED_IS_OWNER, LS_CACHED_MEMBER_COUNT]) {
-        try { localStorage.removeItem(key); } catch {}
-      }
-      window.location.href = "/";
+      // ホームに「申請中」を出すために読み込み直す
+      reloadAfterMembershipChange();
     });
   }, [source]);
 
