@@ -4,7 +4,6 @@ import { Capacitor } from "@capacitor/core";
 import type { Provider } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { NATIVE_AUTH_REDIRECT } from "@/lib/constants";
-import { traceAuth } from "@/lib/authTrace";
 
 // iOS アプリでのログイン。
 //
@@ -110,7 +109,6 @@ let deepLinkBound = false;
 export const NATIVE_AUTH_ERROR_EVENT = "imbrex:native-auth-error";
 
 function reportAuthError(message: string) {
-  traceAuth(`失敗: ${message}`);
   window.dispatchEvent(new CustomEvent(NATIVE_AUTH_ERROR_EVENT, { detail: message }));
 }
 
@@ -129,7 +127,6 @@ export async function initDeepLinkAuth(onSignedIn: () => void): Promise<void> {
 
   App.addListener("appUrlOpen", async ({ url }) => {
     if (!url.startsWith(NATIVE_AUTH_REDIRECT)) return;
-    traceAuth("Safari から戻った");
 
     // Safari を閉じる。閉じないと認証済みの画面が残って戻れたのか分からない
     await Browser.close().catch(() => {});
@@ -151,9 +148,8 @@ export async function initDeepLinkAuth(onSignedIn: () => void): Promise<void> {
 
     try {
       const supabase = createClient();
-      const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+      const { error } = await supabase.auth.exchangeCodeForSession(code);
       if (error) throw error;
-      traceAuth(data.session ? "コード交換: 成功" : "コード交換: セッションなし");
       onSignedIn();
     } catch (e) {
       // ログイン画面のまま理由を出す。利用者はもう一度押せる
