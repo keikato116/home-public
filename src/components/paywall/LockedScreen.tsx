@@ -24,7 +24,7 @@ export function LockedScreen() {
   const pendingCode = typeof window === "undefined" ? null : getPendingJoin();
 
   return (
-    <div className="min-h-screen overflow-y-auto bg-background">
+    <div className="h-[100dvh] overflow-y-auto bg-background">
       <div className="max-w-xl mx-auto px-7 py-12 space-y-10">
         <PaywallContent>
           <div className="space-y-2">

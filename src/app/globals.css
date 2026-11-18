@@ -41,6 +41,18 @@
     @apply antialiased;
   }
 
+  /* アプリ本体の画面（page.tsx の MainApp）を開いている間だけ、ページ全体は動かさない。
+     動くのは各タブの中身の欄だけにして、ホームの日付・天気のような上の部分を固定する。
+     これが無いと、iPhone ではページ全体が少しずれたり、端で引っ張ると上の部分ごと
+     伸び縮みしたりする。案内ページ（/about など）は普通にスクロールさせたいので、
+     クラスで切り替えている。 */
+  html.app-shell,
+  html.app-shell body {
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
   ::-webkit-scrollbar {
     width: 4px;
   }

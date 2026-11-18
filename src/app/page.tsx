@@ -36,6 +36,12 @@ function MainApp() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ページ全体は動かさず、タブの中身だけをスクロールさせる（globals.css の .app-shell）
+  useEffect(() => {
+    document.documentElement.classList.add("app-shell");
+    return () => document.documentElement.classList.remove("app-shell");
+  }, []);
+
   // user はトークン更新のたびに新しいオブジェクトになるので、id で見張る
   const userId = user?.id;
   useEffect(() => {
@@ -89,7 +95,7 @@ function MainApp() {
   }
 
   return (
-    <div className="relative flex flex-col h-screen max-w-xl mx-auto">
+    <div className="relative flex flex-col h-[100dvh] max-w-xl mx-auto">
       <main
         className="flex-1 overflow-hidden"
         style={{ paddingBottom: "calc(52px + env(safe-area-inset-bottom))" }}
