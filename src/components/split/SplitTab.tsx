@@ -279,8 +279,8 @@ export function SplitTab() {
             )}
           </div>
           <div>
-            <p className="text-[8px] text-muted-foreground tracking-wider mb-0.5">her splits (−)</p>
-            <p className="text-[12px] text-blue-500 tabular-nums">−{fmtYen(herSplits)}</p>
+            <p className="text-[8px] text-muted-foreground tracking-wider mb-0.5">her splits</p>
+            <p className="text-[12px] text-blue-500 tabular-nums">{fmtYen(herSplits)}</p>
           </div>
         </div>
       </div>
