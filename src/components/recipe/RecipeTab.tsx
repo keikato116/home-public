@@ -10,7 +10,7 @@ import { CategoryTabs } from "./CategoryTabs";
 import { CategoryEditor } from "./CategoryEditor";
 import { inCategory } from "@/lib/recipeCategories";
 import { Recipe } from "@/types";
-import { Plus, Search, X } from "lucide-react";
+import { Plus, Search, Settings2, X } from "lucide-react";
 
 type SortKey = "times_made_desc" | "times_made_asc" | "cook_time_asc" | "cook_time_desc";
 
@@ -67,6 +67,13 @@ export function RecipeTab() {
           >
             <Search size={13} />
           </button>
+          <button
+            onClick={() => setEditingCategories(true)}
+            aria-label="分類を編集"
+            className="text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Settings2 size={13} />
+          </button>
         </div>
         <div className="flex items-center gap-3">
           <button
@@ -114,7 +121,6 @@ export function RecipeTab() {
           category={activeCategory}
           subcategory={activeSubcategory}
           onChange={handleCategoryChange}
-          onEdit={() => setEditingCategories(true)}
         />
       )}
 
