@@ -40,7 +40,7 @@ export function BottomTabBar() {
   return (
     <nav
       className="fixed bottom-0 left-0 right-0 bg-background border-t border-border/50 flex items-center"
-      style={{ paddingBottom: "var(--safe-bottom)" }}
+      style={{ paddingBottom: "var(--safe-bottom)", bottom: "var(--tabbar-shift)" }}
     >
       <div className="flex flex-1 items-center justify-evenly">
         {tabs.map(({ id, icon: Icon }) => {

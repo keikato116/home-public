@@ -36,6 +36,7 @@
     /* 画面の上下の安全領域（時刻の出る帯・ホームバー）。各所の余白はこれを使う。 */
     --safe-top: env(safe-area-inset-top, 0px);
     --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --tabbar-shift: 0px;
   }
   /* iPhone アプリでは、外枠（capacitor.config.ts の ios.contentInset: "always"）が
      すでに上下の安全領域をよけて画面を置いている。ここでも足すと二重になり、
@@ -43,6 +44,9 @@
   html.native-app {
     --safe-top: 0px;
     --safe-bottom: 0px;
+    /* 下のタブバーだけ、ホームバーの帯の半分ほど下げる（アイコンがホームバーに重ならない程度）。
+       外枠がよけている帯の中まで下げることで、画面の下の空きを詰める。 */
+    --tabbar-shift: calc(env(safe-area-inset-bottom, 0px) * -0.5);
   }
 
   body {
