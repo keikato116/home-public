@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { Recipe } from "@/types";
-import { useRecipeStore, RECIPE_CATEGORIES, SUBCATEGORIES } from "@/store/recipeStore";
+import { useRecipeStore } from "@/store/recipeStore";
+import { useRecipeCategoryStore } from "@/store/recipeCategoryStore";
+import { categoryChoices, subcategoryChoices } from "@/lib/recipeCategories";
 import { ExternalLink, X, Loader2, Pencil, Check } from "lucide-react";
 import { stepLines, hostOf, safeExternalUrl } from "@/lib/recipeSteps";
 import { RecipePhoto } from "./RecipePhoto";
@@ -55,6 +57,7 @@ function scaleIngredients(text: string, ratio: number): string {
 
 export function RecipeDetailModal({ recipe, onClose }: Props) {
   const { deleteRecipe, recordMade, unrecordMade, updateRecipe } = useRecipeStore();
+  const categoryTree = useRecipeCategoryStore((s) => s.tree);
   const [targetServings, setTargetServings] = useState<number>(recipe.servings ?? 2);
   const [recording, setRecording] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -111,7 +114,9 @@ export function RecipeDetailModal({ recipe, onClose }: Props) {
     }
   };
 
-  const subcategories = editCategory ? SUBCATEGORIES[editCategory] : null;
+  const categories = categoryChoices(categoryTree, editCategory || null);
+  const subs = subcategoryChoices(categoryTree, editCategory || null, editSubcategory || null);
+  const subcategories = subs.length > 0 ? subs : null;
   // http / https 以外のリンクは出さない（相手が書いたレシピの url もここに来る）
   const sourceUrl = safeExternalUrl(recipe.url);
 
@@ -152,7 +157,7 @@ export function RecipeDetailModal({ recipe, onClose }: Props) {
                   className="bg-transparent border-b border-foreground/40 pb-0.5 text-[11px] focus:outline-none pr-2"
                 >
                   <option value="">—</option>
-                  {RECIPE_CATEGORIES.map((c) => (
+                  {categories.map((c) => (
                     <option key={c} value={c}>{c}</option>
                   ))}
                 </select>

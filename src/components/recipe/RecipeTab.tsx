@@ -1,15 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRecipeStore, RECIPE_CATEGORIES, SUBCATEGORIES } from "@/store/recipeStore";
+import { useCallback, useEffect, useState } from "react";
+import { useRecipeStore } from "@/store/recipeStore";
 import { useAuthStore } from "@/store/authStore";
 import { RecipeCard } from "./RecipeCard";
 import { RecipeDetailModal } from "./RecipeDetailModal";
 import { AddRecipeModal } from "./AddRecipeModal";
+import { CategoryTabs } from "./CategoryTabs";
+import { CategoryEditor } from "./CategoryEditor";
+import { inCategory } from "@/lib/recipeCategories";
 import { Recipe } from "@/types";
 import { Plus, Search, X } from "lucide-react";
-
-type Category = typeof RECIPE_CATEGORIES[number];
 
 type SortKey = "times_made_desc" | "times_made_asc" | "cook_time_asc" | "cook_time_desc";
 
@@ -18,8 +19,9 @@ export function RecipeTab() {
   const { load, loadPreset, recipes, loading, loadError, loadingPreset } = useRecipeStore();
   const [selected, setSelected] = useState<Recipe | null>(null);
   const [adding, setAdding] = useState(false);
-  const [activeCategory, setActiveCategory] = useState<Category>(RECIPE_CATEGORIES[0]);
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [activeSubcategory, setActiveSubcategory] = useState<string | null>(null);
+  const [editingCategories, setEditingCategories] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>("times_made_desc");
@@ -29,17 +31,13 @@ export function RecipeTab() {
     load();
   }, [householdId, load]);
 
-  const subcategories = SUBCATEGORIES[activeCategory];
-
   const q = searchQuery.trim().toLowerCase();
   const filtered = (q
     ? recipes.filter((r) =>
         (r.ingredients ?? "").toLowerCase().includes(q) ||
         r.title.toLowerCase().includes(q)
       )
-    : recipes
-        .filter((r) => r.category === activeCategory)
-        .filter((r) => !activeSubcategory || r.subcategory === activeSubcategory)
+    : recipes.filter((r) => activeCategory !== null && inCategory(r, activeCategory, activeSubcategory))
   ).slice().sort((a, b) => {
     if (sortKey === "times_made_desc") return (b.times_made ?? 0) - (a.times_made ?? 0);
     if (sortKey === "times_made_asc") return (a.times_made ?? 0) - (b.times_made ?? 0);
@@ -47,10 +45,10 @@ export function RecipeTab() {
     return (b.cook_time_min ?? 0) - (a.cook_time_min ?? 0);
   });
 
-  const handleCategoryChange = (cat: Category) => {
+  const handleCategoryChange = useCallback((cat: string, sub: string | null) => {
     setActiveCategory(cat);
-    setActiveSubcategory(null);
-  };
+    setActiveSubcategory(sub);
+  }, []);
 
   return (
     <div className="flex flex-col h-full py-8">
@@ -111,49 +109,13 @@ export function RecipeTab() {
       )}
 
       {!searchOpen && (
-        <div className="flex gap-2 overflow-x-auto px-7 pb-3 scrollbar-hide">
-          {RECIPE_CATEGORIES.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => handleCategoryChange(cat)}
-              className={`shrink-0 text-[10px] tracking-wider px-3 py-1.5 rounded border transition-colors ${
-                activeCategory === cat
-                  ? "bg-foreground text-background border-foreground"
-                  : "border-border text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {!searchOpen && subcategories && (
-        <div className="flex gap-2 overflow-x-auto px-7 pb-3 scrollbar-hide">
-          <button
-            onClick={() => setActiveSubcategory(null)}
-            className={`shrink-0 text-[10px] tracking-wider px-3 py-1.5 rounded border transition-colors ${
-              !activeSubcategory
-                ? "bg-foreground text-background border-foreground"
-                : "border-border text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            all
-          </button>
-          {subcategories.map((sub) => (
-            <button
-              key={sub}
-              onClick={() => setActiveSubcategory(sub)}
-              className={`shrink-0 text-[10px] tracking-wider px-3 py-1.5 rounded border transition-colors ${
-                activeSubcategory === sub
-                  ? "bg-foreground text-background border-foreground"
-                  : "border-border text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {sub}
-            </button>
-          ))}
-        </div>
+        <CategoryTabs
+          recipes={recipes}
+          category={activeCategory}
+          subcategory={activeSubcategory}
+          onChange={handleCategoryChange}
+          onEdit={() => setEditingCategories(true)}
+        />
       )}
 
       {loading && <p className="text-[11px] text-muted-foreground px-7">loading...</p>}
@@ -172,6 +134,7 @@ export function RecipeTab() {
 
       {selected && <RecipeDetailModal recipe={selected} onClose={() => setSelected(null)} />}
       {adding && <AddRecipeModal onClose={() => setAdding(false)} />}
+      {editingCategories && <CategoryEditor onClose={() => setEditingCategories(false)} />}
     </div>
   );
 }

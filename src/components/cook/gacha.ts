@@ -26,8 +26,12 @@ function freshPool<T extends { id: string }>(pool: T[], history: string[]): T[] 
   return fresh.length > 0 ? fresh : pool;
 }
 
-export function rollGacha(recipes: Recipe[]): GachaResult | null {
-  const by = (cat: string) => recipes.filter(r => r.category === cat);
+/**
+ * @param names 元の分類の役割（main・side など）→ 世帯のいまの名前。分類の名前を変えていても
+ *              主菜・副菜などを見分けられるように渡す（src/lib/recipeCategories.ts の presetNames）
+ */
+export function rollGacha(recipes: Recipe[], names: Record<string, string> = {}): GachaResult | null {
+  const by = (key: string) => recipes.filter(r => r.category === (names[key] ?? key));
   const mains = by("main");
   const sides = by("side");
   const pastas = by("pasta");

@@ -7,12 +7,6 @@ import { resizeImage, STORAGE_MAX_EDGE } from "@/lib/imageResize";
 import { pruneRecipePhotoCache } from "@/lib/recipePhotos";
 import { Recipe } from "@/types";
 
-export const RECIPE_CATEGORIES = ["main", "side", "soup", "rice & bowl", "pasta", "noodles", "dessert", "seasonal", "bento"] as const;
-
-export const SUBCATEGORIES: Partial<Record<string, string[]>> = {
-  main: ["meat", "fish", "others"],
-};
-
 // recipes.steps はマイグレーション（2026-10-21_recipe_steps.sql）で足した列。
 // 流す前のデプロイでもレシピの読み込み・保存が止まらないよう、列が無いと言われたら
 // steps を外してやり直す。流し終えたら、この分岐は通らない。
@@ -232,6 +226,13 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
     const supabase = createClient();
     await ensureSession();
     const existing = get().recipes.map((r) => r.title);
+    // 見本のレシピは元の分類名（main など）で書いてあるので、世帯のいまの名前に直す。
+    // 分類の store はこの store を読むので、循環しないよう呼ぶときに読み込む。
+    const [{ useRecipeCategoryStore }, { mapPresetCategory }] = await Promise.all([
+      import("@/store/recipeCategoryStore"),
+      import("@/lib/recipeCategories"),
+    ]);
+    const tree = useRecipeCategoryStore.getState().tree;
     for (const recipe of PRESET_RECIPES) {
       if (existing.includes(recipe.title)) continue;
       const { data } = await supabase
@@ -239,7 +240,7 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
         .insert({
           owner_id: userId,
           title: recipe.title,
-          category: recipe.category ?? null,
+          category: mapPresetCategory(tree, recipe.category ?? null, null).category,
           cook_time_min: recipe.cook_time_min ?? null,
           servings: recipe.servings ?? null,
           ingredients: recipe.ingredients ?? null,

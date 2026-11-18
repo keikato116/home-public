@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useRecipeStore, RECIPE_CATEGORIES, SUBCATEGORIES } from "@/store/recipeStore";
+import { useRecipeStore } from "@/store/recipeStore";
+import { useRecipeCategoryStore } from "@/store/recipeCategoryStore";
+import { categoryChoices, subcategoryChoices, mapPresetCategory } from "@/lib/recipeCategories";
 import { useAuthStore } from "@/store/authStore";
 import { X, Loader2, ChevronDown, ChevronUp } from "lucide-react";
 import { ParsedRecipe, analyzePhotos, analyzeUrl, mergeRecipes, uploadRecipeFiles } from "./parsing";
@@ -15,6 +17,7 @@ interface Props {
 type Mode = "photo" | "url";
 
 export function AddRecipeModal({ onClose }: Props) {
+  const categoryTree = useRecipeCategoryStore((s) => s.tree);
   const [mode, setMode] = useState<Mode>("photo");
   const [url, setUrl] = useState("");
   const [files, setFiles] = useState<File[]>([]);
@@ -63,7 +66,8 @@ export function AddRecipeModal({ onClose }: Props) {
         setAnalyzeProgress("analyzing...");
         all = await analyzeUrl(url.trim());
       }
-      setRecipes(all);
+      // 取り込みは元の分類名（main・meat など）で返ってくるので、世帯のいまの名前に直す
+      setRecipes(all.map((r) => ({ ...r, ...mapPresetCategory(categoryTree, r.category, r.subcategory) })));
       setStep("form");
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "something went wrong");
@@ -296,12 +300,12 @@ export function AddRecipeModal({ onClose }: Props) {
                         className="w-full bg-transparent border-b border-border pb-1 text-[12px] focus:outline-none focus:border-foreground/40"
                       >
                         <option value="">—</option>
-                        {RECIPE_CATEGORIES.map((c) => (
+                        {categoryChoices(categoryTree, r.category).map((c) => (
                           <option key={c} value={c}>{c}</option>
                         ))}
                       </select>
                     </Field>
-                    {r.category && SUBCATEGORIES[r.category] && (
+                    {r.category && subcategoryChoices(categoryTree, r.category, r.subcategory).length > 0 && (
                       <Field label="subcategory">
                         <select
                           value={r.subcategory ?? ""}
@@ -309,7 +313,7 @@ export function AddRecipeModal({ onClose }: Props) {
                           className="w-full bg-transparent border-b border-border pb-1 text-[12px] focus:outline-none focus:border-foreground/40"
                         >
                           <option value="">—</option>
-                          {SUBCATEGORIES[r.category]!.map((s) => (
+                          {subcategoryChoices(categoryTree, r.category, r.subcategory).map((s) => (
                             <option key={s} value={s}>{s}</option>
                           ))}
                         </select>

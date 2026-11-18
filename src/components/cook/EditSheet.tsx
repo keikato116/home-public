@@ -12,6 +12,8 @@ import { X, Shuffle } from "lucide-react";
 import { cn, toISODate } from "@/lib/utils";
 import { toDateStr } from "@/lib/dates";
 import { GachaResult, rollGacha } from "./gacha";
+import { useRecipeCategoryStore } from "@/store/recipeCategoryStore";
+import { presetNames } from "@/lib/recipeCategories";
 
 function parseIngredientLines(text: string): string[] {
   return text
@@ -58,7 +60,7 @@ export function EditSheet({ date, mealType, plan, isHighlighted, onToggleHighlig
   const dateLabel = date.toLocaleDateString("ja-JP", { month: "long", day: "numeric", weekday: "short" });
 
   const handleGacha = () => {
-    const result = rollGacha(recipes);
+    const result = rollGacha(recipes, presetNames(useRecipeCategoryStore.getState().tree));
     if (!result) return;
     setGachaResult(result);
     setEatingOut(false);

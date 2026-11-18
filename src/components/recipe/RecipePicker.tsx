@@ -1,13 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import { useRecipeStore, RECIPE_CATEGORIES, SUBCATEGORIES } from "@/store/recipeStore";
+import { useCallback, useState } from "react";
+import { useRecipeStore } from "@/store/recipeStore";
+import { CategoryTabs } from "./CategoryTabs";
+import { inCategory } from "@/lib/recipeCategories";
 import { Recipe } from "@/types";
 import { RecipeCard } from "./RecipeCard";
 import { X } from "lucide-react";
-import { cn } from "@/lib/utils";
-
-type Category = typeof RECIPE_CATEGORIES[number];
 
 interface Props {
   onSelect: (recipe: Recipe) => void;
@@ -16,13 +15,14 @@ interface Props {
 
 export function RecipePicker({ onSelect, onClose }: Props) {
   const { recipes } = useRecipeStore();
-  const [activeCategory, setActiveCategory] = useState<Category>(RECIPE_CATEGORIES[0]);
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [activeSubcategory, setActiveSubcategory] = useState<string | null>(null);
+  const change = useCallback((cat: string, sub: string | null) => {
+    setActiveCategory(cat);
+    setActiveSubcategory(sub);
+  }, []);
 
-  const subcategories = SUBCATEGORIES[activeCategory];
-  const filtered = recipes
-    .filter((r) => r.category === activeCategory)
-    .filter((r) => !activeSubcategory || r.subcategory === activeSubcategory);
+  const filtered = recipes.filter((r) => activeCategory !== null && inCategory(r, activeCategory, activeSubcategory));
 
   return (
     <div className="fixed inset-0 z-[60] bg-background flex flex-col">
@@ -33,44 +33,7 @@ export function RecipePicker({ onSelect, onClose }: Props) {
         </button>
       </div>
 
-      <div className="flex gap-2 overflow-x-auto px-7 pb-3 scrollbar-hide">
-        {RECIPE_CATEGORIES.map((cat) => (
-          <button
-            key={cat}
-            onClick={() => { setActiveCategory(cat); setActiveSubcategory(null); }}
-            className={cn(
-              "shrink-0 text-[10px] tracking-wider px-3 py-1.5 rounded border transition-colors",
-              activeCategory === cat
-                ? "bg-foreground text-background border-foreground"
-                : "border-border text-muted-foreground hover:text-foreground"
-            )}
-          >
-            {cat}
-          </button>
-        ))}
-      </div>
-
-      {subcategories && (
-        <div className="flex gap-2 overflow-x-auto px-7 pb-3 scrollbar-hide">
-          <button
-            onClick={() => setActiveSubcategory(null)}
-            className={cn(
-              "shrink-0 text-[10px] tracking-wider px-3 py-1.5 rounded border transition-colors",
-              !activeSubcategory ? "bg-foreground text-background border-foreground" : "border-border text-muted-foreground"
-            )}
-          >all</button>
-          {subcategories.map((sub) => (
-            <button
-              key={sub}
-              onClick={() => setActiveSubcategory(sub)}
-              className={cn(
-                "shrink-0 text-[10px] tracking-wider px-3 py-1.5 rounded border transition-colors",
-                activeSubcategory === sub ? "bg-foreground text-background border-foreground" : "border-border text-muted-foreground"
-              )}
-            >{sub}</button>
-          ))}
-        </div>
-      )}
+      <CategoryTabs recipes={recipes} category={activeCategory} subcategory={activeSubcategory} onChange={change} />
 
       <div className="flex-1 overflow-y-auto px-7 pb-8">
         {filtered.length === 0 && (
