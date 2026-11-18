@@ -2,7 +2,7 @@
 //
 // 内容はこのアプリが実際に行っている処理に合わせてある。機能を足したら必ず更新すること。
 // とくに次を変えたら、ここも直さないと申告と実装がずれる:
-//   ・外部サービスへの送信（現在: Supabase / Google / Anthropic / OpenWeatherMap / RevenueCat）
+//   ・外部サービスへの送信（現在: Supabase / Cloudflare / Google / Anthropic / OpenWeatherMap / RevenueCat）
 //   ・課金の内容（価格・対象機能）を変えたとき
 //   ・新しい種類のデータを保存するとき
 //
@@ -14,7 +14,7 @@ export const metadata = {
   alternates: { canonical: "/privacy", languages: { ja: "/privacy", en: "/privacy/en" } },
 };
 
-const UPDATED = "2026年11月17日";
+const UPDATED = "2026年11月18日";
 
 export default function PrivacyPage() {
   return (
@@ -88,6 +88,9 @@ export default function PrivacyPage() {
         <ul className="text-[12px] text-muted-foreground leading-relaxed space-y-1">
           <li>
             ・<strong>Supabase</strong> — アカウントと、アプリ内に保存したすべてのデータの保管
+          </li>
+          <li>
+            ・<strong>Cloudflare</strong> — アプリの配信と、サーバー側の処理（通信はここを経由します）
           </li>
           <li>
             ・<strong>Google</strong> — サインイン、およびカレンダーの読み取り
@@ -192,7 +195,7 @@ export default function PrivacyPage() {
           </li>
         </ul>
         <p className="text-[12px] text-muted-foreground leading-relaxed">
-          データの保管には Supabase を、アプリの配信には Vercel を利用しており、
+          データの保管には Supabase を、アプリの配信には Cloudflare を利用しており、
           各事業者のセキュリティ対策が適用されます。
           カレンダーの連携は、Google アカウントの
           「サードパーティ製アプリとの連携」からいつでも解除できます。
@@ -204,9 +207,31 @@ export default function PrivacyPage() {
         <h2 className="text-[13px] tracking-wide">データの削除</h2>
         <p className="text-[12px] text-muted-foreground leading-relaxed">
           アプリの「設定 → アカウントを削除」から、アカウントと保存データを削除できます。
-          世帯にもう1人いる場合は、共有していたデータを相手に引き継ぐかどうかを削除時に選べます。
+          削除されるのは、あなたのアカウント、あなたが登録したレシピと写真、Google の認証情報、
+          あなただけに見えていた買い物リストなどです。世帯にもう1人いる場合、2人で共有していた
+          予定・家事・買い物・割り勘の記録は、相手のもとに残ります。
           <strong>削除後の復元はできません。</strong>
         </p>
+      </section>
+
+      <section className="space-y-2">
+        <h2 className="text-[13px] tracking-wide">情報の漏えい等が起きた場合</h2>
+        <p className="text-[12px] text-muted-foreground leading-relaxed">
+          本アプリが預かるお客様の情報について、不正アクセスなどによる漏えい・滅失・毀損
+          （またはそのおそれ）が分かった場合は、次のとおり対応します。
+        </p>
+        <ul className="text-[12px] text-muted-foreground leading-relaxed space-y-1">
+          <li>・被害が広がらないよう、ただちに必要な措置を取ります（認証情報や暗号鍵の無効化・再発行、Google との連携の失効など）</li>
+          <li>・影響の範囲と原因を調べます</li>
+          <li>・個人情報の保護に関する法律に基づき、個人情報保護委員会に報告します</li>
+          <li>
+            ・影響を受けたお客様に、アプリ内の表示またはメールで速やかにお知らせします。
+            お知らせには、対象となった情報、原因、当方の対応、お客様にお願いすること
+            （Google アカウントの連携の解除など）を含めます
+          </li>
+          <li>・Google のユーザーデータに関わる場合は、Google の定めに従って Google にも報告します</li>
+          <li>・再発防止策を講じ、その内容をお知らせします</li>
+        </ul>
       </section>
 
       <section className="space-y-2">

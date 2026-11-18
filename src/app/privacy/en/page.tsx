@@ -14,7 +14,7 @@ export const metadata = {
   alternates: { canonical: "/privacy/en", languages: { ja: "/privacy", en: "/privacy/en" } },
 };
 
-const UPDATED = "17 November 2026";
+const UPDATED = "18 November 2026";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -89,6 +89,7 @@ export default function PrivacyEnPage() {
       <Section title="Third-party services">
         <UL>
           <li>・<strong>Supabase</strong> — stores your account and everything you save in the app</li>
+          <li>・<strong>Cloudflare</strong> — serves the app and runs its server-side processing (traffic passes through it)</li>
           <li>・<strong>Google</strong> — sign-in and reading your calendar</li>
           <li>
             ・<strong>Anthropic</strong> — recipe import. Only when you use the import feature, the
@@ -155,7 +156,7 @@ export default function PrivacyEnPage() {
           </li>
         </UL>
         <P>
-          Data is stored with Supabase and the app is served by Vercel, and their respective
+          Data is stored with Supabase and the app is served by Cloudflare, and their respective
           security measures apply. You can disconnect your calendar at any time from the
           third-party access settings of your Google Account; once revoked, the app can no longer
           read it.
@@ -195,9 +196,30 @@ export default function PrivacyEnPage() {
       <Section title="Deleting your data">
         <P>
           You can delete your account and the data stored with it from Settings → Delete account.
-          If someone else is in your household, you can choose whether to hand the shared data over
-          to them. <strong>Deletion cannot be undone.</strong>
+          This deletes your account, the recipes and photos you added, your Google credentials and
+          the shopping items only you could see. If someone else is in your household, the schedule,
+          chores, shopping and expense records you shared stay with them.{" "}
+          <strong>Deletion cannot be undone.</strong>
         </P>
+      </Section>
+
+      <Section title="If a data breach occurs">
+        <P>
+          If we find that information we hold about you has been, or may have been, leaked, lost or
+          damaged, for example through unauthorized access, we will:
+        </P>
+        <UL>
+          <li>・immediately take steps to stop further harm (revoking and reissuing credentials and encryption keys, revoking the Google connection, and so on)</li>
+          <li>・investigate the scope and the cause</li>
+          <li>・report it to the Personal Information Protection Commission of Japan as required by the Act on the Protection of Personal Information</li>
+          <li>
+            ・notify affected users promptly, in the app or by email, including what information was
+            involved, the cause, what we have done, and what we ask you to do (such as disconnecting
+            the app from your Google Account)
+          </li>
+          <li>・report it to Google as Google&apos;s policies require when Google user data is involved</li>
+          <li>・put measures in place to prevent it from happening again, and let you know what they are</li>
+        </UL>
       </Section>
 
       <Section title="Contact">

@@ -9,7 +9,7 @@ export const metadata = {
   alternates: { canonical: "/terms" },
 };
 
-const UPDATED = "2026年11月17日";
+const UPDATED = "2026年11月18日";
 
 export default function TermsPage() {
   return (
@@ -138,8 +138,15 @@ export default function TermsPage() {
         <h2 className="text-[13px] tracking-wide">7. 免責</h2>
         <p className="text-[12px] text-muted-foreground leading-relaxed">
           本アプリは現状有姿で提供されます。
-          天気やカレンダーなど外部サービスに由来する情報の正確性、
-          および本アプリの利用によって生じた損害について、開発者は責任を負いかねます。
+          天気やカレンダーなど外部サービスに由来する情報の正確性は保証しません。
+        </p>
+        <p className="text-[12px] text-muted-foreground leading-relaxed">
+          本アプリに関して開発者がお客様に損害を賠償する場合、その額は、
+          <strong>月額利用料金の6か月分に相当する額を上限</strong>とします。
+          ただし、開発者の故意または重大な過失による場合は、この上限を適用しません。
+        </p>
+        <p className="text-[12px] text-muted-foreground leading-relaxed">
+          不正アクセスなどにより情報の漏えい等が起きた場合の対応は、プライバシーポリシーに定めます。
         </p>
         <p className="text-[12px] text-muted-foreground leading-relaxed">
           家事のお知らせは端末の状態によって表示されないことがあります。
