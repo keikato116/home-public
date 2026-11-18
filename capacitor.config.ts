@@ -34,6 +34,11 @@ const config: CapacitorConfig = {
     // Match the PWA background so the launch/overscroll area doesn't flash white.
     backgroundColor: "#f8f7f4",
     contentInset: "always",
+    // アプリの外枠（WebView）そのものはスクロールさせない。これを許すと、ホームの日付・天気
+    // のような固定したい部分まで、引っ張ったときに上下に動く。各タブの中身は、それぞれの
+    // 欄（overflow: auto）の中でスクロールするので影響しない。
+    // 反映には ios:sync とアプリの作り直し（新しいビルド）が要る。
+    scrollEnabled: false,
   },
 };
 
