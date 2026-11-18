@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { encryptToken, decryptToken } from "@/lib/server/tokenCrypto";
+import { internalError } from "@/lib/server/errors";
 
 // Google のトークンの読み書き口。
 //
@@ -96,7 +97,7 @@ export async function POST(request: Request) {
   }
 
   const { error } = await admin.from("user_tokens").upsert(row);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalError("tokens", error, "failed to save token");
 
   return NextResponse.json({ ok: true });
 }

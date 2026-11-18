@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { stepLines, hostOf } from "./recipeSteps";
+import { stepLines, hostOf, safeExternalUrl } from "./recipeSteps";
 
 describe("stepLines", () => {
   it("1行が1手順。番号を振る", () => {
@@ -33,5 +33,20 @@ describe("hostOf", () => {
   });
   it("URL でなければそのまま", () => {
     expect(hostOf("not a url")).toBe("not a url");
+  });
+});
+
+describe("safeExternalUrl", () => {
+  it("keeps http and https links", () => {
+    expect(safeExternalUrl("https://example.com/r/1")).toBe("https://example.com/r/1");
+    expect(safeExternalUrl("http://example.com")).toBe("http://example.com");
+  });
+  it("drops other schemes, junk and empty values", () => {
+    expect(safeExternalUrl("javascript:alert(1)")).toBeNull();
+    expect(safeExternalUrl(" JavaScript:alert(1)")).toBeNull();
+    expect(safeExternalUrl("data:text/html,<script>alert(1)</script>")).toBeNull();
+    expect(safeExternalUrl("not a url")).toBeNull();
+    expect(safeExternalUrl("")).toBeNull();
+    expect(safeExternalUrl(null)).toBeNull();
   });
 });

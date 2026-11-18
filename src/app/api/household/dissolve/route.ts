@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { transferHouseholdData } from "@/lib/server/householdTransfer";
 import { rotateInviteCode } from "@/lib/server/householdJoin";
+import { internalError } from "@/lib/server/errors";
 
 // グループの解散。招待した側・された側のどちらからでも実行できる。
 //
@@ -63,7 +64,7 @@ export async function POST() {
       .select()
       .single();
     if (createError || !household) {
-      return NextResponse.json({ error: createError?.message ?? "failed to create household" }, { status: 500 });
+      return internalError("dissolve", createError, "failed to dissolve");
     }
     const newHouseholdId = household.id as string;
 
@@ -81,21 +82,21 @@ export async function POST() {
       .eq("household_id", oldHouseholdId)
       .eq("user_id", leaverId);
     if (leaveError) {
-      return NextResponse.json({ error: leaveError.message }, { status: 500 });
+      return internalError("dissolve", leaveError, "failed to dissolve");
     }
 
     const { error: joinError } = await admin
       .from("household_members")
       .insert({ household_id: newHouseholdId, user_id: leaverId });
     if (joinError) {
-      return NextResponse.json({ error: joinError.message }, { status: 500 });
+      return internalError("dissolve", joinError, "failed to dissolve");
     }
 
     // レシピ・家事・やること・献立を複製し、自分専用の買い物アイテムを移す。
     // 参加（/api/household/join）と同じ処理を使っている。
     const copyError = await transferHouseholdData(admin, oldHouseholdId, newHouseholdId, leaverId);
     if (copyError) {
-      return NextResponse.json({ error: copyError }, { status: 500 });
+      return internalError("dissolve", copyError, "failed to dissolve");
     }
 
     // Google の鍵を新しい世帯に付け替える。これをしないと、残った側からは
@@ -109,7 +110,7 @@ export async function POST() {
       .update({ household_id: newHouseholdId, updated_at: new Date().toISOString() })
       .eq("user_id", leaverId);
     if (tokenError) {
-      return NextResponse.json({ error: tokenError.message }, { status: 500 });
+      return internalError("dissolve", tokenError, "failed to dissolve");
     }
   }
 

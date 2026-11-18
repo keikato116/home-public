@@ -6,6 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { RECIPE_IMPORT_DISH_LIMIT, RECIPE_ANALYSIS_LIMIT } from "@/lib/recipeImportLimit";
 import { fetchPublicText } from "@/lib/server/safeFetch";
 import { extractJsonLdRecipe } from "@/lib/server/recipeJsonLd";
+import { internalError } from "@/lib/server/errors";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -37,7 +38,7 @@ async function consumeAnalysis(admin: Admin, userId: string): Promise<NextRespon
       console.warn("[parse-recipe] use_recipe_analysis がありません。回数を数えずに通します");
       return null;
     }
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return internalError("parse-recipe", error);
   }
   if (data === "dishes") {
     return NextResponse.json(

@@ -23,6 +23,21 @@ export function stepLines(steps: string): StepLine[] {
     });
 }
 
+/**
+ * 外へのリンクに使ってよい URL なら、そのまま返す。http / https 以外（javascript: や data: など）は null。
+ * レシピの url は自分や相手がデータベースに書けるので、表示する側でも確かめる
+ * （データベースにも同じ制約がある: supabase/migrations/2026-11-18_security_followups.sql）。
+ */
+export function safeExternalUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  try {
+    const { protocol } = new URL(url);
+    return protocol === "http:" || protocol === "https:" ? url : null;
+  } catch {
+    return null;
+  }
+}
+
 /** "https://www.kurashiru.com/recipes/…" → "kurashiru.com" */
 export function hostOf(url: string): string {
   try {

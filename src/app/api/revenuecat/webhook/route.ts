@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { exitIfPartnerStillPaying } from "@/lib/server/lapseExit";
 import { syncSubscriptionFromRevenueCat } from "@/lib/server/revenuecatSync";
+import { secretsMatch } from "@/lib/server/secretCompare";
+import { internalError } from "@/lib/server/errors";
 
 // RevenueCat webhook → subscriptions テーブル。
 // 課金状態の唯一の正はこのテーブル。クライアントの customerInfo は表示の先読みにしか使わない
@@ -55,7 +57,7 @@ export async function POST(req: NextRequest) {
   if (!secret) {
     return NextResponse.json({ error: "REVENUECAT_WEBHOOK_SECRET not configured" }, { status: 503 });
   }
-  if (req.headers.get("authorization") !== secret) {
+  if (!secretsMatch(req.headers.get("authorization"), secret)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
@@ -122,7 +124,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, skipped: "unknown user" });
     }
     // 5xx で返すと RevenueCat が再送してくれる
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return internalError("revenuecat", error);
   }
 
   // 課金が切れた人の相手がまだ課金していれば、切れた人を世帯から抜く（lapseExit.ts）。

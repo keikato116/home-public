@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Recipe } from "@/types";
 import { useRecipeStore, RECIPE_CATEGORIES, SUBCATEGORIES } from "@/store/recipeStore";
 import { ExternalLink, X, Loader2, Pencil, Check } from "lucide-react";
-import { stepLines, hostOf } from "@/lib/recipeSteps";
+import { stepLines, hostOf, safeExternalUrl } from "@/lib/recipeSteps";
 import { RecipePhoto } from "./RecipePhoto";
 
 interface Props {
@@ -112,6 +112,8 @@ export function RecipeDetailModal({ recipe, onClose }: Props) {
   };
 
   const subcategories = editCategory ? SUBCATEGORIES[editCategory] : null;
+  // http / https 以外のリンクは出さない（相手が書いたレシピの url もここに来る）
+  const sourceUrl = safeExternalUrl(recipe.url);
 
   const ratio = recipe.servings ? targetServings / recipe.servings : 1;
   const displayIngredients =
@@ -240,15 +242,15 @@ export function RecipeDetailModal({ recipe, onClose }: Props) {
             </button>
           </div>
 
-          {recipe.url && (
+          {sourceUrl && (
             <a
-              href={recipe.url}
+              href={sourceUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
             >
               <ExternalLink size={11} />
-              <span className="truncate">元のページを開く（{hostOf(recipe.url)}）</span>
+              <span className="truncate">元のページを開く（{hostOf(sourceUrl)}）</span>
             </a>
           )}
 

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { internalError } from "@/lib/server/errors";
 
 /**
  * ログインしていなければ 401 を返す。返り値が null なら通してよい。
@@ -29,7 +30,7 @@ export async function requireEntitled(): Promise<NextResponse | null> {
 
   const { data, error } = await supabase.rpc("household_entitled");
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return internalError("entitlement", error);
   }
   if (data !== true) {
     return NextResponse.json({ error: "subscription required" }, { status: 402 });

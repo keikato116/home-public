@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { internalError } from "@/lib/server/errors";
 
 // アカウント削除（App Store Guideline 5.1.1(v) の必須要件）。
 //
@@ -100,7 +101,7 @@ export async function DELETE() {
       // 最後の1人。世帯を消せば紐づくデータは cascade で消える。
       const { error } = await admin.from("households").delete().eq("id", householdId);
       if (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return internalError("account", error, "failed to delete account");
       }
     }
   }
@@ -109,12 +110,12 @@ export async function DELETE() {
   // ストレージのファイルは残り、公開 URL で見られたままになる。
   const photoError = await deletePhotosOf(admin, user.id);
   if (photoError) {
-    return NextResponse.json({ error: photoError }, { status: 500 });
+    return internalError("account", photoError, "failed to delete account");
   }
 
   const { error } = await admin.auth.admin.deleteUser(user.id);
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return internalError("account", error, "failed to delete account");
   }
 
   return NextResponse.json({ ok: true });

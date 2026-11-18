@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { internalError } from "@/lib/server/errors";
 
 // 初回登録で世帯を作る。
 //
@@ -41,7 +42,7 @@ export async function POST(request: Request) {
     .select()
     .single();
   if (hError || !household) {
-    return NextResponse.json({ error: hError?.message ?? "failed to create household" }, { status: 500 });
+    return internalError("household/create", hError, "failed to create household");
   }
 
   const { error: mError } = await admin
@@ -49,7 +50,7 @@ export async function POST(request: Request) {
     .insert({ household_id: household.id, user_id: user.id });
   if (mError) {
     await admin.from("households").delete().eq("id", household.id);
-    return NextResponse.json({ error: mError.message }, { status: 500 });
+    return internalError("household/create", mError, "failed to create household");
   }
 
   await admin.from("calendar_settings").insert({
