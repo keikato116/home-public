@@ -102,7 +102,7 @@ export function HomeTab() {
   return (
     <div className="flex flex-col h-full bg-background">
       {/* Header */}
-      <div className="px-7 pt-2 pb-5">
+      <div className="px-7 pt-0 pb-5">
         <div className="flex items-start justify-between">
           <div>
             <p className="text-[10px] tracking-[0.25em] text-muted-foreground uppercase mb-0.5">

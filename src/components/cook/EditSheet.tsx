@@ -164,7 +164,7 @@ export function EditSheet({ date, mealType, plan, isHighlighted, onToggleHighlig
     <div className="fixed inset-0 z-50 flex flex-col justify-end bg-black/30" onClick={onClose}>
       <div
         className="bg-background rounded-t-2xl px-6 pt-5 pb-8 space-y-4"
-        style={{ paddingBottom: "calc(2rem + env(safe-area-inset-bottom))" }}
+        style={{ paddingBottom: "calc(2rem + var(--safe-bottom))" }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">

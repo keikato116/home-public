@@ -192,7 +192,7 @@ export function ReceiptSheet({ defaultDate, defaultHerRatio, onSave, onClose }: 
 
       <div
         className="px-5 py-4 bg-background border-t border-border/30 space-y-3"
-        style={{ paddingBottom: "calc(1rem + env(safe-area-inset-bottom))" }}
+        style={{ paddingBottom: "calc(1rem + var(--safe-bottom))" }}
       >
         {/* Ratio: payer's share */}
         <RatioInput card={card} herRatio={herRatio} onChange={setHerRatio} />

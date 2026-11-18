@@ -18,7 +18,7 @@ import { SettingsPage } from "@/components/settings/SettingsPage";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
 import { LockedScreen } from "@/components/paywall/LockedScreen";
 import { PREMIUM_TABS, PAIR_ONLY_TABS, BILLING_ENABLED } from "@/lib/constants";
-import { initDeepLinkAuth } from "@/lib/nativeAuth";
+import { initDeepLinkAuth, isNativeApp } from "@/lib/nativeAuth";
 import { hydratePrefs, usePrefsStore } from "@/store/prefsStore";
 import { getPendingJoin, clearPendingJoin, completePendingJoin } from "@/lib/pendingJoin";
 import { reloadAfterMembershipChange } from "@/lib/joinRequests";
@@ -98,7 +98,7 @@ function MainApp() {
     <div className="relative flex flex-col h-[100dvh] max-w-xl mx-auto">
       <main
         className="flex-1 overflow-hidden"
-        style={{ paddingBottom: "calc(52px + env(safe-area-inset-bottom))" }}
+        style={{ paddingBottom: "calc(52px + var(--safe-bottom))" }}
       >
         {activeTab === "home" && <HomeTab />}
         {activeTab === "calendar" && <CalendarTab />}
@@ -109,7 +109,7 @@ function MainApp() {
       </main>
 
       {joinError && (
-        <div className="fixed top-0 inset-x-0 z-50 max-w-xl mx-auto px-5 pt-[calc(env(safe-area-inset-top)+12px)]">
+        <div className="fixed top-0 inset-x-0 z-50 max-w-xl mx-auto px-5 pt-[calc(var(--safe-top)+12px)]">
           <div className="bg-background border border-border rounded-xl px-4 py-3 flex items-start gap-3 shadow-sm">
             <p className="text-[11px] leading-relaxed flex-1">{joinError}</p>
             <button onClick={() => setJoinError(null)} className="text-[11px] text-muted-foreground underline">
@@ -132,6 +132,8 @@ export default function Page() {
   useEffect(() => {
     // localStorage は描画後に読む（SSR の出力とズレるため）
     hydratePrefs();
+    // iPhone アプリの中では上下の安全領域を二重に取らない（globals.css の .native-app）
+    if (isNativeApp()) document.documentElement.classList.add("native-app");
     init();
     // iOS アプリでは、Safari から戻ってきたログインをここで受ける。
     // ブラウザでは何もしない（サーバーの /auth/callback が処理する）。
