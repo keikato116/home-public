@@ -40,7 +40,7 @@ export function BottomTabBar() {
   return (
     <nav
       className="fixed bottom-0 left-0 right-0 bg-background border-t border-border/50 flex items-center"
-      style={{ paddingBottom: "var(--safe-bottom)", bottom: "var(--tabbar-shift)" }}
+      style={{ paddingBottom: "var(--safe-bottom)" }}
     >
       <div className="flex flex-1 items-center justify-evenly">
         {tabs.map(({ id, icon: Icon }) => {
@@ -52,7 +52,8 @@ export function BottomTabBar() {
                 if (activeTab === id && id === "calendar") bumpCalendarView();
                 else setActiveTab(id);
               }}
-              className="relative flex flex-col items-center justify-center py-3 px-2 transition-colors"
+              className="relative flex flex-col items-center justify-center pt-3 px-2 transition-colors"
+              style={{ paddingBottom: "var(--tabbar-pad-bottom)" }}
             >
               <Icon
                 size={20}
@@ -63,7 +64,10 @@ export function BottomTabBar() {
                 )}
               />
               {active && (
-                <span className="absolute bottom-2 w-1 h-1 rounded-full bg-foreground" />
+                <span
+                  className="absolute w-1 h-1 rounded-full bg-foreground"
+                  style={{ bottom: "var(--tabbar-dot-bottom)" }}
+                />
               )}
             </button>
           );
@@ -71,7 +75,8 @@ export function BottomTabBar() {
       </div>
       <button
         onClick={() => setSettingsOpen(true)}
-        className="w-10 flex-shrink-0 flex items-center justify-center py-3 text-muted-foreground/60 hover:text-foreground transition-colors"
+        className="w-10 flex-shrink-0 flex items-center justify-center pt-3 text-muted-foreground/60 hover:text-foreground transition-colors"
+        style={{ paddingBottom: "var(--tabbar-pad-bottom)" }}
         aria-label="settings"
       >
         <Settings size={18} strokeWidth={1.5} />
