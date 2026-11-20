@@ -64,7 +64,8 @@ export function ReceiptSheet({ defaultDate, defaultHerRatio, onSave, onClose }: 
   const [herRatio, setHerRatio] = useState(defaultHerRatio);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [vpHeight, setVpHeight] = useState<number | null>(null);
+  // キーボードが出ているときの、実際に見えている範囲（高さと、上からのずれ）
+  const [viewport, setViewport] = useState<{ height: number; top: number } | null>(null);
 
   useEffect(() => {
     const scrollY = window.scrollY;
@@ -76,7 +77,11 @@ export function ReceiptSheet({ defaultDate, defaultHerRatio, onSave, onClose }: 
     body.style.top = `-${scrollY}px`;
     body.style.left = "0";
     body.style.right = "0";
-    const prevent = (e: TouchEvent) => e.preventDefault();
+    // 後ろの画面が動かないよう指での移動を止める。ただし、この画面のスクロール欄の中は動かせる
+    const prevent = (e: TouchEvent) => {
+      if ((e.target as Element | null)?.closest?.("[data-sheet-scroll]")) return;
+      e.preventDefault();
+    };
     document.addEventListener("touchmove", prevent, { passive: false });
     return () => {
       html.style.overflow = "";
@@ -93,10 +98,16 @@ export function ReceiptSheet({ defaultDate, defaultHerRatio, onSave, onClose }: 
   useEffect(() => {
     const vv = window.visualViewport;
     if (!vv) return;
-    const update = () => setVpHeight(vv.height);
+    // キーボードが出ると、見えている範囲が縮み、上にずれることがある。両方に合わせて、
+    // 見出しが画面の外に押し出されないようにする。
+    const update = () => setViewport({ height: vv.height, top: vv.offsetTop });
     vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
     update();
-    return () => vv.removeEventListener("resize", update);
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+    };
   }, []);
 
   const n = parseInt(amount, 10) || 0;
@@ -123,7 +134,10 @@ export function ReceiptSheet({ defaultDate, defaultHerRatio, onSave, onClose }: 
   };
 
   return (
-    <div className="fixed inset-x-0 top-0 z-50 bg-background flex flex-col" style={{ height: vpHeight ? `${vpHeight}px` : "100dvh" }}>
+    <div
+      className="fixed inset-x-0 z-50 bg-background flex flex-col"
+      style={{ top: viewport ? `${viewport.top}px` : 0, height: viewport ? `${viewport.height}px` : "100dvh" }}
+    >
       <div className="flex items-center justify-between px-6 pt-12 pb-4 border-b border-border/30">
         <button onClick={onClose} className="text-muted-foreground p-1">
           <X size={16} />
@@ -132,7 +146,9 @@ export function ReceiptSheet({ defaultDate, defaultHerRatio, onSave, onClose }: 
         {/* 左の閉じるボタンと釣り合う幅。見出しを中央に保つためのもの */}
         <div className="w-6" />
       </div>
-      <div className="flex-1 px-5 py-6 space-y-4">
+      {/* 見出しより下は、まとめてスクロールできる。キーボードが出ていても上下に動かして全部見られる */}
+      <div data-sheet-scroll className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+      <div className="px-5 py-6 space-y-4">
 
         {/* Date + card */}
         <div className="flex gap-2 items-stretch">
@@ -216,6 +232,7 @@ export function ReceiptSheet({ defaultDate, defaultHerRatio, onSave, onClose }: 
         >
           {saving ? "saving..." : "save"}
         </button>
+      </div>
       </div>
     </div>
   );
