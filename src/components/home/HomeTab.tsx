@@ -7,7 +7,7 @@ import { useTodoStore } from "@/store/todoStore";
 import { useAuthStore } from "@/store/authStore";
 import { useCalendarStore } from "@/store/calendarStore";
 import { getTodaysRoutines } from "@/lib/routine";
-import { syncChoreNotifications } from "@/lib/notifications";
+import { compareByNotifyAt, formatNotifyAt, syncChoreNotifications } from "@/lib/notifications";
 import { toISODate, cn } from "@/lib/utils";
 import { WeatherWidget } from "./WeatherWidget";
 import { ScheduleTimeline } from "@/components/calendar/ScheduleTimeline";
@@ -226,7 +226,8 @@ export function HomeTab() {
         {(["personal", "household"] as const).map(type => {
           const tasks = type === "personal" ? personalTasks : householdTasks;
           const label = type === "personal" ? "personal" : "chores";
-          const activeTasks = tasks.filter(r => !r.done);
+          // 時刻のある家事を時刻順に先に並べる
+          const activeTasks = tasks.filter(r => !r.done).sort(compareByNotifyAt);
           const doneTasks = tasks.filter(r => r.done);
           return (
             <div key={type} className="bg-muted/40 rounded-2xl px-4 py-3">
@@ -265,6 +266,11 @@ export function HomeTab() {
                     aria-label="done"
                   />
                   <span className="flex-1 text-[13px]">{r.label}</span>
+                  {r.notify_at && (
+                    <span className="text-[10px] text-muted-foreground tabular-nums flex-shrink-0">
+                      {formatNotifyAt(r.notify_at)}
+                    </span>
+                  )}
                   <button
                     onClick={() => deleteChore(r.id)}
                     className="text-muted-foreground/50 hover:text-muted-foreground transition-colors flex-shrink-0 text-[14px] leading-none"

@@ -6,7 +6,7 @@ import { useTodoStore } from "@/store/todoStore";
 import type { NotifyPermission } from "@/lib/notifications";
 import {
   notificationsAvailable, getChoreNotifySetting,
-  setChoreNotifyEnabled, syncChoreNotifications, parseNotifyAt,
+  setChoreNotifyEnabled, syncChoreNotifications, parseNotifyAt, formatNotifyAt,
   notificationPermission, lastNotificationError, nativePluginPresent, bridgeProbe,
 } from "@/lib/notifications";
 
@@ -34,13 +34,6 @@ function whenLabel(r: { frequency: string; day_of_week: number | null; day_of_mo
   if (r.frequency === "weekly") return `毎週${DAY_LABEL[r.day_of_week ?? 0]}`;
   if (r.frequency === "monthly") return `毎月${r.day_of_month}日`;
   return "一度だけ";
-}
-
-/** "HH:MM:SS" → "HH:MM"（time 入力が読める形）。未設定なら空＝通知しない。 */
-function toInputValue(notifyAt: string | null): string {
-  const mins = parseNotifyAt(notifyAt);
-  if (mins === null) return "";
-  return `${String(Math.floor(mins / 60)).padStart(2, "0")}:${String(mins % 60).padStart(2, "0")}`;
 }
 
 export function NotificationSettings() {
@@ -177,9 +170,9 @@ export function NotificationSettings() {
               </span>
               <input
                 type="time"
-                value={toInputValue(r.notify_at)}
+                value={formatNotifyAt(r.notify_at)}
                 onChange={(e) => changeChoreTime(r.id, e.target.value)}
-                className="bg-background border border-border rounded px-2 py-0.5 text-[11px] w-[88px] flex-shrink-0"
+                className="bg-background border border-border rounded px-2 py-0.5 text-[11px] w-[100px] flex-shrink-0"
               />
             </div>
           ))

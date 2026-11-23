@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useTodoStore } from "@/store/todoStore";
 import { useAuthStore } from "@/store/authStore";
+import { compareByNotifyAt, formatNotifyAt, syncChoreNotifications } from "@/lib/notifications";
 
 const DAYS = [
   { label: "Mon", value: 1 },
@@ -25,17 +26,25 @@ const PRESET: { day: number; label: string }[] = [
   { day: 0, label: "Floor cleaning" }, { day: 0, label: "Toilet cleaning" },
 ];
 
+// 家事ごとの時刻は notify_at（世帯で共有）。下の NOTIFICATION の時刻と同じ値で、
+// どちらで変えても同じになる。時刻を入れた家事は、通知をオンにしている端末で鳴る。
+
+/** "07:00" → "07:00:00"。空なら null（＝時刻なし） */
+const toNotifyAt = (value: string) => (value ? `${value}:00` : null);
+
 export function WeeklyChoresSettings() {
-  const { routineDefinitions, addRoutine, deleteRoutine } = useSettingsStore();
+  const { routineDefinitions, addRoutine, deleteRoutine, setRoutineNotifyAt } = useSettingsStore();
+  const todoRoutines = useTodoStore((s) => s.routineDefinitions);
   const { load: reloadTodos } = useTodoStore();
   const { householdId } = useAuthStore();
 
   const [addingDay, setAddingDay] = useState<number | null>(null);
   const [newLabel, setNewLabel] = useState("");
+  const [newTime, setNewTime] = useState("");
   const [loadingPreset, setLoadingPreset] = useState(false);
 
   const weeklyChores = routineDefinitions.filter(r => r.frequency === "weekly");
-  const choresByDay = (day: number) => weeklyChores.filter(r => r.day_of_week === day);
+  const choresByDay = (day: number) => weeklyChores.filter(r => r.day_of_week === day).sort(compareByNotifyAt);
 
   const handleAdd = async (dayOfWeek: number) => {
     if (!newLabel.trim() || !householdId) return;
@@ -46,11 +55,21 @@ export function WeeklyChoresSettings() {
       day_of_week: dayOfWeek,
       day_of_month: null,
       due_date: null,
-      notify_at: null,
+      notify_at: toNotifyAt(newTime),
     });
     await reloadTodos(householdId);
     setNewLabel("");
+    setNewTime("");
     setAddingDay(null);
+  };
+
+  const changeTime = async (id: string, value: string) => {
+    const notifyAt = toNotifyAt(value);
+    await setRoutineNotifyAt(id, notifyAt);
+    // 通知の予約も組み直す（NOTIFICATION で変えたときと同じ）
+    await syncChoreNotifications(
+      todoRoutines.map((r) => (r.id === id ? { ...r, notify_at: notifyAt } : r))
+    );
   };
 
   const handleDelete = async (id: string) => {
@@ -100,7 +119,14 @@ export function WeeklyChoresSettings() {
               <div className="flex-1">
                 {chores.map(r => (
                   <div key={r.id} className="flex items-center gap-2 mb-1">
-                    <span className="flex-1 text-[12px]">{r.label}</span>
+                    <span className="flex-1 text-[12px] truncate">{r.label}</span>
+                    <input
+                      type="time"
+                      value={formatNotifyAt(r.notify_at)}
+                      onChange={e => changeTime(r.id, e.target.value)}
+                      aria-label={`${r.label}の時刻`}
+                      className="bg-background border border-border rounded px-2 py-0.5 text-[11px] w-[100px] flex-shrink-0"
+                    />
                     <button
                       onClick={() => handleDelete(r.id)}
                       className="text-muted-foreground/40 hover:text-muted-foreground transition-colors text-[14px] leading-none"
@@ -117,11 +143,17 @@ export function WeeklyChoresSettings() {
                       onChange={e => setNewLabel(e.target.value)}
                       onKeyDown={e => {
                         if (e.key === "Enter") handleAdd(value);
-                        if (e.key === "Escape") { setAddingDay(null); setNewLabel(""); }
+                        if (e.key === "Escape") { setAddingDay(null); setNewLabel(""); setNewTime(""); }
                       }}
-                      onBlur={() => { if (!newLabel.trim()) { setAddingDay(null); } }}
                       placeholder="chore name"
-                      className="flex-1 bg-transparent text-[12px] outline-none placeholder:text-muted-foreground border-b border-border pb-0.5"
+                      className="flex-1 min-w-0 bg-transparent text-[12px] outline-none placeholder:text-muted-foreground border-b border-border pb-0.5"
+                    />
+                    <input
+                      type="time"
+                      value={newTime}
+                      onChange={e => setNewTime(e.target.value)}
+                      aria-label="時刻"
+                      className="bg-background border border-border rounded px-2 py-0.5 text-[11px] w-[100px] flex-shrink-0"
                     />
                     <button onClick={() => handleAdd(value)} className="text-[10px] text-muted-foreground flex-shrink-0">
                       add
@@ -129,7 +161,7 @@ export function WeeklyChoresSettings() {
                   </div>
                 ) : (
                   <button
-                    onClick={() => { setAddingDay(value); setNewLabel(""); }}
+                    onClick={() => { setAddingDay(value); setNewLabel(""); setNewTime(""); }}
                     className="text-[10px] text-muted-foreground/50 hover:text-muted-foreground transition-colors"
                   >
                     + add

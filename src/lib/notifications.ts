@@ -206,6 +206,23 @@ export function parseNotifyAt(value: string | null | undefined): number | null {
   return h * 60 + min;
 }
 
+/** "07:00:00" → "07:00"（time 入力と画面の表示に使う形）。未設定なら空文字。 */
+export function formatNotifyAt(value: string | null | undefined): string {
+  const mins = parseNotifyAt(value);
+  if (mins === null) return "";
+  return `${String(Math.floor(mins / 60)).padStart(2, "0")}:${String(mins % 60).padStart(2, "0")}`;
+}
+
+/** 時刻のある家事を早い順に、時刻のない家事はその後に（元の並びのまま） */
+export function compareByNotifyAt(a: { notify_at: string | null }, b: { notify_at: string | null }): number {
+  const am = parseNotifyAt(a.notify_at);
+  const bm = parseNotifyAt(b.notify_at);
+  if (am === null && bm === null) return 0;
+  if (am === null) return 1;
+  if (bm === null) return -1;
+  return am - bm;
+}
+
 /**
  * 何をいつ鳴らすかを決める、副作用の無い部分。
  *
