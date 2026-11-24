@@ -46,22 +46,21 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "missing householdId" }, { status: 400 });
   }
 
-  // Authenticate caller via Supabase session cookie
+  // 呼んだ人の確認と、加入の確認を同時に行う（順に待つと、その分だけ予定が出るのが遅れる）
   const cookieStore = await cookies();
   const supabaseAnon = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     { cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} } }
   );
-  const { data: { user } } = await supabaseAnon.auth.getUser();
+  const [{ data: { user } }, denied] = await Promise.all([
+    supabaseAnon.auth.getUser(),
+    // 相手の予定は、サーバーが相手の鍵で取りに行くので、ここで止めないと
+    // ブラウザから直接叩けば加入しなくても見られる。
+    BILLING_ENABLED ? requireEntitled() : Promise.resolve(null),
+  ]);
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-
-  // 相手の予定は、サーバーが相手の鍵で取りに行くので、ここで止めないと
-  // ブラウザから直接叩けば加入しなくても見られる。
-  if (BILLING_ENABLED) {
-    const denied = await requireEntitled();
-    if (denied) return denied;
-  }
+  if (denied) return denied;
 
   // Use service role to bypass RLS
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -75,42 +74,36 @@ export async function GET(request: Request) {
     { cookies: { getAll: () => [], setAll: () => {} } }
   );
 
-  // Verify caller is a member of the household
-  const { data: membership } = await supabase
-    .from("household_members")
-    .select("user_id")
-    .eq("household_id", householdId)
-    .eq("user_id", user.id)
-    .maybeSingle();
-  if (!membership) return NextResponse.json({ error: "not in household" }, { status: 403 });
-
+  // 世帯の全員を一度に読み、呼んだ人が入っているかと、相手が誰かを両方決める。
   // 相手が誰かは household_members で決める。user_tokens.household_id は
   // 以前クライアントから書けた列なので、それで引くと他人の鍵が紛れ込みうる。
-  const { data: mates } = await supabase
+  const { data: members } = await supabase
     .from("household_members")
     .select("user_id")
-    .eq("household_id", householdId)
-    .neq("user_id", user.id);
-  const mateIds = (mates ?? []).map((m) => m.user_id as string);
+    .eq("household_id", householdId);
+  const memberIds = (members ?? []).map((m) => m.user_id as string);
+  if (!memberIds.includes(user.id)) return NextResponse.json({ error: "not in household" }, { status: 403 });
+  const mateIds = memberIds.filter((id) => id !== user.id);
   if (mateIds.length === 0) {
-    return NextResponse.json({ events: [] });
-  }
-
-  const { data: partners } = await supabase
-    .from("user_tokens")
-    .select("user_id, google_access_token, google_refresh_token")
-    .in("user_id", mateIds);
-
-  if (!partners || partners.length === 0) {
     return NextResponse.json({ events: [] });
   }
 
   // 名前と色は member_profiles 側にある。トークンと同じ表に置くと、
   // 同居人に読ませるための SELECT ポリシーがトークンまで巻き込むため分けてある。
-  const { data: profiles } = await supabase
-    .from("member_profiles")
-    .select("user_id, display_name, calendar_colors")
-    .in("user_id", partners.map((p) => p.user_id));
+  const [{ data: partners }, { data: profiles }] = await Promise.all([
+    supabase
+      .from("user_tokens")
+      .select("user_id, google_access_token, google_refresh_token")
+      .in("user_id", mateIds),
+    supabase
+      .from("member_profiles")
+      .select("user_id, display_name, calendar_colors")
+      .in("user_id", mateIds),
+  ]);
+
+  if (!partners || partners.length === 0) {
+    return NextResponse.json({ events: [] });
+  }
   const profileById = new Map(
     (profiles ?? []).map((p) => [p.user_id as string, p])
   );

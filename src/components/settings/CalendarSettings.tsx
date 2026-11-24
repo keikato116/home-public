@@ -28,7 +28,7 @@ export function CalendarSettings() {
         updateSettings(householdId, { selected_colors: selectedColors, start_date: startDate }),
         new Promise<void>((_, reject) => setTimeout(() => reject(new Error("timeout")), 8000)),
       ]);
-      load(householdId, accessToken);
+      load(householdId, accessToken, true);
     } catch {
       // ignore
     } finally {

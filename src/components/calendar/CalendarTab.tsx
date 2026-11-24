@@ -103,7 +103,7 @@ export function CalendarTab() {
           </button>
         </div>
         <button
-          onClick={() => householdId && load(householdId, null)}
+          onClick={() => householdId && load(householdId, null, true)}
           className={`text-muted-foreground hover:text-foreground transition-colors${isActive ? " animate-spin" : ""}`}
           aria-label="refresh"
         >

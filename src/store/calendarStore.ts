@@ -15,13 +15,33 @@ import { ensureSession } from "@/lib/supabase/helpers";
 let loadGeneration = 0;
 let loadTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
+// 同じ読み込みを重ねない。
+// 起動時は page とホームが同時に load を呼び、タブを開くたびにも呼ばれる。以前は毎回
+// 最初からやり直し（前の分は捨てる）ていたので、Google への問い合わせが二重三重になり、
+// そのぶん遅かった。走っている読み込みがあればそれを待ち、少し前に読み終えたばかりなら
+// 読み直さない（更新ボタン・設定の変更は force で必ず読み直す）。
+const FRESH_MS = 15_000;
+let inFlight: { householdId: string; promise: Promise<void> } | null = null;
+let lastLoaded: { householdId: string; at: number } | null = null;
+
+/** 予定がどこから来たか。届いた順に、その出どころの分だけ差し替えるのに使う */
+type Source = "local" | "own" | "partner";
+function sourceOf(e: CalendarEvent, me: string | undefined): Source {
+  if (e.isLocal) return "local";
+  return e.ownerId === me ? "own" : "partner";
+}
+
+function byStart(a: CalendarEvent, b: CalendarEvent) {
+  return (a.start.dateTime ?? a.start.date ?? "").localeCompare(b.start.dateTime ?? b.start.date ?? "");
+}
+
 interface CalendarState {
   events: CalendarEvent[];
   settings: CalendarSettings | null;
   loading: boolean;   // true only on first load when no events exist yet
   syncing: boolean;   // true during background refresh when events already shown
   error: string | null;
-  load: (householdId: string, accessToken: string | null) => Promise<void>;
+  load: (householdId: string, accessToken: string | null, force?: boolean) => Promise<void>;
   updateSettings: (householdId: string, settings: Partial<CalendarSettings>) => Promise<void>;
   addLocalEvent: (householdId: string, userId: string, title: string, date: string, startTime?: string, endTime?: string) => Promise<void>;
   deleteLocalEvent: (id: string) => Promise<void>;
@@ -115,148 +135,20 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
     return groups;
   },
 
-  load: async (householdId, accessToken) => {
-    if (loadTimeoutId) clearTimeout(loadTimeoutId);
-    const myGen = ++loadGeneration;
-
-    // Show localStorage cache immediately so tab feels instant
-    const cacheKey = `${LS_CAL_CACHE_PREFIX}${householdId}`;
-    const hasExistingEvents = get().events.length > 0;
-    if (!hasExistingEvents) {
-      try {
-        const raw = localStorage.getItem(cacheKey);
-        if (raw) {
-          // キャッシュにも summary の無い予定が残っている。JSON.stringify は
-          // undefined のキーを落とすため。ここは取得を待たずに描画されるので、
-          // 埋めそこねると開いた瞬間に落ちる。
-          set({ events: withSummaries(JSON.parse(raw)), loading: false, syncing: true, error: null });
-        } else {
-          set({ loading: true, syncing: false, error: null });
-        }
-      } catch {
-        set({ loading: true, syncing: false, error: null });
-      }
-    } else {
-      set({ syncing: true, error: null });
+  load: (householdId, accessToken, force = false) => {
+    if (inFlight?.householdId === householdId) return inFlight.promise;
+    const s = get();
+    if (
+      !force && !s.error && s.events.length > 0 &&
+      lastLoaded?.householdId === householdId && Date.now() - lastLoaded.at < FRESH_MS
+    ) {
+      return Promise.resolve();
     }
-
-    const supabase = createClient();
-    await ensureSession();
-
-    // Timeout only when truly showing a spinner (no cache, no existing events)
-    const showingSpinner = get().loading;
-    if (showingSpinner) {
-      loadTimeoutId = setTimeout(() => {
-        loadTimeoutId = null;
-        if (myGen !== loadGeneration) return;
-        loadGeneration++;
-        set({ loading: false, syncing: false, error: "calendar fetch timed out" });
-      }, 30000);
-    }
-
-    try {
-      const { user } = useAuthStore.getState();
-      const currentUserId = user?.id;
-
-      // Run all Supabase queries in parallel
-      const [settingsRes, localRes, tokensRes] = await Promise.all([
-        supabase.from("calendar_settings").select("*").eq("household_id", householdId).maybeSingle(),
-        supabase.from("local_calendar_events").select("*").eq("household_id", householdId),
-        supabase.from("member_profiles").select("user_id, display_name, calendar_colors").eq("household_id", householdId),
-      ]);
-
-      const settings = (settingsRes.data as CalendarSettings | null) ?? {
-        household_id: householdId,
-        selected_colors: [],
-        start_date: toISODate(new Date()),
-      };
-      set({ settings });
-
-      const memberTokens = tokensRes.data ?? [];
-      const colorMap: Record<string, string[]> = {};
-      const nameMap: Record<string, string> = {};
-      for (const m of memberTokens) {
-        nameMap[m.user_id] = (m.display_name ?? "").split(" ")[0];
-        const colors = (m as { calendar_colors?: string[] | null }).calendar_colors;
-        if (colors) colorMap[m.user_id] = colors;
-      }
-      const localEvents: CalendarEvent[] = ((localRes.data ?? []) as LocalCalendarEvent[]).map(e =>
-        localToCalendarEvent(e, e.user_id ? nameMap[e.user_id] : undefined)
-      );
-
-      // Proactively get a valid token (refreshes if expired or near expiry)
-      const effectiveToken =
-        (await ensureValidAccessToken()) ??
-        accessToken ??
-        localStorage.getItem(LS_GOOGLE_TOKEN);
-
-      if (!effectiveToken) {
-        if (loadTimeoutId) { clearTimeout(loadTimeoutId); loadTimeoutId = null; }
-        if (myGen !== loadGeneration) return;
-        localEvents.sort((a, b) => (a.start.dateTime ?? a.start.date ?? "").localeCompare(b.start.dateTime ?? b.start.date ?? ""));
-        set({ events: localEvents, loading: false, syncing: false, error: "TOKEN_MISSING" });
-        return;
-      }
-
-      const oneMonthAgo = new Date();
-      oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-      const fetchFrom = toISODate(oneMonthAgo);
-
-      const currentUserName =
-        nameMap[currentUserId ?? ""] ||
-        (user?.user_metadata?.full_name ?? user?.email ?? "").split(" ")[0];
-      const ownEvents = (await fetchWithAutoRefresh(effectiveToken, settings.selected_colors, fetchFrom)).map(e => ({
-        ...e,
-        ownerId: currentUserId,
-        ownerName: currentUserName,
-      }));
-
-      const googleEvents: CalendarEvent[] = [...ownEvents];
-
-      // Fetch partner events via server-side API (bypasses RLS, handles token refresh)
-      try {
-        const partnerRes = await fetch(
-          `/api/partner-calendar?householdId=${encodeURIComponent(householdId)}&from=${fetchFrom}`
-        );
-        if (partnerRes.ok) {
-          const { events: partnerEvents } = await partnerRes.json();
-          googleEvents.push(...(partnerEvents as CalendarEvent[]));
-        }
-      } catch { /* ignore — partner events are best-effort */ }
-
-      const allEvents = [...googleEvents, ...localEvents];
-      allEvents.sort((a, b) =>
-        (a.start.dateTime ?? a.start.date ?? "").localeCompare(b.start.dateTime ?? b.start.date ?? "")
-      );
-
-      if (loadTimeoutId) { clearTimeout(loadTimeoutId); loadTimeoutId = null; }
-      if (myGen !== loadGeneration) return;
-      try { localStorage.setItem(cacheKey, JSON.stringify(allEvents)); } catch { /* storage full */ }
-      set({ events: allEvents, loading: false, syncing: false });
-    } catch (e) {
-      if (loadTimeoutId) { clearTimeout(loadTimeoutId); loadTimeoutId = null; }
-      if (myGen !== loadGeneration) return;
-      const isTokenExpired = e instanceof Error && e.message === "TOKEN_EXPIRED";
-      if (!hasExistingEvents || isTokenExpired) {
-        const msg = isTokenExpired
-          ? "TOKEN_EXPIRED"
-          : "failed to load calendar";
-        set({ loading: false, syncing: false, error: msg });
-
-        if (isTokenExpired) {
-          // Silently retry after 3 minutes — the background token refresh may have
-          // succeeded by then, allowing calendar load to recover without user action
-          setTimeout(() => {
-            if (!get().error) return; // already recovered
-            const { householdId: hid, accessToken: tok } = useAuthStore.getState();
-            if (hid) get().load(hid, tok);
-          }, 3 * 60 * 1000);
-        }
-      } else {
-        // Polling network failure: silently keep existing events
-        set({ syncing: false });
-      }
-    }
+    const promise = loadNow(householdId, accessToken).finally(() => {
+      if (inFlight?.promise === promise) inFlight = null;
+    });
+    inFlight = { householdId, promise };
+    return promise;
   },
 
   addLocalEvent: async (householdId, userId, title, date, startTime, endTime) => {
@@ -329,3 +221,153 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
     set({ settings: updated });
   },
 }));
+
+async function loadNow(householdId: string, accessToken: string | null): Promise<void> {
+  const get = useCalendarStore.getState;
+  const set = useCalendarStore.setState;
+  if (loadTimeoutId) clearTimeout(loadTimeoutId);
+  const myGen = ++loadGeneration;
+
+  // Show localStorage cache immediately so tab feels instant
+  const cacheKey = `${LS_CAL_CACHE_PREFIX}${householdId}`;
+  const hasExistingEvents = get().events.length > 0;
+  if (!hasExistingEvents) {
+    try {
+      const raw = localStorage.getItem(cacheKey);
+      if (raw) {
+        // キャッシュにも summary の無い予定が残っている。JSON.stringify は
+        // undefined のキーを落とすため。ここは取得を待たずに描画されるので、
+        // 埋めそこねると開いた瞬間に落ちる。
+        set({ events: withSummaries(JSON.parse(raw)), loading: false, syncing: true, error: null });
+      } else {
+        set({ loading: true, syncing: false, error: null });
+      }
+    } catch {
+      set({ loading: true, syncing: false, error: null });
+    }
+  } else {
+    set({ syncing: true, error: null });
+  }
+
+  const { user } = useAuthStore.getState();
+  const currentUserId = user?.id;
+
+  // 届いた出どころの分だけ差し替えて、すぐ画面に出す（全部そろうまで待たせない）
+  // 一部が出たあとも、残りを読んでいる間は更新ボタンを回しておく
+  const apply = (source: Source, list: CalendarEvent[]) => {
+    if (myGen !== loadGeneration) return;
+    const others = get().events.filter((e) => sourceOf(e, currentUserId) !== source);
+    set({ events: [...others, ...list].sort(byStart), loading: false, syncing: true });
+  };
+
+  const supabase = createClient();
+  await ensureSession();
+
+  // Timeout only when truly showing a spinner (no cache, no existing events)
+  if (get().loading) {
+    loadTimeoutId = setTimeout(() => {
+      loadTimeoutId = null;
+      if (myGen !== loadGeneration) return;
+      loadGeneration++;
+      // 一部でも出せていれば、それを残して止める
+      const shown = get().events.length > 0;
+      set({ loading: false, syncing: false, error: shown ? null : "calendar fetch timed out" });
+    }, 30000);
+  }
+
+  const oneMonthAgo = new Date();
+  oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+  const fetchFrom = toISODate(oneMonthAgo);
+
+  // 相手の予定は、こちらの設定や鍵を待たずに最初から取りに行く（サーバーが相手の鍵で取る）。
+  // 失敗しても、前に出していた相手の予定は残す（best-effort）。
+  const partnerDone = fetch(
+    `/api/partner-calendar?householdId=${encodeURIComponent(householdId)}&from=${fetchFrom}`
+  )
+    .then(async (res) => {
+      if (!res.ok) return;
+      const { events } = await res.json();
+      apply("partner", withSummaries((events ?? []) as CalendarEvent[]));
+    })
+    .catch(() => { /* ignore — partner events are best-effort */ });
+
+  try {
+    // 世帯の設定・自分で入れた予定・名前と、Google の鍵の確認を、すべて同時に
+    const [settingsRes, localRes, tokensRes, validToken] = await Promise.all([
+      supabase.from("calendar_settings").select("*").eq("household_id", householdId).maybeSingle(),
+      supabase.from("local_calendar_events").select("*").eq("household_id", householdId),
+      supabase.from("member_profiles").select("user_id, display_name, calendar_colors").eq("household_id", householdId),
+      // Proactively get a valid token (refreshes if expired or near expiry)
+      ensureValidAccessToken().catch(() => null),
+    ]);
+
+    const settings = (settingsRes.data as CalendarSettings | null) ?? {
+      household_id: householdId,
+      selected_colors: [],
+      start_date: toISODate(new Date()),
+    };
+    set({ settings });
+
+    const nameMap: Record<string, string> = {};
+    for (const m of tokensRes.data ?? []) {
+      nameMap[m.user_id] = (m.display_name ?? "").split(" ")[0];
+    }
+    const localEvents: CalendarEvent[] = ((localRes.data ?? []) as LocalCalendarEvent[]).map(e =>
+      localToCalendarEvent(e, e.user_id ? nameMap[e.user_id] : undefined)
+    );
+    apply("local", localEvents);
+
+    const effectiveToken = validToken ?? accessToken ?? localStorage.getItem(LS_GOOGLE_TOKEN);
+
+    if (!effectiveToken) {
+      if (loadTimeoutId) { clearTimeout(loadTimeoutId); loadTimeoutId = null; }
+      if (myGen !== loadGeneration) return;
+      loadGeneration++; // 後から届く相手の予定で上書きしない
+      set({ events: [...localEvents].sort(byStart), loading: false, syncing: false, error: "TOKEN_MISSING" });
+      return;
+    }
+
+    const currentUserName =
+      nameMap[currentUserId ?? ""] ||
+      (user?.user_metadata?.full_name ?? user?.email ?? "").split(" ")[0];
+    const ownEvents = (await fetchWithAutoRefresh(effectiveToken, settings.selected_colors, fetchFrom)).map(e => ({
+      ...e,
+      ownerId: currentUserId,
+      ownerName: currentUserName,
+    }));
+    apply("own", ownEvents);
+
+    await partnerDone;
+
+    if (loadTimeoutId) { clearTimeout(loadTimeoutId); loadTimeoutId = null; }
+    if (myGen !== loadGeneration) return;
+    const allEvents = get().events;
+    try { localStorage.setItem(cacheKey, JSON.stringify(allEvents)); } catch { /* storage full */ }
+    lastLoaded = { householdId, at: Date.now() };
+    set({ loading: false, syncing: false });
+  } catch (e) {
+    if (loadTimeoutId) { clearTimeout(loadTimeoutId); loadTimeoutId = null; }
+    if (myGen !== loadGeneration) return;
+    loadGeneration++; // 後から届く相手の予定で、止めた表示を動かさない
+    const isTokenExpired = e instanceof Error && e.message === "TOKEN_EXPIRED";
+    if (!hasExistingEvents || isTokenExpired) {
+      const msg = isTokenExpired
+        ? "TOKEN_EXPIRED"
+        : "failed to load calendar";
+      set({ loading: false, syncing: false, error: msg });
+
+      if (isTokenExpired) {
+        // Silently retry after 3 minutes — the background token refresh may have
+        // succeeded by then, allowing calendar load to recover without user action
+        setTimeout(() => {
+          if (!get().error) return; // already recovered
+          const { householdId: hid, accessToken: tok } = useAuthStore.getState();
+          if (hid) get().load(hid, tok, true);
+        }, 3 * 60 * 1000);
+      }
+    } else {
+      // Polling network failure: silently keep existing events
+      set({ syncing: false });
+    }
+  }
+}

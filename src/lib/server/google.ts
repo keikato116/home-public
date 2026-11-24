@@ -5,15 +5,26 @@ import { withSummary } from "@/lib/calendarEvent";
 
 type CalInfo = { id: string; backgroundColor?: string; selected?: boolean; accessRole?: string };
 
+// 読み込みを軽くするため、Google には画面で使う項目だけを返させる（説明・参加者・
+// 会議の URL などは使わないのに、予定1件ごとに大きく付いてくる）。
+// 画面で新しい項目を使うときは、ここに足すこと。足し忘れるとその項目は空で届く。
+const CALENDAR_LIST_FIELDS = "items(id,backgroundColor,selected,accessRole)";
+const EVENT_FIELDS = "items(id,summary,colorId,start(date,dateTime),end(date,dateTime))";
+
+/** 終わりを決めずに頼むと、繰り返しの予定が何年先までも展開されて重くなる。取りに行くのは1年先まで */
+const DEFAULT_RANGE_DAYS = 400;
+
 export async function fetchEventsFromAllCalendars(
   accessToken: string,
   timeMin: string,
   timeMax?: string,
   signal?: AbortSignal
 ): Promise<{ events: object[]; error?: string; status?: number }> {
+  const until = timeMax ?? new Date(new Date(timeMin).getTime() + DEFAULT_RANGE_DAYS * 86_400_000).toISOString();
+
   // Step 1: get all calendars the user has selected
   const calListRes = await fetch(
-    "https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=50",
+    `https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=50&fields=${encodeURIComponent(CALENDAR_LIST_FIELDS)}`,
     { headers: { Authorization: `Bearer ${accessToken}` }, signal }
   );
   if (calListRes.status === 401) return { events: [], error: "TOKEN_EXPIRED", status: 401 };
@@ -30,10 +41,11 @@ export async function fetchEventsFromAllCalendars(
       try {
         const url = new URL(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events`);
         url.searchParams.set("timeMin", timeMin);
-        if (timeMax) url.searchParams.set("timeMax", timeMax);
+        url.searchParams.set("timeMax", until);
         url.searchParams.set("singleEvents", "true");
         url.searchParams.set("orderBy", "startTime");
         url.searchParams.set("maxResults", "250");
+        url.searchParams.set("fields", EVENT_FIELDS);
         const res = await fetch(url.toString(), {
           headers: { Authorization: `Bearer ${accessToken}` },
           signal,
