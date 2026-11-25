@@ -50,7 +50,6 @@ function RatioInput({ herRatio, onChange }: { herRatio: number; onChange: (r: nu
 
   return (
     <div className="flex items-center gap-3">
-      <span className="text-[11px] text-muted-foreground">負担する割合</span>
       {part("him")}
       <span className="text-[11px] text-muted-foreground">:</span>
       {part("her")}
