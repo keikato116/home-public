@@ -180,7 +180,7 @@ export function ReceiptSheet({ defaultDate, defaultHerRatio, onSave, onClose }: 
                   "flex-1 text-[12px] tracking-wide rounded-xl border py-2.5 transition-colors",
                   card === v ? "bg-foreground text-background border-foreground" : "border-border text-muted-foreground"
                 )}>
-                {v === "mine" ? "him が払った" : "her が払った"}
+                {v === "mine" ? "him" : "her"}
               </button>
             ))}
           </div>
