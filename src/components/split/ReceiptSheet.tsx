@@ -4,34 +4,34 @@ import { useEffect, useState } from "react";
 import { SplitItem } from "@/types";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatDateShort, fmtYen, inputStyle } from "./lib";
+import { formatDateShort, fmtYen, inputStyle, otherShare } from "./lib";
 
-function RatioInput({ card, herRatio, onChange }: { card: "mine" | "family"; herRatio: number; onChange: (r: number) => void }) {
-  const [editing, setEditing] = useState(false);
+/** 負担の割合。him と her の両方を出し、どちらを押しても直せる（片方を決めると残りがもう片方） */
+function RatioInput({ herRatio, onChange }: { herRatio: number; onChange: (r: number) => void }) {
+  const [editing, setEditing] = useState<"him" | "her" | null>(null);
   const [val, setVal] = useState("");
-
-  const payerPct = card === "mine" ? Math.round((1 - herRatio) * 100) : Math.round(herRatio * 100);
-  const payer = card === "mine" ? "him" : "her";
+  const herPct = Math.round(herRatio * 100);
+  const pctOf = (who: "him" | "her") => (who === "her" ? herPct : 100 - herPct);
 
   const commit = () => {
     const pct = parseInt(val, 10);
-    if (!isNaN(pct) && pct >= 0 && pct <= 100) {
-      onChange(card === "mine" ? (100 - pct) / 100 : pct / 100);
+    if (editing && !isNaN(pct) && pct >= 0 && pct <= 100) {
+      onChange(editing === "her" ? pct / 100 : (100 - pct) / 100);
     }
-    setEditing(false);
+    setEditing(null);
   };
 
-  return (
-    <div className="flex items-center gap-1.5">
-      <span className="text-[9px] text-muted-foreground tracking-wider">{payer}</span>
-      {editing ? (
+  const part = (who: "him" | "her") => (
+    <span className="flex items-center gap-1">
+      <span className="text-[11px] text-muted-foreground tracking-wider">{who}</span>
+      {editing === who ? (
         <input
           autoFocus
           type="number"
           inputMode="numeric"
           value={val}
           onChange={(e) => setVal(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") commit(); if (e.key === "Escape") setEditing(false); }}
+          onKeyDown={(e) => { if (e.key === "Enter") commit(); if (e.key === "Escape") setEditing(null); }}
           onBlur={commit}
           style={inputStyle}
           className="w-12 bg-transparent border-b border-border text-[13px] text-center outline-none"
@@ -39,12 +39,21 @@ function RatioInput({ card, herRatio, onChange }: { card: "mine" | "family"; her
       ) : (
         <button
           type="button"
-          onClick={() => { setVal(String(payerPct)); setEditing(true); }}
+          onClick={() => { setVal(String(pctOf(who))); setEditing(who); }}
           className="text-[13px] tabular-nums border-b border-border/40 text-foreground"
         >
-          {payerPct}%
+          {pctOf(who)}%
         </button>
       )}
+    </span>
+  );
+
+  return (
+    <div className="flex items-center gap-3">
+      <span className="text-[11px] text-muted-foreground">負担する割合</span>
+      {part("him")}
+      <span className="text-[11px] text-muted-foreground">:</span>
+      {part("her")}
     </div>
   );
 }
@@ -111,7 +120,8 @@ export function ReceiptSheet({ defaultDate, defaultHerRatio, onSave, onClose }: 
   }, []);
 
   const n = parseInt(amount, 10) || 0;
-  const herOwed = Math.round(n * herRatio);
+  // 払っていないほうが負担する額（him が払ったなら her の負担分、her が払ったなら him の負担分）
+  const herOwed = Math.round(n * otherShare(card, herRatio));
 
   const handleSave = async () => {
     if (n <= 0) return;
@@ -150,7 +160,7 @@ export function ReceiptSheet({ defaultDate, defaultHerRatio, onSave, onClose }: 
       <div data-sheet-scroll className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
       <div className="px-5 py-6 space-y-4">
 
-        {/* Date + card */}
+        {/* Date + card（だれが払ったか） */}
         <div className="flex gap-2 items-stretch">
           <div className="relative flex-shrink-0">
             <div className="bg-muted/40 rounded-xl px-4 py-3 text-[16px] pointer-events-none select-none whitespace-nowrap">
@@ -170,7 +180,7 @@ export function ReceiptSheet({ defaultDate, defaultHerRatio, onSave, onClose }: 
                   "flex-1 text-[12px] tracking-wide rounded-xl border py-2.5 transition-colors",
                   card === v ? "bg-foreground text-background border-foreground" : "border-border text-muted-foreground"
                 )}>
-                {v === "mine" ? "him" : "her"}
+                {v === "mine" ? "him が払った" : "her が払った"}
               </button>
             ))}
           </div>
@@ -211,7 +221,7 @@ export function ReceiptSheet({ defaultDate, defaultHerRatio, onSave, onClose }: 
         style={{ paddingBottom: "calc(1rem + var(--safe-bottom))" }}
       >
         {/* Ratio: payer's share */}
-        <RatioInput card={card} herRatio={herRatio} onChange={setHerRatio} />
+        <RatioInput herRatio={herRatio} onChange={setHerRatio} />
 
         <div className="flex items-end justify-between">
           <div>

@@ -54,12 +54,17 @@ export function getSessionRatio(session: SplitSession, fallback: number): number
 }
 
 /**
- * 精算額。
- *   him splits = Σ(him が払ったレシート × その割合) + (him のサブスク + him の固定費) × her%
- *   her splits = Σ(her が払ったレシート × その割合) + (her のサブスク + her の固定費) × her%
+ * 精算額。割合（her_ratio・全体の her%）は「her が負担する割合」。him の負担は 1 − her%。
+ *   him splits = Σ(him が払ったレシート × her の負担) + (him のサブスク + him の固定費) × her%
+ *              … him が立て替えたうち、her が負担する分
+ *   her splits = Σ(her が払ったレシート × him の負担) + (her のサブスク + her の固定費) × (1 − her%)
+ *              … her が立て替えたうち、him が負担する分
  *   her owes   = him splits + her のカード請求 − her splits（マイナスなら him owes）
  * サブスクは有効なもの全部が毎月、固定費はその月に入力された分だけが入る（未入力 = 0）。
  * 内訳（himSplits / herCardBill / herSplits）は必ず herOwes に足し引きで一致する。
+ *
+ * 以前は her splits にも her の負担割合を掛けていた。50:50 では同じ値になるので気づかず、
+ * 「her が払って him が 100% 負担」のレシートが 0 円として数えられていた。
  */
 export function computeSettlement(input: {
   sessions: SplitSession[];
@@ -70,15 +75,22 @@ export function computeSettlement(input: {
   herCardBill: number;
 }) {
   const { sessions, subscriptions, utilities, utilityAmounts, splitRatio, herCardBill } = input;
+  /** 払った人ではないほうが負担する額 */
+  const owedByOther = (s: SplitSession) => s.shared_amount * otherShare(s.card, getSessionRatio(s, splitRatio));
   const receipts = (card: "mine" | "family") =>
-    sessions.filter((s) => s.card === card).reduce((sum, s) => sum + s.shared_amount * getSessionRatio(s, splitRatio), 0);
+    sessions.filter((s) => s.card === card).reduce((sum, s) => sum + owedByOther(s), 0);
   const subs = (card: "mine" | "family") =>
     subscriptions.filter((s) => s.card === card).reduce((sum, s) => sum + s.amount, 0);
   const utils = (card: "mine" | "family") =>
     utilities.filter((u) => u.card === card).reduce((sum, u) => sum + (utilityAmounts[u.id] ?? 0), 0);
 
-  const himSplits = receipts("mine") + (subs("mine") + utils("mine")) * splitRatio;
-  const herSplits = receipts("family") + (subs("family") + utils("family")) * splitRatio;
+  const himSplits = receipts("mine") + (subs("mine") + utils("mine")) * otherShare("mine", splitRatio);
+  const herSplits = receipts("family") + (subs("family") + utils("family")) * otherShare("family", splitRatio);
   const herOwes = himSplits + herCardBill - herSplits;
   return { himSplits, herSplits, herCardBill, herOwes };
+}
+
+/** 払った人（mine = him, family = her）ではないほうの負担割合 */
+export function otherShare(card: "mine" | "family", herRatio: number): number {
+  return card === "mine" ? herRatio : 1 - herRatio;
 }

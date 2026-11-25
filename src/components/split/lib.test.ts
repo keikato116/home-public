@@ -106,4 +106,30 @@ describe("computeSettlement", () => {
     expect(r.herOwes).toBe(-3000);
     expect(r.himSplits + r.herCardBill - r.herSplits).toBe(r.herOwes);
   });
+
+  it("her が払って him が全部負担するレシートは、全額が her splits に入る", () => {
+    const r = computeSettlement({
+      sessions: [receipt("family", 10000, 0)],
+      subscriptions: [],
+      utilities: [],
+      utilityAmounts: {},
+      splitRatio: 0.5,
+      herCardBill: 0,
+    });
+    expect(r.herSplits).toBe(10000);
+    expect(r.herOwes).toBe(-10000);
+  });
+
+  it("割合は her の負担。him が払ったら her%、her が払ったら 1 − her% を相手が負担", () => {
+    const r = computeSettlement({
+      sessions: [receipt("mine", 1000, 0.3), receipt("family", 1000, 0.3)],
+      subscriptions: [sub("mine", 1000), sub("family", 1000)],
+      utilities: [],
+      utilityAmounts: {},
+      splitRatio: 0.3,
+      herCardBill: 0,
+    });
+    expect(r.himSplits).toBeCloseTo(600);
+    expect(r.herSplits).toBeCloseTo(1400);
+  });
 });
