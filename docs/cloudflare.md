@@ -18,12 +18,15 @@ Pro（月 $20）が要る。Cloudflare Workers の無料プランは商用利用
 Vercel だけに頼っていた箇所は1つだけで、直してある: 天気の位置を Vercel が付けるヘッダー
 （`x-vercel-ip-latitude`）から取っていた。Cloudflare では `request.cf` の位置を使う（両方で動く）。
 
-### Vercel を消してよい時期
-- `imbrex.app` を Cloudflare に切り替えて、1〜2週間問題なく使えている
-- 2人の iPhone に、`imbrex.app` を読み込むビルド（Build 5 以降）が入っている
-  （それより前のビルドは `home-public.vercel.app` を読み込んでいるので、Vercel を消すと真っ白になる）
+### Vercel は 2026-11-25 に削除した
+`imbrex.app` を Cloudflare に切り替えて（2026-10-30）4週間近く問題なく動き、2人の iPhone が
+`imbrex.app` を読み込むビルド（Build 5 以降）になったので、Vercel を外した。
 
-そのとき、Supabase の Redirect URLs の `vercel.app` の行も消す。
+- Vercel のプロジェクト（ドメインの設定ごと）を削除
+- Supabase の Redirect URLs から `vercel.app` の行を削除
+- Google Cloud Console の OAuth クライアントから `vercel.app` の行を削除
+
+Build 4 以前（TestFlight）は `home-public.vercel.app` を読み込むので、もう開けない（真っ白になる）。
 
 ## やり直さなくてよいもの
 
@@ -109,20 +112,13 @@ Supabase → Authentication → URL Configuration
 - `Unable to exchange external code` … Supabase の Google プロバイダに入っている
   Client Secret が Google 側で消えている・違う。Google Cloud Console の OAuth クライアントで
   有効な secret を確かめ、Supabase（Authentication → Sign In / Providers → Google）と
-  Cloudflare・Vercel の `GOOGLE_CLIENT_SECRET` を同じ値にそろえる（2026-10-30 に実際に起きた）
+  Cloudflare の `GOOGLE_CLIENT_SECRET` を同じ値にそろえる（2026-10-30 に実際に起きた）
 - 何も出ずにログイン画面に戻る … Supabase の Site URL / Redirect URLs に、開いているドメインが無い
 
 ### 戻すとき
-Domains & Routes から `imbrex.app` と `www.imbrex.app` を外し、DNS に次の2行を作り直す
-（2026-10-30 の切り替え前の値。Proxy は DNS only）。
+Vercel のプロジェクトは削除したので、もう Vercel には戻せない（戻すなら Vercel で作り直しになる）。
 
-| Name | Type | Content |
-|---|---|---|
-| `imbrex.app` | CNAME | `0fd98a7a440893c2.vercel-dns-017.com` |
-| `www` | CNAME | `0fd98a7a440893c2.vercel-dns-017.com` |
-
-TXT（`google-site-verification=…`）は Google のドメイン所有確認なので、切り替えでも消さない。
-Vercel のプロジェクトは、1〜2週間問題なく動いてから削除する。
+TXT（`google-site-verification=…`）は Google のドメイン所有確認なので、消さない。
 
 ## 開発用のコマンド
 

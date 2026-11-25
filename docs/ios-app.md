@@ -5,7 +5,7 @@
 
 ## 構成
 
-Capacitor のシェルが、Vercel 上の Next.js を WebView で読み込む。
+Capacitor のシェルが、Cloudflare Workers 上の Next.js を WebView で読み込む。
 
 ```
 iPhone アプリ（ガワ）

@@ -2,10 +2,10 @@ import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 
 // Google のトークンを保存する前に暗号化する。
 //
-// 鍵は Supabase の外（Vercel の環境変数）に置く。DB のダンプが流出しても、
+// 鍵は Supabase の外（Cloudflare の Secret）に置く。DB のダンプが流出しても、
 // 鍵が一緒に漏れない限りトークンは使えない。
 //
-// **これで防げるのは「DB だけが漏れたとき」。** Vercel と Supabase の両方を
+// **これで防げるのは「DB だけが漏れたとき」。** Cloudflare と Supabase の両方を
 // 持っている運営者からは守れない。サーバーが相手のカレンダーを代理で取りに行く
 // 構造上、サーバーは平文のトークンを扱う必要があるため。そこまで隠すには
 // 端末間の暗号化が要り、鍵を失うと復旧できなくなる代償がつく。
@@ -33,7 +33,7 @@ function key(): Buffer {
     // まま「暗号化したつもり」で運用するのが一番まずい。
     throw new Error(
       "TOKEN_ENCRYPTION_KEY が設定されていません。" +
-      "`openssl rand -base64 32` で作り、Vercel の環境変数に入れてください。"
+      "`openssl rand -base64 32` で作り、Cloudflare の Secret に入れてください。"
     );
   }
   const buf = Buffer.from(raw, "base64");

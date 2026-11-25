@@ -3,7 +3,7 @@ import { updateSession } from "@/lib/supabase/middleware";
 
 // 検索に載せるのは imbrex.app だけ。
 //   ・www.imbrex.app は imbrex.app へ恒久的に転送する
-//   ・vercel.app / workers.dev は、古い iPhone アプリと動作確認のためにまだ動かしているので
+//   ・workers.dev（Cloudflare が付ける URL）は動作確認のために残しているので、
 //     転送はせず（ログインの戻り先が変わってしまう）、検索に載せないよう伝えるだけにする
 const PRIMARY_HOST = "imbrex.app";
 

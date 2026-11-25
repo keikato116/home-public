@@ -4,20 +4,16 @@ import { requireUser } from "@/lib/server/entitlement";
 
 /**
  * 接続元から推定したおおよその位置。端末の位置情報は使わない（天気にしか使わない）。
- * Cloudflare Workers では request.cf に入っている。Vercel では x-vercel-ip-* ヘッダーに入る
- * （移行が終わるまで両方で動くようにしてある）。
+ * Cloudflare Workers では request.cf に入っている。Cloudflare の外（手元の next start）では無い。
  */
-function approximateLocation(request: Request): { lat: string | null; lon: string | null } {
+function approximateLocation(): { lat: string | null; lon: string | null } {
   try {
     const cf = getCloudflareContext().cf as { latitude?: string; longitude?: string } | undefined;
     if (cf?.latitude && cf?.longitude) return { lat: cf.latitude, lon: cf.longitude };
   } catch {
-    // Cloudflare の外（Vercel・手元の next start）
+    // Cloudflare の外（手元の next start）
   }
-  return {
-    lat: request.headers.get("x-vercel-ip-latitude"),
-    lon: request.headers.get("x-vercel-ip-longitude"),
-  };
+  return { lat: null, lon: null };
 }
 
 export async function GET(request: Request) {
@@ -26,7 +22,7 @@ export async function GET(request: Request) {
   if (denied) return denied;
 
   const { searchParams } = new URL(request.url);
-  const approx = approximateLocation(request);
+  const approx = approximateLocation();
   const lat = searchParams.get("lat") ?? approx.lat;
   const lon = searchParams.get("lon") ?? approx.lon;
 

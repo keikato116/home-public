@@ -21,7 +21,7 @@ Supabase  subscriptions テーブル  ← 課金状態の唯一の正
 アプリ（タブの出し分け）／ RLS（書き込み制限）／ API（402 を返す）
 ```
 
-**なぜクライアントの判定を信用しないか**: WebView が読むのは Vercel 上の Web アプリなので、
+**なぜクライアントの判定を信用しないか**: WebView が読むのは Cloudflare 上の Web アプリなので、
 ブラウザからも同じ Supabase を叩ける。「購入済みかどうか」をクライアントが決めると、
 DevTools から自由に有料機能を使えてしまう。判定は必ず `household_entitled()`（DB 側）で行う。
 
@@ -125,7 +125,7 @@ webhook を取りこぼした場合と、運営の付与が期限切れになっ
 1. Supabase で新規プロジェクトを作る
 2. そのプロジェクトの SQL Editor で `supabase/schema.sql` を実行する
 3. 続けて下のマイグレーションを順に実行する
-4. 公開版の Vercel プロジェクトに、新しいプロジェクトの URL とキーを設定する
+4. 公開版のホスト（今は Cloudflare。`docs/cloudflare.md`）に、新しいプロジェクトの URL とキーを設定する
 5. 個人用のプロジェクトから公開版のルールを外す
    → `supabase/rollback/2026-09-11_revert_public_edition.sql`
    （公開版のプロジェクトでは絶対に流さないこと）
@@ -154,7 +154,7 @@ SQL Editor には**ファイルの中身**を貼る。ファイルのパスを�
    1. 4・5・6 を流す
    2. 自分・相手・審査用アカウントに `grant_premium()` で付与する（2人とも）
    3. 7 を流す
-   4. Vercel に `NEXT_PUBLIC_BILLING_ENABLED=true` を入れて再デプロイ
+   4. `NEXT_PUBLIC_BILLING_ENABLED=true` を入れて再デプロイ（今は `wrangler.jsonc` の `vars` に入っている）
 
    逆にすると、付与していない人が保存できなくなる。フラグを先に入れると、
    相手より先に付与された人のアプリが、まだ付与されていない相手を自動退出させる。
@@ -271,9 +271,10 @@ user_id 単位で上書きするので、その人が一度購入して解約す
    webhook が届かなかったときや、アカウントを作り直して「購入を復元」したときに、
    サーバーが RevenueCat に直接問い合わせて `subscriptions` を直す（`/api/subscription/sync`）
 
-### 4. Vercel
+### 4. Cloudflare
 
-環境変数に `NEXT_PUBLIC_REVENUECAT_IOS_API_KEY` と `REVENUECAT_WEBHOOK_SECRET` を追加して再デプロイ。
+`NEXT_PUBLIC_REVENUECAT_IOS_API_KEY`（ビルド時の変数）と `REVENUECAT_WEBHOOK_SECRET`（Secret）を追加して再デプロイ。
+置き場所は `docs/cloudflare.md` の表に従う。
 
 ### 5. Xcode
 
